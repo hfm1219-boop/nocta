@@ -10,6 +10,7 @@ import { cotizarProducto } from "@/lib/mercado";
 import {
   descargarPlantillaMenu, leerPlantillaMenu, type ResultadoMenuExcel,
 } from "@/lib/menu-excel";
+import { CodigoQRMesa } from "@/components/qr-mesa";
 
 // Paleta categórica validada (dataviz, modo oscuro sobre #100e1c)
 const COLOR_MEDIO: Record<MedioPago, string> = {
@@ -688,7 +689,11 @@ function Zonas({ db }: { db: DB }) {
       </p>
       {db.zonas.map((z) => (
         <div key={z.id} className="card px-4 py-3 flex items-center gap-4">
-          <QRFalso id={z.id} />
+          {z.tipo === "zona" ? (
+            <QRFalso id={z.id} />
+          ) : (
+            <CodigoQRMesa mesaId={z.id} nombre={z.nombre} />
+          )}
           <div className="flex-1">
             <div className="font-semibold text-sm">
               {z.nombre}
@@ -700,9 +705,11 @@ function Zonas({ db }: { db: DB }) {
               </div>
             )}
           </div>
-          <button className="text-xs text-neon3 border border-line rounded-full px-3 py-1.5">
-            🖨 Imprimir QR
-          </button>
+          {z.tipo === "zona" && (
+            <button className="text-xs text-neon3 border border-line rounded-full px-3 py-1.5">
+              🖨 Imprimir QR
+            </button>
+          )}
           <button
             onClick={() =>
               guardarDB((d) => {

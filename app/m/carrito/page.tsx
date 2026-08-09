@@ -10,6 +10,8 @@ import {
   cantidadTotal, descuentoVolumen, POLITICAS_PREORDEN, porcentajeDescuentoVolumen,
   siguienteNivel, VERSION_POLITICAS_PREORDEN,
 } from "@/lib/preorden";
+import { EscanerMesa } from "@/components/qr-mesa";
+import { MapaZonas } from "@/components/mapa-zonas";
 
 const PROPINAS = [0, 5, 10];
 
@@ -34,6 +36,7 @@ export default function Checkout() {
   const [pagando, setPagando] = useState(false);
   const [politicasAbiertas, setPoliticasAbiertas] = useState(false);
   const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
+  const [escaneandoMesa, setEscaneandoMesa] = useState(false);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
 
   const subtotal = totalCarrito(items);
@@ -68,9 +71,6 @@ export default function Checkout() {
 
   if (!db || !config) return null;
 
-  const zonas = db.zonas.filter((z) =>
-    modo === "zona" ? z.tipo === "zona" && z.entregable : modo === "mesa" ? z.tipo !== "zona" : false,
-  );
   const necesitaZona = modo !== "barra";
   const superaTope = total > config.topeContraEntrega;
   const programadoPara = fechaLlegada ? new Date(fechaLlegada).getTime() : 0;
@@ -292,23 +292,40 @@ export default function Checkout() {
 
       {!esPreorden && necesitaZona && (
         <section>
-          <h2 className="font-semibold mb-2">{modo === "zona" ? "Tu zona" : "Tu mesa"}</h2>
-          <div className="grid grid-cols-2 gap-2">
-            {zonas.map((z) => (
-              <button
-                key={z.id}
-                onClick={() => setZonaId(z.id)}
-                className={`card py-3 px-2 text-sm transition ${
-                  zonaId === z.id ? "chip-active font-semibold" : "text-muted"
-                }`}
-              >
-                {z.nombre}
-                {z.consumoMinimo && (
-                  <div className="text-[10px]">Consumo mín. {cop(z.consumoMinimo)}</div>
-                )}
-              </button>
-            ))}
-          </div>
+          <h2 className="font-semibold mb-2">{modo === "zona" ? "¿En qué zona estás?" : "Identifica tu mesa"}</h2>
+          {modo === "zona" ? (
+            <MapaZonas zonas={db.zonas.filter((zona) => zona.tipo === "zona")} seleccionada={zonaId} onSeleccionar={setZonaId} />
+          ) : (
+            <div className="card p-4 space-y-3 border-neon3/35">
+              {zonaSel ? (
+                <div className="flex items-center gap-3">
+                  <span className="w-12 h-12 rounded-xl bg-lime/10 flex items-center justify-center text-2xl">✓</span>
+                  <div className="flex-1">
+                    <p className="text-xs text-muted">QR validado</p>
+                    <p className="font-bold text-lime">{zonaSel.nombre}</p>
+                    {zonaSel.consumoMinimo && (
+                      <p className="text-xs text-amber">Consumo mínimo {cop(zonaSel.consumoMinimo)}</p>
+                    )}
+                  </div>
+                  <button onClick={() => setEscaneandoMesa(true)} className="text-xs text-neon3">Cambiar</button>
+                </div>
+              ) : (
+                <>
+                  <div className="text-center py-2">
+                    <div className="text-4xl">▦</div>
+                    <p className="font-semibold mt-2">Escanea el QR ubicado en la mesa</p>
+                    <p className="text-xs text-muted mt-1">Así sabremos exactamente dónde entregar tu pedido.</p>
+                  </div>
+                  <button
+                    onClick={() => setEscaneandoMesa(true)}
+                    className="btn-neon w-full rounded-full py-3 font-semibold text-white"
+                  >
+                    Abrir cámara y escanear
+                  </button>
+                </>
+              )}
+            </div>
+          )}
           {zonaSel?.consumoMinimo && (
             <div className="card p-3 mt-2 text-xs border-amber/40">
               <div className="flex justify-between text-muted">
@@ -330,6 +347,21 @@ export default function Checkout() {
             </div>
           )}
         </section>
+      )}
+
+      {escaneandoMesa && (
+        <EscanerMesa
+          onCerrar={() => setEscaneandoMesa(false)}
+          onDetectar={(mesaId) => {
+            const mesa = db.zonas.find(
+              (zona) => zona.id === mesaId && zona.tipo !== "zona" && zona.entregable,
+            );
+            if (!mesa) return false;
+            setZonaId(mesa.id);
+            setEscaneandoMesa(false);
+            return true;
+          }}
+        />
       )}
 
       <section>
