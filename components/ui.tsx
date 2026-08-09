@@ -80,10 +80,17 @@ export function Precio({ valor, className = "" }: { valor: number; className?: s
   return <span className={`font-bold text-neon2 ${className}`}>{cop(valor)}</span>;
 }
 
-export function VolverStaff() {
+export function VolverMenuRoles({ compacto = false }: { compacto?: boolean }) {
   return (
-    <Link href="/" className="text-muted text-sm hover:text-foreground transition">
-      ← Inicio
+    <Link
+      href="/"
+      aria-label="Volver al menú de roles"
+      className={`inline-flex items-center justify-center rounded-full border border-line text-muted hover:text-foreground hover:border-neon2/60 transition ${
+        compacto ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
+      }`}
+    >
+      <span className="sm:hidden">← Roles</span>
+      <span className="hidden sm:inline">← Cambiar rol</span>
     </Link>
   );
 }
@@ -106,7 +113,7 @@ export function EncabezadoStaff({
       </div>
       <div className="flex items-center gap-3 shrink-0">
         {extra}
-        <VolverStaff />
+        <VolverMenuRoles compacto />
       </div>
     </header>
   );

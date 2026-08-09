@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCarrito, totalCarrito } from "@/lib/cart";
 import { cop, useDB, tokenCliente } from "@/lib/store";
+import { VolverMenuRoles } from "@/components/ui";
 
 export default function ClienteLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
@@ -20,6 +21,7 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
     { href: "/m", label: "Menú", icono: "🍸" },
     { href: "/m/pedidos", label: "Pedidos", icono: "🧾", badge: misActivos },
     { href: "/m/carrito", label: "Carrito", icono: "🛒", badge: enCarrito },
+    { href: "/", label: "Roles", icono: "👥" },
   ];
 
   const esFull = path.includes("/pedido/") || path.includes("/p/");
@@ -27,6 +29,12 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
   return (
     <div className="flex-1 flex flex-col max-w-md w-full mx-auto relative min-h-dvh">
       <div className={`flex-1 ${esFull ? "" : "pb-24"}`}>{children}</div>
+
+      {esFull && (
+        <div className="fixed top-4 right-4 z-40">
+          <VolverMenuRoles compacto />
+        </div>
+      )}
 
       {!esFull && (
         <>
@@ -39,7 +47,7 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
               <span className="font-bold">{cop(totalCarrito(items))}</span>
             </Link>
           )}
-          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid grid-cols-3">
+          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid grid-cols-4">
             {tabs.map((t) => {
               const activo = path === t.href;
               return (

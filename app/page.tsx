@@ -5,7 +5,8 @@ import { Logo } from "@/components/ui";
 import { resetDemo } from "@/lib/store";
 
 const ROLES = [
-  { href: "/barra", nombre: "Barra", desc: "Cola de pedidos y despacho", icono: "🍹" },
+  { href: "/m", nombre: "Cliente", desc: "Ver el menú y hacer pedidos", icono: "🍸" },
+  { href: "/barra", nombre: "Bartender", desc: "Cola de pedidos y despacho", icono: "🍹" },
   { href: "/mesero", nombre: "Mesero", desc: "Entregas por zona, PIN y cobro", icono: "🛎️" },
   { href: "/admin", nombre: "Admin del local", desc: "Menú, zonas, pagos, cierre y reportes", icono: "📊" },
   { href: "/super", nombre: "Superadmin", desc: "Locales, recaudo y métricas globales", icono: "🌐" },
@@ -23,26 +24,19 @@ export default function Landing() {
         </p>
       </div>
 
-      <Link
-        href="/m"
-        className="btn-neon rounded-full px-14 py-4 font-bold text-lg text-white active:scale-[0.98] transition"
-      >
-        Comenzar
-      </Link>
-      <p className="text-xs text-muted -mt-6">
-        Demo: simula escanear el QR de <b>Eclipse Rooftop</b>
-      </p>
-
       <section className="w-full max-w-md space-y-3">
-        <h2 className="text-sm font-semibold text-muted text-center uppercase tracking-widest">
-          Pantallas del staff (demo)
-        </h2>
+        <div className="text-center">
+          <h2 className="text-lg font-bold">Elige cómo quieres ingresar</h2>
+          <p className="text-xs text-muted mt-1">Demo de Eclipse Rooftop</p>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           {ROLES.map((r) => (
             <Link
               key={r.href}
               href={r.href}
-              className="card p-4 hover:border-neon1/60 transition space-y-1"
+              className={`card p-4 hover:border-neon1/60 transition space-y-1 ${
+                r.href === "/m" ? "col-span-2 border-neon2/40" : ""
+              }`}
             >
               <div className="text-2xl">{r.icono}</div>
               <div className="font-semibold">{r.nombre}</div>

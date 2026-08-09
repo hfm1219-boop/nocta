@@ -26,7 +26,7 @@ export default function MenuCliente() {
     <main className="px-4 pt-5 space-y-5">
       <header className="flex items-center justify-between">
         <Logo size="text-2xl" />
-        <span className="text-xs text-muted border border-line rounded-full px-3 py-1">
+        <span className="text-xs text-muted border border-line rounded-full px-3 py-1.5">
           📍 Eclipse Rooftop
         </span>
       </header>
