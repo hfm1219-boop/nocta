@@ -15,6 +15,14 @@ const listeners = new Set<() => void>();
 
 function normalizarDB(db: DB): DB {
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
+  db.config.preciosDinamicos ??= {
+    activo: false,
+    volatilidadPct: 12,
+    sensibilidadDemandaPct: 8,
+    intervaloMinutos: 5,
+    precioMinPct: 80,
+    precioMaxPct: 125,
+  };
   return db;
 }
 

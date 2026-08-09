@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useState } from "react";
 import { CATEGORIAS } from "@/lib/seed";
-import { useDB, cop } from "@/lib/store";
+import { useDB, cop, useReloj } from "@/lib/store";
 import { agregarItem } from "@/lib/cart";
 import { Logo } from "@/components/ui";
+import { cotizarProducto } from "@/lib/mercado";
 
 export default function MenuCliente() {
   const db = useDB();
+  const ahora = useReloj(10_000);
   const [cat, setCat] = useState("cocteles");
   const [busqueda, setBusqueda] = useState("");
 
@@ -56,6 +58,20 @@ export default function MenuCliente() {
         </div>
       )}
 
+      {db.config.preciosDinamicos.activo && (
+        <div className="card p-3 border-lime/40 bg-lime/5 flex items-center gap-3">
+          <span className="text-2xl">📈</span>
+          <div className="flex-1">
+            <p className="text-sm font-semibold text-lime">Mercado de precios activo</p>
+            <p className="text-[11px] text-muted">
+              Los precios cambian con la demanda cada {db.config.preciosDinamicos.intervaloMinutos} min.
+              El precio se congela al agregar el producto.
+            </p>
+          </div>
+          <span className="w-2 h-2 rounded-full bg-lime animate-pulse" />
+        </div>
+      )}
+
       <div className="card flex items-center gap-2 px-4 py-3">
         <span className="text-muted">🔍</span>
         <input
@@ -84,8 +100,12 @@ export default function MenuCliente() {
       )}
 
       <section className="space-y-3">
-        {productos.map((p) => (
-          <div
+        {productos.map((p) => {
+          const cotizacion = cotizarProducto(p, db, ahora);
+          const colorTendencia = cotizacion.tendencia === "sube"
+            ? "text-danger"
+            : cotizacion.tendencia === "baja" ? "text-lime" : "text-muted";
+          return <div
             key={p.id}
             className={`card p-3 flex items-center gap-3 ${!p.disponible ? "opacity-45" : ""}`}
           >
@@ -103,7 +123,13 @@ export default function MenuCliente() {
                 <div className="font-semibold truncate">{p.nombre}</div>
                 <div className="text-xs text-muted truncate">{p.descripcion}</div>
                 <div className="text-neon2 font-bold text-sm mt-0.5">
-                  {cop(p.precio)}
+                  {cop(cotizacion.precio)}
+                  {db.config.preciosDinamicos.activo && (
+                    <span className={`ml-2 text-[10px] ${colorTendencia}`}>
+                      {cotizacion.tendencia === "sube" ? "▲" : cotizacion.tendencia === "baja" ? "▼" : "•"}{" "}
+                      {Math.abs(cotizacion.cambioPct).toFixed(1)}%
+                    </span>
+                  )}
                   {!p.disponible && (
                     <span className="ml-2 text-danger font-semibold text-xs">AGOTADO</span>
                   )}
@@ -116,7 +142,7 @@ export default function MenuCliente() {
                   agregarItem({
                     productoId: p.id,
                     nombre: p.nombre,
-                    precioUnit: p.precio,
+                    precioUnit: cotizacion.precio,
                     cantidad: 1,
                   })
                 }
@@ -125,8 +151,8 @@ export default function MenuCliente() {
                 +
               </button>
             )}
-          </div>
-        ))}
+          </div>;
+        })}
         {productos.length === 0 && (
           <p className="text-center text-muted text-sm py-8">Sin resultados.</p>
         )}

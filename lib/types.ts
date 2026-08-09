@@ -133,6 +133,16 @@ export interface ConfigLocal {
   ventanaAbierta: boolean; // horario de servicio
   minutosVencimiento: number; // pedido pagado no retirado
   minutosNoEncontrado: number; // modo B → pasa a barra
+  preciosDinamicos: ConfigPreciosDinamicos;
+}
+
+export interface ConfigPreciosDinamicos {
+  activo: boolean;
+  volatilidadPct: number;
+  sensibilidadDemandaPct: number;
+  intervaloMinutos: number;
+  precioMinPct: number;
+  precioMaxPct: number;
 }
 
 export interface LocalResumen {

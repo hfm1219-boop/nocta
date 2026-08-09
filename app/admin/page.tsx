@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import {
-  cop, editarPrecio, guardarDB, toggleDisponible, useDB,
+  cop, editarPrecio, guardarDB, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
+import { cotizarProducto } from "@/lib/mercado";
 
 // Paleta categórica validada (dataviz, modo oscuro sobre #100e1c)
 const COLOR_MEDIO: Record<MedioPago, string> = {
@@ -22,6 +23,7 @@ const NOMBRE_MEDIO: Record<MedioPago, string> = {
 const TABS = [
   { id: "reportes", nombre: "Reportes" },
   { id: "menu", nombre: "Menú" },
+  { id: "mercado", nombre: "Bolsa de precios" },
   { id: "zonas", nombre: "Zonas y QRs" },
   { id: "pagos", nombre: "Medios de pago" },
   { id: "personal", nombre: "Personal" },
@@ -54,6 +56,7 @@ export default function Admin() {
       <main className="flex-1 p-4 max-w-5xl w-full mx-auto">
         {tab === "reportes" && <Reportes db={db} />}
         {tab === "menu" && <MenuAdmin db={db} />}
+        {tab === "mercado" && <MercadoPrecios db={db} />}
         {tab === "zonas" && <Zonas db={db} />}
         {tab === "pagos" && <Pagos db={db} />}
         {tab === "personal" && <Personal db={db} />}
@@ -256,6 +259,163 @@ function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: stri
       <p className="text-2xl font-bold mt-1">{valor}</p>
       {sub && <p className="text-[10px] text-muted mt-0.5">{sub}</p>}
     </div>
+  );
+}
+
+// ---------------- Bolsa de precios ----------------
+
+function MercadoPrecios({ db }: { db: DB }) {
+  const ahora = useReloj(10_000);
+  const config = db.config.preciosDinamicos;
+
+  function actualizar<K extends keyof typeof config>(campo: K, valor: (typeof config)[K]) {
+    guardarDB((datos) => {
+      datos.config.preciosDinamicos[campo] = valor;
+    });
+  }
+
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <section className={`card p-5 border-2 ${config.activo ? "border-lime/50" : "border-line"}`}>
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="font-bold text-lg">Mercado de precios</h2>
+              {config.activo && (
+                <span className="rounded-full px-2 py-0.5 text-[10px] font-bold bg-lime/15 text-lime">EN VIVO</span>
+              )}
+            </div>
+            <p className="text-xs text-muted mt-1 max-w-xl">
+              Ajusta los precios según la demanda reciente y una oscilación controlada. El cliente conserva el precio que agrega al carrito.
+            </p>
+          </div>
+          <Interruptor
+            activo={config.activo}
+            onCambiar={() => actualizar("activo", !config.activo)}
+          />
+        </div>
+      </section>
+
+      <section className={`card p-5 space-y-5 ${!config.activo ? "opacity-60" : ""}`}>
+        <ControlMercado
+          titulo="Volatilidad máxima"
+          descripcion="Variación máxima permitida en cada ciclo."
+          valor={config.volatilidadPct}
+          min={0}
+          max={30}
+          sufijo="%"
+          onCambiar={(valor) => actualizar("volatilidadPct", valor)}
+        />
+        <ControlMercado
+          titulo="Sensibilidad a la demanda"
+          descripcion="Peso de las ventas de la última hora sobre el precio."
+          valor={config.sensibilidadDemandaPct}
+          min={0}
+          max={30}
+          sufijo="%"
+          onCambiar={(valor) => actualizar("sensibilidadDemandaPct", valor)}
+        />
+        <ControlMercado
+          titulo="Intervalo de actualización"
+          descripcion="Frecuencia con la que se genera una nueva cotización."
+          valor={config.intervaloMinutos}
+          min={1}
+          max={30}
+          sufijo=" min"
+          onCambiar={(valor) => actualizar("intervaloMinutos", valor)}
+        />
+        <div className="grid sm:grid-cols-2 gap-4">
+          <ControlMercado
+            titulo="Piso del precio"
+            descripcion="Mínimo respecto al precio base."
+            valor={config.precioMinPct}
+            min={50}
+            max={100}
+            sufijo="%"
+            onCambiar={(valor) => actualizar("precioMinPct", valor)}
+          />
+          <ControlMercado
+            titulo="Techo del precio"
+            descripcion="Máximo respecto al precio base."
+            valor={config.precioMaxPct}
+            min={100}
+            max={200}
+            sufijo="%"
+            onCambiar={(valor) => actualizar("precioMaxPct", valor)}
+          />
+        </div>
+      </section>
+
+      <section className="space-y-3">
+        <div className="flex items-end justify-between">
+          <div>
+            <h2 className="font-bold">Tablero de cotizaciones</h2>
+            <p className="text-xs text-muted">Precio base frente al precio que ve el cliente.</p>
+          </div>
+          <span className="text-[10px] text-muted">Actualiza cada {config.intervaloMinutos} min</span>
+        </div>
+        <div className="card overflow-hidden">
+          {db.productos.map((producto) => {
+            const cotizacion = cotizarProducto(producto, db, ahora);
+            return (
+              <div key={producto.id} className="px-4 py-3 flex items-center gap-3 border-b border-line last:border-0">
+                <span className="text-xl">{producto.icono}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm truncate">{producto.nombre}</p>
+                  <p className="text-[10px] text-muted">Base {cop(producto.precio)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="font-bold text-neon2">{cop(cotizacion.precio)}</p>
+                  <p className={`text-[10px] font-semibold ${
+                    cotizacion.tendencia === "sube" ? "text-danger" :
+                    cotizacion.tendencia === "baja" ? "text-lime" : "text-muted"
+                  }`}>
+                    {cotizacion.tendencia === "sube" ? "▲" : cotizacion.tendencia === "baja" ? "▼" : "•"}{" "}
+                    {Math.abs(cotizacion.cambioPct).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function ControlMercado({
+  titulo, descripcion, valor, min, max, sufijo, onCambiar,
+}: {
+  titulo: string;
+  descripcion: string;
+  valor: number;
+  min: number;
+  max: number;
+  sufijo: string;
+  onCambiar: (valor: number) => void;
+}) {
+  return (
+    <label className="block">
+      <div className="flex justify-between gap-3">
+        <span>
+          <span className="block font-semibold text-sm">{titulo}</span>
+          <span className="block text-[11px] text-muted">{descripcion}</span>
+        </span>
+        <b className="text-neon3 whitespace-nowrap">{valor}{sufijo}</b>
+      </div>
+      <input
+        type="range"
+        value={valor}
+        min={min}
+        max={max}
+        step={1}
+        onChange={(evento) => onCambiar(Number(evento.target.value))}
+        className="w-full mt-3 accent-[var(--neon-2)]"
+      />
+      <div className="flex justify-between text-[10px] text-muted">
+        <span>{min}{sufijo}</span><span>{max}{sufijo}</span>
+      </div>
+    </label>
   );
 }
 
