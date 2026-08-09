@@ -109,6 +109,19 @@ export interface UsuarioStaff {
   activo: boolean;
 }
 
+export type EstadoCancion = "pendiente" | "sonando" | "reproducida";
+
+export interface SolicitudCancion {
+  id: string;
+  titulo: string;
+  artista?: string;
+  solicitadoPor?: string;
+  clienteToken: string;
+  estado: EstadoCancion;
+  creadoEn: number;
+  actualizadoEn: number;
+}
+
 export interface ConfigLocal {
   nombre: string;
   mediosHabilitados: Record<MedioPago, boolean>;
@@ -142,4 +155,5 @@ export interface DB {
   contador: number;
   nocheCerrada: boolean;
   efectivoDeclarado: Record<string, number>; // staffId → monto declarado en cierre
+  solicitudesCanciones: SolicitudCancion[];
 }

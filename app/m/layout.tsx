@@ -16,11 +16,15 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
       p.clienteToken === (typeof window !== "undefined" ? tokenCliente() : "") &&
       !["entregado", "anulado", "vencido"].includes(p.estado),
   ).length ?? 0;
+  const cancionesPendientes = db?.solicitudesCanciones.filter(
+    (c) => c.estado !== "reproducida",
+  ).length ?? 0;
 
   const tabs = [
     { href: "/m", label: "Menú", icono: "🍸" },
     { href: "/m/pedidos", label: "Pedidos", icono: "🧾", badge: misActivos },
     { href: "/m/carrito", label: "Carrito", icono: "🛒", badge: enCarrito },
+    { href: "/m/rockola", label: "Rockola", icono: "🎵", badge: cancionesPendientes },
     { href: "/", label: "Roles", icono: "👥" },
   ];
 
@@ -47,14 +51,14 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
               <span className="font-bold">{cop(totalCarrito(items))}</span>
             </Link>
           )}
-          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid grid-cols-4">
+          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid grid-cols-5">
             {tabs.map((t) => {
               const activo = path === t.href;
               return (
                 <Link
                   key={t.href}
                   href={t.href}
-                  className={`py-3 flex flex-col items-center gap-0.5 text-xs relative ${
+                  className={`py-3 flex flex-col items-center gap-0.5 text-[10px] sm:text-xs relative ${
                     activo ? "text-neon2 font-semibold" : "text-muted"
                   }`}
                 >

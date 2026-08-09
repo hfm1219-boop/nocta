@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { crearDBInicial, COLORES_LUZ, PATRONES } from "./seed";
 import type {
-  DB, ItemPedido, MedioPago, ModoServicio, Pedido,
+  DB, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion,
 } from "./types";
 
 const KEY = "nocta-db-v1";
@@ -12,6 +12,11 @@ const CHANNEL = "nocta-sync";
 let cache: DB | null = null;
 let canal: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
+
+function normalizarDB(db: DB): DB {
+  if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
+  return db;
+}
 
 function getCanal() {
   if (!canal && typeof window !== "undefined" && "BroadcastChannel" in window) {
@@ -29,12 +34,12 @@ function emitir() {
 }
 
 export function leerDB(): DB {
-  if (cache) return cache;
+  if (cache) return normalizarDB(cache);
   if (typeof window === "undefined") return crearDBInicial();
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      cache = JSON.parse(raw) as DB;
+      cache = normalizarDB(JSON.parse(raw) as DB);
       return cache;
     }
   } catch {
@@ -242,6 +247,39 @@ export function anularPedido(id: string, motivo: string) {
     p.timestamps["anulado"] = Date.now();
     p.notas = motivo;
     if (p.estadoPago === "pendiente") p.estadoPago = "no_pagado";
+  });
+}
+
+// ---------- Rockola ----------
+export function solicitarCancion(datos: {
+  titulo: string;
+  artista?: string;
+  solicitadoPor?: string;
+}): SolicitudCancion {
+  let creada!: SolicitudCancion;
+  guardarDB((db) => {
+    const ahora = Date.now();
+    creada = {
+      id: `song-${ahora}-${Math.random().toString(36).slice(2, 7)}`,
+      titulo: datos.titulo.trim(),
+      artista: datos.artista?.trim() || undefined,
+      solicitadoPor: datos.solicitadoPor?.trim() || undefined,
+      clienteToken: tokenCliente(),
+      estado: "pendiente",
+      creadoEn: ahora,
+      actualizadoEn: ahora,
+    };
+    db.solicitudesCanciones.push(creada);
+  });
+  return creada;
+}
+
+export function cambiarEstadoCancion(id: string, estado: EstadoCancion) {
+  guardarDB((db) => {
+    const cancion = db.solicitudesCanciones.find((item) => item.id === id);
+    if (!cancion) return;
+    cancion.estado = estado;
+    cancion.actualizadoEn = Date.now();
   });
 }
 

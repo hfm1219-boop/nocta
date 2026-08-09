@@ -220,6 +220,7 @@ export function crearDBInicial(): DB {
     contador: historico.length,
     nocheCerrada: false,
     efectivoDeclarado: {},
+    solicitudesCanciones: [],
   };
 }
 

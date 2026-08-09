@@ -8,6 +8,7 @@ const ROLES = [
   { href: "/m", nombre: "Cliente", desc: "Ver el menú y hacer pedidos", icono: "🍸" },
   { href: "/barra", nombre: "Bartender", desc: "Cola de pedidos y despacho", icono: "🍹" },
   { href: "/mesero", nombre: "Mesero", desc: "Entregas por zona, PIN y cobro", icono: "🛎️" },
+  { href: "/dj", nombre: "DJ", desc: "Rockola y solicitudes de canciones", icono: "🎧" },
   { href: "/admin", nombre: "Admin del local", desc: "Menú, zonas, pagos, cierre y reportes", icono: "📊" },
   { href: "/super", nombre: "Superadmin", desc: "Locales, recaudo y métricas globales", icono: "🌐" },
 ];
