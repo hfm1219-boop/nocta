@@ -239,6 +239,29 @@ export function noEncontrado(id: string) {
   });
 }
 
+export function cambiarZonaPedidoCliente(id: string, zonaId: string): boolean {
+  let actualizado = false;
+  guardarDB((db) => {
+    const pedido = db.pedidos.find((p) => p.id === id);
+    const zona = db.zonas.find(
+      (z) => z.id === zonaId && z.tipo === "zona" && z.entregable,
+    );
+    if (
+      !pedido ||
+      !zona ||
+      pedido.clienteToken !== tokenCliente() ||
+      pedido.modo !== "zona" ||
+      ["entregado", "vencido", "anulado"].includes(pedido.estado)
+    ) {
+      return;
+    }
+    pedido.zonaId = zona.id;
+    pedido.timestamps.zona_actualizada = Date.now();
+    actualizado = true;
+  });
+  return actualizado;
+}
+
 export function anularPedido(id: string, motivo: string) {
   guardarDB((db) => {
     const p = db.pedidos.find((x) => x.id === id);

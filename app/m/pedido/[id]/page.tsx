@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useDB, cop } from "@/lib/store";
+import { cambiarZonaPedidoCliente, useDB, cop } from "@/lib/store";
 import { ETIQUETA_MODO } from "@/components/ui";
 
 const PASOS = ["Recibido", "Preparando", "Listo", "Entregado"] as const;
@@ -23,6 +23,8 @@ export default function EstadoPedido() {
   const { id } = useParams<{ id: string }>();
   const db = useDB();
   const [luzAbierta, setLuzAbierta] = useState(false);
+  const [cambiandoZona, setCambiandoZona] = useState(false);
+  const [zonaConfirmada, setZonaConfirmada] = useState(false);
 
   if (!db) return null;
   const p = db.pedidos.find((x) => x.id === id);
@@ -30,6 +32,11 @@ export default function EstadoPedido() {
 
   const paso = pasoActual(p.estado);
   const terminal = ["vencido", "anulado"].includes(p.estado);
+  const puedeCambiarZona = p.modo === "zona" && !["entregado", "vencido", "anulado"].includes(p.estado);
+  const zonaActual = db.zonas.find((zona) => zona.id === p.zonaId);
+  const zonasDisponibles = db.zonas.filter(
+    (zona) => zona.tipo === "zona" && zona.entregable,
+  );
 
   if (luzAbierta && p.estado === "en_camino" && p.color) {
     return (
@@ -69,6 +76,57 @@ export default function EstadoPedido() {
             })}
           </p>
           <p className="text-xs text-muted mt-1">Te avisaremos cuando esté listo en barra express.</p>
+        </section>
+      )}
+
+      {puedeCambiarZona && (
+        <section className="card p-4 border-neon3/35 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-muted">Zona de entrega actual</p>
+              <p className="font-bold text-neon3">📍 {zonaActual?.nombre ?? "Sin zona"}</p>
+            </div>
+            <button
+              onClick={() => {
+                setCambiandoZona((abierto) => !abierto);
+                setZonaConfirmada(false);
+              }}
+              className="rounded-full px-4 py-2 text-sm font-semibold border border-neon3/50 text-neon3"
+            >
+              Cambiar zona
+            </button>
+          </div>
+          {p.estado === "en_camino" && (
+            <p className="text-xs text-amber">
+              Tu pedido ya va en camino. El mesero recibirá la nueva ubicación inmediatamente.
+            </p>
+          )}
+          {cambiandoZona && (
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              {zonasDisponibles.map((zona) => (
+                <button
+                  key={zona.id}
+                  onClick={() => {
+                    if (cambiarZonaPedidoCliente(p.id, zona.id)) {
+                      setCambiandoZona(false);
+                      setZonaConfirmada(true);
+                    }
+                  }}
+                  disabled={zona.id === p.zonaId}
+                  className={`rounded-xl px-3 py-3 text-sm border transition ${
+                    zona.id === p.zonaId
+                      ? "border-neon3 bg-neon3/10 text-neon3 font-semibold"
+                      : "border-line text-muted hover:text-foreground"
+                  }`}
+                >
+                  {zona.nombre}
+                </button>
+              ))}
+            </div>
+          )}
+          {zonaConfirmada && (
+            <p className="text-xs text-lime font-semibold">✓ Zona actualizada para el personal.</p>
+          )}
         </section>
       )}
 
