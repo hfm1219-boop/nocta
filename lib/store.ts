@@ -121,11 +121,17 @@ export function crearPedido(datos: {
   medioPago: MedioPago;
   propina: number;
   telefono?: string;
+  tipo?: "inmediato" | "preorden";
+  programadoPara?: number;
+  descuento?: number;
+  descuentoPct?: number;
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
     db.contador += 1;
     const subtotal = datos.items.reduce((s, i) => s + i.precioUnit * i.cantidad, 0);
+    const descuento = datos.descuento ?? 0;
+    const total = subtotal - descuento + datos.propina;
     const anticipado = datos.medioPago === "digital";
     creado = {
       id: `p-${Date.now()}-${db.contador}`,
@@ -135,8 +141,10 @@ export function crearPedido(datos: {
       zonaId: datos.zonaId,
       items: datos.items,
       subtotal,
+      descuento,
+      descuentoPct: datos.descuentoPct,
       propina: datos.propina,
-      total: subtotal + datos.propina,
+      total,
       medioPago: datos.medioPago,
       estadoPago: anticipado ? "pagado" : "pendiente",
       estado: "nuevo",
@@ -145,9 +153,11 @@ export function crearPedido(datos: {
       telefono: datos.telefono,
       timestamps: { nuevo: Date.now() },
       creadoEn: Date.now(),
+      tipo: datos.tipo ?? "inmediato",
+      programadoPara: datos.programadoPara,
       cobro: anticipado
         ? {
-            medio: "digital", monto: subtotal + datos.propina,
+            medio: "digital", monto: total,
             referencia: `TX-${Math.floor(100000 + Math.random() * 899999)}`,
             ts: Date.now(),
           }

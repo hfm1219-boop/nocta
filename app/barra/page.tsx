@@ -46,9 +46,12 @@ export default function Barra() {
   const cola = useMemo(() => {
     if (!db) return [];
     return db.pedidos
-      .filter((p) => ["nuevo", "preparando", "listo"].includes(p.estado))
-      .sort((a, b) => a.creadoEn - b.creadoEn);
-  }, [db]);
+      .filter((p) =>
+        ["nuevo", "preparando", "listo"].includes(p.estado) &&
+        (p.tipo !== "preorden" || !p.programadoPara || p.programadoPara <= ahora + 60 * 60_000),
+      )
+      .sort((a, b) => (a.programadoPara ?? a.creadoEn) - (b.programadoPara ?? b.creadoEn));
+  }, [ahora, db]);
 
   const lote = useMemo(() => {
     const agg = new Map<string, number>();
@@ -143,7 +146,8 @@ export default function Barra() {
         {cola.map((p) => {
           const demorado =
             ahora > 0 &&
-            ahora - p.creadoEn > DEMORADO_MIN * 60_000 &&
+            ahora - (p.tipo === "preorden" && p.programadoPara ? p.programadoPara : p.creadoEn) >
+              DEMORADO_MIN * 60_000 &&
             p.estado !== "listo";
           return (
             <div
@@ -153,12 +157,27 @@ export default function Barra() {
               <div className="flex items-center justify-between">
                 <span className="text-3xl font-bold wordmark">#{p.numero}</span>
                 <div className="text-right">
-                  <div className={`font-mono text-sm ${demorado ? "text-danger font-bold" : "text-muted"}`}>
-                    ⏱ {mmss(p.creadoEn, ahora)}
-                  </div>
+                  {p.tipo === "preorden" && p.programadoPara && ahora < p.programadoPara ? (
+                    <div className="text-xs text-neon3 font-semibold">Programado</div>
+                  ) : (
+                    <div className={`font-mono text-sm ${demorado ? "text-danger font-bold" : "text-muted"}`}>
+                      ⏱ {mmss(p.tipo === "preorden" && p.programadoPara ? p.programadoPara : p.creadoEn, ahora)}
+                    </div>
+                  )}
                   <div className="text-[10px] text-muted">{ETIQUETA_MODO[p.modo]}</div>
                 </div>
               </div>
+
+              {p.tipo === "preorden" && p.programadoPara && (
+                <div className="rounded-lg bg-neon3/10 border border-neon3/30 px-3 py-2 text-xs">
+                  <b className="text-neon3">🗓️ PREORDEN</b>
+                  <span className="text-muted ml-2">
+                    Llegada {new Date(p.programadoPara).toLocaleString("es-CO", {
+                      day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit",
+                    })}
+                  </span>
+                </div>
+              )}
 
               <div className="text-sm space-y-0.5">
                 {p.items.map((i, idx) => (

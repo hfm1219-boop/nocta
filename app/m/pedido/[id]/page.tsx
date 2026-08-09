@@ -47,12 +47,30 @@ export default function EstadoPedido() {
   return (
     <main className="px-4 pt-6 pb-10 space-y-6 max-w-md mx-auto">
       <header className="text-center space-y-1">
+        {p.tipo === "preorden" && (
+          <span className="inline-block rounded-full px-3 py-1 text-xs font-bold bg-neon3/15 text-neon3 border border-neon3/30">
+            🗓️ PREORDEN
+          </span>
+        )}
         <p className="text-muted text-sm">{ETIQUETA_MODO[p.modo]}</p>
         <h1 className="text-6xl font-bold wordmark">#{p.numero}</h1>
         <p className="text-muted text-sm">
           Guarda este link: aquí consultas tu pedido aunque pierdas conexión.
         </p>
       </header>
+
+      {p.tipo === "preorden" && p.programadoPara && (
+        <section className="card p-4 border-neon3/40 text-center">
+          <p className="text-xs text-muted">Programado para recoger</p>
+          <p className="text-lg font-bold text-neon3 mt-1">
+            {new Date(p.programadoPara).toLocaleString("es-CO", {
+              weekday: "long", day: "numeric", month: "long",
+              hour: "2-digit", minute: "2-digit",
+            })}
+          </p>
+          <p className="text-xs text-muted mt-1">Te avisaremos cuando esté listo en barra express.</p>
+        </section>
+      )}
 
       {terminal ? (
         <div className="card p-5 border-danger/50 text-center space-y-2">
@@ -103,7 +121,11 @@ export default function EstadoPedido() {
           </div>
 
           <div className="mt-5 text-center text-sm text-muted">
-            {p.estado === "nuevo" && "Tu pedido entró a la cola de la barra."}
+            {p.estado === "nuevo" && (
+              p.tipo === "preorden"
+                ? "Tu preorden está confirmada. La barra la preparará para tu llegada."
+                : "Tu pedido entró a la cola de la barra."
+            )}
             {p.estado === "preparando" && "La barra está preparando tu pedido. 🍹"}
             {p.estado === "listo" && p.modo !== "zona" && (
               <span className="text-lime font-semibold text-base">
@@ -170,6 +192,12 @@ export default function EstadoPedido() {
           <div className="flex justify-between text-muted">
             <span>Propina</span>
             <span>{cop(p.propina)}</span>
+          </div>
+        )}
+        {!!p.descuento && (
+          <div className="flex justify-between text-lime font-semibold">
+            <span>Descuento por volumen ({p.descuentoPct}%)</span>
+            <span>− {cop(p.descuento)}</span>
           </div>
         )}
         <div className="flex justify-between font-bold border-t border-line pt-2">

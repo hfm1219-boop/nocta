@@ -3,27 +3,44 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { useCarrito, cambiarCantidad, totalCarrito, vaciarCarrito } from "@/lib/cart";
-import { useDB, cop, crearPedido } from "@/lib/store";
+import { useDB, cop, crearPedido, useReloj } from "@/lib/store";
 import { BotonPrimario, ETIQUETA_MEDIO, ETIQUETA_MODO } from "@/components/ui";
 import type { MedioPago, ModoServicio } from "@/lib/types";
+import {
+  cantidadTotal, descuentoVolumen, porcentajeDescuentoVolumen, siguienteNivel,
+} from "@/lib/preorden";
 
 const PROPINAS = [0, 5, 10];
+
+function fechaInputLocal(timestamp: number) {
+  const fecha = new Date(timestamp);
+  const local = new Date(timestamp - fecha.getTimezoneOffset() * 60_000);
+  return local.toISOString().slice(0, 16);
+}
 
 export default function Checkout() {
   const router = useRouter();
   const items = useCarrito();
   const db = useDB();
+  const ahora = useReloj(60_000);
   const [modo, setModo] = useState<ModoServicio>("barra");
   const [zonaId, setZonaId] = useState<string>("");
   const [propinaPct, setPropinaPct] = useState(0);
   const [medio, setMedio] = useState<MedioPago>("digital");
   const [telefono, setTelefono] = useState("");
+  const [esPreorden, setEsPreorden] = useState(false);
+  const [fechaLlegada, setFechaLlegada] = useState("");
   const [pagando, setPagando] = useState(false);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
 
   const subtotal = totalCarrito(items);
-  const propina = Math.round((subtotal * propinaPct) / 100 / 500) * 500;
-  const total = subtotal + propina;
+  const descuentoPct = esPreorden ? porcentajeDescuentoVolumen(items) : 0;
+  const descuento = esPreorden ? descuentoVolumen(items, subtotal) : 0;
+  const subtotalConDescuento = subtotal - descuento;
+  const propina = Math.round((subtotalConDescuento * propinaPct) / 100 / 500) * 500;
+  const total = subtotalConDescuento + propina;
+  const unidades = cantidadTotal(items);
+  const proximoNivel = siguienteNivel(items);
 
   const config = db?.config;
 
@@ -31,6 +48,7 @@ export default function Checkout() {
     if (!config) return [] as MedioPago[];
     const lista: MedioPago[] = [];
     if (config.mediosHabilitados.digital && config.recaudoActivo) lista.push("digital");
+    if (esPreorden) return lista;
     const superaTope = total > config.topeContraEntrega;
     if (!superaTope) {
       if (config.mediosHabilitados.efectivo && (modo !== "zona" || config.efectivoEnZona)) {
@@ -39,7 +57,7 @@ export default function Checkout() {
       if (config.mediosHabilitados.datafono) lista.push("datafono");
     }
     return lista;
-  }, [config, modo, total]);
+  }, [config, esPreorden, modo, total]);
 
   const medioValido = mediosDisponibles.includes(medio)
     ? medio
@@ -52,6 +70,9 @@ export default function Checkout() {
   );
   const necesitaZona = modo !== "barra";
   const superaTope = total > config.topeContraEntrega;
+  const programadoPara = fechaLlegada ? new Date(fechaLlegada).getTime() : 0;
+  const fechaValida = !esPreorden || (ahora > 0 && programadoPara >= ahora + 30 * 60_000);
+  const fechaMaxima = !esPreorden || (ahora > 0 && programadoPara <= ahora + 30 * 24 * 60 * 60_000);
 
   // Consumo mínimo VIP: acumulado de la mesa esta noche + este pedido
   const zonaSel = db.zonas.find((z) => z.id === zonaId);
@@ -66,6 +87,7 @@ export default function Checkout() {
   async function confirmar() {
     if (!medioValido || items.length === 0) return;
     if (necesitaZona && !zonaId) return;
+    if (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) return;
     if (enviado.current) return;
     enviado.current = true;
     setPagando(true);
@@ -78,6 +100,10 @@ export default function Checkout() {
       medioPago: medioValido,
       propina,
       telefono: telefono || undefined,
+      tipo: esPreorden ? "preorden" : "inmediato",
+      programadoPara: esPreorden ? programadoPara : undefined,
+      descuento,
+      descuentoPct,
     });
     vaciarCarrito();
     router.push(`/m/pedido/${pedido.id}`);
@@ -111,6 +137,79 @@ export default function Checkout() {
   return (
     <main className="px-4 pt-5 space-y-6 pb-10">
       <h1 className="text-2xl font-bold">Tu pedido</h1>
+
+      <section className="card p-1 grid grid-cols-2">
+        <button
+          onClick={() => setEsPreorden(false)}
+          className={`rounded-xl py-3 text-sm transition ${
+            !esPreorden ? "bg-neon2/15 text-neon2 font-semibold" : "text-muted"
+          }`}
+        >
+          ⚡ Pedir ahora
+        </button>
+        <button
+          onClick={() => {
+            setEsPreorden(true);
+            setModo("barra");
+            setZonaId("");
+            setMedio("digital");
+          }}
+          className={`rounded-xl py-3 text-sm transition ${
+            esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
+          }`}
+        >
+          🗓️ Preordenar
+        </button>
+      </section>
+
+      {esPreorden && (
+        <section className="card p-4 space-y-4 border-neon3/40">
+          <div>
+            <h2 className="font-semibold text-neon3">Programa tu llegada</h2>
+            <p className="text-xs text-muted mt-1">
+              Compra antes de llegar y recoge en barra express a la hora elegida.
+            </p>
+          </div>
+          <label className="block text-sm">
+            <span className="text-muted text-xs">Fecha y hora de llegada</span>
+            <input
+              type="datetime-local"
+              value={fechaLlegada}
+              min={ahora ? fechaInputLocal(ahora + 30 * 60_000) : undefined}
+              max={ahora ? fechaInputLocal(ahora + 30 * 24 * 60 * 60_000) : undefined}
+              onChange={(e) => setFechaLlegada(e.target.value)}
+              className="card w-full mt-1 px-4 py-3 bg-transparent outline-none [color-scheme:dark]"
+            />
+          </label>
+          {fechaLlegada && (!fechaValida || !fechaMaxima) && (
+            <p className="text-xs text-danger">
+              Elige una hora entre 30 minutos y 30 días desde ahora.
+            </p>
+          )}
+          <div className="bg-surface2 rounded-xl p-3 space-y-2">
+            <div className="flex justify-between text-sm">
+              <span>{unidades} unidades</span>
+              <span className={descuentoPct ? "text-lime font-bold" : "text-muted"}>
+                {descuentoPct ? `${descuentoPct}% de descuento` : "Sin descuento aún"}
+              </span>
+            </div>
+            <div className="h-2 rounded-full bg-background overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-neon3 to-lime transition-all"
+                style={{ width: `${Math.min(100, (unidades / 24) * 100)}%` }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] text-muted">
+              <span>6 uds. · 5%</span><span>12 uds. · 10%</span><span>24 uds. · 15%</span>
+            </div>
+            {proximoNivel && (
+              <p className="text-xs text-neon3">
+                Agrega {proximoNivel.cantidad - unidades} unidades más para ahorrar {proximoNivel.porcentaje}%.
+              </p>
+            )}
+          </div>
+        </section>
+      )}
 
       <section className="space-y-2">
         {items.map((i, idx) => (
@@ -146,7 +245,7 @@ export default function Checkout() {
         ))}
       </section>
 
-      <section>
+      {!esPreorden && <section>
         <h2 className="font-semibold mb-2">¿Cómo recibes tu pedido?</h2>
         <div className="grid grid-cols-3 gap-2">
           {(["barra", "zona", "mesa"] as ModoServicio[]).map((m) => (
@@ -175,9 +274,9 @@ export default function Checkout() {
             Un mesero te lo lleva. Mantén tu pantalla-luz visible para que te encuentre.
           </p>
         )}
-      </section>
+      </section>}
 
-      {necesitaZona && (
+      {!esPreorden && necesitaZona && (
         <section>
           <h2 className="font-semibold mb-2">{modo === "zona" ? "Tu zona" : "Tu mesa"}</h2>
           <div className="grid grid-cols-2 gap-2">
@@ -295,6 +394,12 @@ export default function Checkout() {
           <span>Subtotal</span>
           <span>{cop(subtotal)}</span>
         </div>
+        {descuento > 0 && (
+          <div className="flex justify-between text-lime font-semibold">
+            <span>Descuento por volumen ({descuentoPct}%)</span>
+            <span>− {cop(descuento)}</span>
+          </div>
+        )}
         <div className="flex justify-between text-muted">
           <span>Propina</span>
           <span>{cop(propina)}</span>
@@ -313,10 +418,19 @@ export default function Checkout() {
 
       <BotonPrimario
         onClick={confirmar}
-        disabled={items.length === 0 || (necesitaZona && !zonaId) || !medioValido}
+        disabled={
+          items.length === 0 ||
+          (!esPreorden && necesitaZona && !zonaId) ||
+          (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) ||
+          !medioValido
+        }
         className="w-full text-lg"
       >
-        {medioValido === "digital" ? `Pagar ${cop(total)}` : `Pedir · pagar al recibir ${cop(total)}`}
+        {esPreorden
+          ? `Preordenar y pagar ${cop(total)}`
+          : medioValido === "digital"
+            ? `Pagar ${cop(total)}`
+            : `Pedir · pagar al recibir ${cop(total)}`}
       </BotonPrimario>
     </main>
   );

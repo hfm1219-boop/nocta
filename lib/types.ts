@@ -79,6 +79,8 @@ export interface Pedido {
   zonaId?: string;
   items: ItemPedido[];
   subtotal: number;
+  descuento?: number;
+  descuentoPct?: number;
   propina: number;
   total: number;
   medioPago: MedioPago;
@@ -94,6 +96,8 @@ export interface Pedido {
   telefono?: string;
   timestamps: Partial<Record<string, number>>; // estado → epoch ms
   creadoEn: number;
+  tipo?: "inmediato" | "preorden";
+  programadoPara?: number;
   notas?: string;
 }
 
