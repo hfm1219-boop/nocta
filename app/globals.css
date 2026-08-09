@@ -1,0 +1,106 @@
+@import "tailwindcss";
+
+:root {
+  --background: #07060d;
+  --surface: #100e1c;
+  --surface-2: #17142a;
+  --border: #262143;
+  --foreground: #f2f0fa;
+  --muted: #8d87ad;
+  --neon-1: #b644ff; /* violeta neón */
+  --neon-2: #ff2d9a; /* fucsia */
+  --neon-3: #22d3ee; /* cian */
+  --lime: #a3e635;
+  --amber: #fbbf24;
+  --danger: #ff4d5e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface2: var(--surface-2);
+  --color-line: var(--border);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-neon1: var(--neon-1);
+  --color-neon2: var(--neon-2);
+  --color-neon3: var(--neon-3);
+  --color-lime: var(--lime);
+  --color-amber: var(--amber);
+  --color-danger: var(--danger);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background:
+    radial-gradient(1200px 500px at 80% -10%, rgba(182, 68, 255, 0.14), transparent 60%),
+    radial-gradient(900px 500px at 0% 110%, rgba(255, 45, 154, 0.10), transparent 60%),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+.wordmark {
+  background: linear-gradient(100deg, var(--neon-3), var(--neon-1) 55%, var(--neon-2));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.03em;
+}
+
+.btn-neon {
+  background: linear-gradient(100deg, var(--neon-2), var(--neon-1));
+  box-shadow: 0 0 24px rgba(182, 68, 255, 0.35);
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+}
+
+.chip-active {
+  border-color: var(--neon-2) !important;
+  box-shadow: 0 0 14px rgba(255, 45, 154, 0.25);
+}
+
+/* Pantalla-luz patterns */
+@keyframes pulso {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+@keyframes destello {
+  0%, 88%, 100% { opacity: 1; }
+  92%, 96% { opacity: 0.05; }
+}
+@keyframes franjas-mov {
+  from { background-position: 0 0; }
+  to { background-position: 120px 0; }
+}
+.pat-solido { }
+.pat-pulso { animation: pulso 1.2s ease-in-out infinite; }
+.pat-destello { animation: destello 1.6s linear infinite; }
+.pat-franjas {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(0, 0, 0, 0.55) 0 30px,
+    transparent 30px 60px
+  ) !important;
+  background-size: 120px 120px;
+  animation: franjas-mov 1.4s linear infinite;
+}
+
+@keyframes alerta-borde {
+  0%, 100% { border-color: var(--danger); box-shadow: 0 0 0 rgba(255,77,94,0); }
+  50% { border-color: var(--danger); box-shadow: 0 0 18px rgba(255,77,94,0.45); }
+}
+.alerta-demorado { animation: alerta-borde 1s ease-in-out infinite; }
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 8px; }

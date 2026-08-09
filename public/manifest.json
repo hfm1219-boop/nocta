@@ -1,0 +1,17 @@
+{
+  "name": "Nocta — Pide sin filas",
+  "short_name": "Nocta",
+  "description": "Pide tus bebidas desde tu teléfono, sin filas y sin descargar nada.",
+  "start_url": "/m",
+  "display": "standalone",
+  "background_color": "#07060d",
+  "theme_color": "#07060d",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
