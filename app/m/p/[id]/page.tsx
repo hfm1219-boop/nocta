@@ -49,13 +49,17 @@ export default function DetalleProducto() {
 
       <div className="flex-1 px-5 pb-32 space-y-5">
         <div
-          className="mx-auto mt-4 w-44 h-44 rounded-[2rem] flex items-center justify-center text-8xl"
-          style={{
-            background: `radial-gradient(circle at 40% 30%, ${p.color}33, transparent 70%)`,
-            boxShadow: `0 0 80px ${p.color}44`,
-          }}
+          role={p.imagenUrl ? "img" : undefined}
+          aria-label={p.imagenUrl ? p.nombre : undefined}
+          className="mx-auto mt-4 w-44 h-44 rounded-[2rem] flex items-center justify-center text-8xl bg-center bg-cover"
+          style={p.imagenUrl
+            ? { backgroundImage: `url(${p.imagenUrl})`, boxShadow: `0 0 80px ${p.color}44` }
+            : {
+                background: `radial-gradient(circle at 40% 30%, ${p.color}33, transparent 70%)`,
+                boxShadow: `0 0 80px ${p.color}44`,
+              }}
         >
-          {p.icono}
+          {!p.imagenUrl && p.icono}
         </div>
 
         <div>

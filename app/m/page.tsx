@@ -114,10 +114,14 @@ export default function MenuCliente() {
               className="flex items-center gap-3 flex-1 min-w-0"
             >
               <div
-                className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0"
-                style={{ background: `${p.color}22`, boxShadow: `inset 0 0 0 1px ${p.color}44` }}
+                role={p.imagenUrl ? "img" : undefined}
+                aria-label={p.imagenUrl ? p.nombre : undefined}
+                className="w-14 h-14 rounded-xl flex items-center justify-center text-2xl shrink-0 bg-center bg-cover"
+                style={p.imagenUrl
+                  ? { backgroundImage: `url(${p.imagenUrl})`, boxShadow: `inset 0 0 0 1px ${p.color}44` }
+                  : { background: `${p.color}22`, boxShadow: `inset 0 0 0 1px ${p.color}44` }}
               >
-                {p.icono}
+                {!p.imagenUrl && p.icono}
               </div>
               <div className="min-w-0">
                 <div className="font-semibold truncate">{p.nombre}</div>

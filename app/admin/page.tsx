@@ -1,12 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   cop, editarPrecio, guardarDB, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
 import { cotizarProducto } from "@/lib/mercado";
+import {
+  descargarPlantillaMenu, leerPlantillaMenu, type ResultadoMenuExcel,
+} from "@/lib/menu-excel";
 
 // Paleta categórica validada (dataviz, modo oscuro sobre #100e1c)
 const COLOR_MEDIO: Record<MedioPago, string> = {
@@ -424,9 +427,179 @@ function ControlMercado({
 function MenuAdmin({ db }: { db: DB }) {
   const [editando, setEditando] = useState<string | null>(null);
   const [precio, setPrecio] = useState("");
+  const [procesandoExcel, setProcesandoExcel] = useState(false);
+  const [resultadoExcel, setResultadoExcel] = useState<ResultadoMenuExcel | null>(null);
+  const [mensajeExcel, setMensajeExcel] = useState("");
+  const archivoExcel = useRef<HTMLInputElement>(null);
+
+  async function cargarExcel(archivo: File) {
+    setProcesandoExcel(true);
+    setMensajeExcel("");
+    try {
+      const resultado = await leerPlantillaMenu(archivo);
+      const errores = [...resultado.errores];
+      if (resultado.tipo === "precios") {
+        resultado.filas.forEach((fila) => {
+          if (!db.productos.some((producto) => producto.id === fila.id)) {
+            errores.push(`Fila ${fila.fila}: el producto con ID “${fila.id}” no existe.`);
+          }
+        });
+      } else {
+        resultado.filas.forEach((fila) => {
+          if (db.productos.some((producto) => producto.id === fila.id)) {
+            errores.push(`Fila ${fila.fila}: el ID “${fila.id}” ya existe. Usa la plantilla de precios para actualizarlo.`);
+          }
+        });
+      }
+      setResultadoExcel({ ...resultado, errores });
+    } catch {
+      setResultadoExcel({
+        tipo: "productos",
+        filas: [],
+        errores: ["No fue posible leer el archivo. Verifica que sea una plantilla .xlsx de Nocta."],
+      });
+    } finally {
+      setProcesandoExcel(false);
+    }
+  }
+
+  function aplicarExcel() {
+    if (!resultadoExcel || resultadoExcel.errores.length || !resultadoExcel.filas.length) return;
+    guardarDB((datos) => {
+      if (resultadoExcel.tipo === "precios") {
+        resultadoExcel.filas.forEach((fila) => {
+          const producto = datos.productos.find((item) => item.id === fila.id);
+          if (!producto) return;
+          producto.precio = fila.precio;
+          producto.disponible = fila.disponible;
+        });
+      } else {
+        resultadoExcel.filas.forEach((fila) => {
+          datos.productos.push({
+            id: fila.id,
+            nombre: fila.nombre,
+            categoria: fila.categoria,
+            descripcion: fila.descripcion,
+            precio: fila.precio,
+            disponible: fila.disponible,
+            icono: fila.icono,
+            color: fila.color,
+            imagenUrl: fila.imagenUrl || undefined,
+          });
+        });
+      }
+    });
+    setMensajeExcel(
+      resultadoExcel.tipo === "precios"
+        ? `Se actualizaron ${resultadoExcel.filas.length} productos.`
+        : `Se crearon ${resultadoExcel.filas.length} productos nuevos.`,
+    );
+    setResultadoExcel(null);
+    if (archivoExcel.current) archivoExcel.current.value = "";
+  }
 
   return (
     <div className="space-y-3">
+      <section className="card p-4 space-y-4 border-neon1/35">
+        <div>
+          <h2 className="font-bold">Administrar menú con Excel</h2>
+          <p className="text-xs text-muted mt-1">
+            Usa la plantilla correcta para cada operación. La carga se valida antes de modificar el menú.
+          </p>
+        </div>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <button
+            onClick={() => void descargarPlantillaMenu(db.productos, "precios")}
+            className="rounded-xl border border-neon2/50 bg-neon2/5 p-4 text-left hover:bg-neon2/10 transition"
+          >
+            <span className="text-2xl">📉</span>
+            <span className="block font-semibold text-neon2 mt-2">Actualizar precios</span>
+            <span className="block text-xs text-muted mt-1">
+              Descarga el catálogo actual. Edita únicamente precio y disponibilidad.
+            </span>
+          </button>
+          <button
+            onClick={() => void descargarPlantillaMenu(db.productos, "productos")}
+            className="rounded-xl border border-neon3/50 bg-neon3/5 p-4 text-left hover:bg-neon3/10 transition"
+          >
+            <span className="text-2xl">🖼️</span>
+            <span className="block font-semibold text-neon3 mt-2">Crear productos</span>
+            <span className="block text-xs text-muted mt-1">
+              Plantilla vacía con foto, descripción, categoría, ícono, color y precio.
+            </span>
+          </button>
+        </div>
+        <input
+          ref={archivoExcel}
+          type="file"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          onChange={(evento) => {
+            const archivo = evento.target.files?.[0];
+            if (archivo) void cargarExcel(archivo);
+          }}
+          className="hidden"
+        />
+        <button
+          onClick={() => archivoExcel.current?.click()}
+          disabled={procesandoExcel}
+          className="w-full rounded-full py-3 font-semibold border border-line text-foreground hover:border-neon1/60 disabled:opacity-40"
+        >
+          {procesandoExcel ? "Leyendo y validando…" : "⬆ Cargar plantilla Excel"}
+        </button>
+        {mensajeExcel && <p className="text-sm text-lime font-semibold">✓ {mensajeExcel}</p>}
+      </section>
+
+      {resultadoExcel && (
+        <section className={`card p-4 space-y-3 ${resultadoExcel.errores.length ? "border-danger/50" : "border-lime/50"}`}>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="font-bold">Vista previa de importación</h3>
+              <p className="text-xs text-muted mt-1">
+                Plantilla detectada: <b className="text-foreground">
+                  {resultadoExcel.tipo === "precios" ? "actualización de precios" : "creación de productos"}
+                </b> · {resultadoExcel.filas.length} filas leídas
+              </p>
+            </div>
+            <button onClick={() => setResultadoExcel(null)} className="text-muted text-xl">×</button>
+          </div>
+          {resultadoExcel.errores.length > 0 ? (
+            <div className="rounded-xl bg-danger/10 p-3 text-sm text-danger space-y-1 max-h-44 overflow-y-auto">
+              {resultadoExcel.errores.map((error, indice) => <p key={indice}>• {error}</p>)}
+            </div>
+          ) : (
+            <div className="rounded-xl bg-lime/10 p-3 text-sm text-lime">
+              ✓ Archivo válido. Ningún cambio se aplicará hasta confirmar.
+            </div>
+          )}
+          <div className="max-h-48 overflow-y-auto divide-y divide-line">
+            {resultadoExcel.filas.slice(0, 25).map((fila) => (
+              <div key={`${fila.fila}-${fila.id}`} className="py-2 flex items-center gap-3 text-sm">
+                {fila.imagenUrl ? (
+                  <span
+                    role="img"
+                    aria-label={fila.nombre}
+                    className="w-9 h-9 rounded-lg bg-cover bg-center shrink-0"
+                    style={{ backgroundImage: `url(${fila.imagenUrl})` }}
+                  />
+                ) : <span className="text-xl w-9 text-center">{fila.icono || "🏷️"}</span>}
+                <span className="flex-1 truncate">{fila.nombre}</span>
+                <span className="font-bold text-neon2">{cop(fila.precio)}</span>
+                <span className={fila.disponible ? "text-lime text-xs" : "text-danger text-xs"}>
+                  {fila.disponible ? "Disponible" : "Oculto"}
+                </span>
+              </div>
+            ))}
+          </div>
+          <button
+            onClick={aplicarExcel}
+            disabled={resultadoExcel.errores.length > 0 || resultadoExcel.filas.length === 0}
+            className="btn-neon w-full rounded-full py-3 font-semibold text-white disabled:opacity-40 disabled:shadow-none"
+          >
+            {resultadoExcel.tipo === "precios" ? "Aplicar cambios de precios" : "Crear productos nuevos"}
+          </button>
+        </section>
+      )}
+
       <p className="text-sm text-muted">
         Cambios en vivo: el precio se congela en cada pedido (snapshot) y el
         carrito del cliente respeta su precio por 10 minutos.

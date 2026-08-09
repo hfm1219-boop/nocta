@@ -41,6 +41,7 @@ export interface Producto {
   precio: number;
   icono: string; // emoji
   color: string; // acento de la tarjeta
+  imagenUrl?: string;
   disponible: boolean;
   tamanos?: Tamano[];
   extras?: Extra[];
