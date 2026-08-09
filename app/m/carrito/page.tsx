@@ -7,7 +7,8 @@ import { useDB, cop, crearPedido, useReloj } from "@/lib/store";
 import { BotonPrimario, ETIQUETA_MEDIO, ETIQUETA_MODO } from "@/components/ui";
 import type { MedioPago, ModoServicio } from "@/lib/types";
 import {
-  cantidadTotal, descuentoVolumen, porcentajeDescuentoVolumen, siguienteNivel,
+  cantidadTotal, descuentoVolumen, POLITICAS_PREORDEN, porcentajeDescuentoVolumen,
+  siguienteNivel, VERSION_POLITICAS_PREORDEN,
 } from "@/lib/preorden";
 
 const PROPINAS = [0, 5, 10];
@@ -31,6 +32,8 @@ export default function Checkout() {
   const [esPreorden, setEsPreorden] = useState(false);
   const [fechaLlegada, setFechaLlegada] = useState("");
   const [pagando, setPagando] = useState(false);
+  const [politicasAbiertas, setPoliticasAbiertas] = useState(false);
+  const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
 
   const subtotal = totalCarrito(items);
@@ -88,8 +91,10 @@ export default function Checkout() {
     if (!medioValido || items.length === 0) return;
     if (necesitaZona && !zonaId) return;
     if (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) return;
+    if (esPreorden && !politicasAceptadas) return;
     if (enviado.current) return;
     enviado.current = true;
+    setPoliticasAbiertas(false);
     setPagando(true);
     // Simula la confirmación del recaudo digital vía webhook (spec §8.1)
     await new Promise((r) => setTimeout(r, medioValido === "digital" ? 1600 : 400));
@@ -104,6 +109,7 @@ export default function Checkout() {
       programadoPara: esPreorden ? programadoPara : undefined,
       descuento,
       descuentoPct,
+      politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
     });
     vaciarCarrito();
     router.push(`/m/pedido/${pedido.id}`);
@@ -150,6 +156,7 @@ export default function Checkout() {
         <button
           onClick={() => {
             setEsPreorden(true);
+            setPoliticasAceptadas(false);
             setModo("barra");
             setZonaId("");
             setMedio("digital");
@@ -208,6 +215,13 @@ export default function Checkout() {
               </p>
             )}
           </div>
+          <button
+            type="button"
+            onClick={() => setPoliticasAbiertas(true)}
+            className="w-full text-left text-xs text-neon3 underline underline-offset-4"
+          >
+            Ver políticas de preorden y descuentos
+          </button>
         </section>
       )}
 
@@ -417,7 +431,14 @@ export default function Checkout() {
       </p>
 
       <BotonPrimario
-        onClick={confirmar}
+        onClick={() => {
+          if (esPreorden) {
+            setPoliticasAceptadas(false);
+            setPoliticasAbiertas(true);
+          } else {
+            void confirmar();
+          }
+        }}
         disabled={
           items.length === 0 ||
           (!esPreorden && necesitaZona && !zonaId) ||
@@ -432,6 +453,77 @@ export default function Checkout() {
             ? `Pagar ${cop(total)}`
             : `Pedir · pagar al recibir ${cop(total)}`}
       </BotonPrimario>
+
+      {politicasAbiertas && esPreorden && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="titulo-politicas"
+            className="bg-surface border border-line w-full max-w-lg max-h-[92dvh] rounded-t-3xl sm:rounded-3xl flex flex-col overflow-hidden"
+          >
+            <header className="p-5 border-b border-line flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold text-neon3">ANTES DE PAGAR</p>
+                <h2 id="titulo-politicas" className="text-xl font-bold mt-1">
+                  Políticas de preorden
+                </h2>
+                <p className="text-xs text-muted mt-1">Lee y acepta todas las condiciones.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPoliticasAbiertas(false)}
+                className="text-muted text-2xl px-2"
+                aria-label="Cerrar políticas"
+              >
+                ×
+              </button>
+            </header>
+
+            <div className="overflow-y-auto p-5 space-y-3">
+              <div className="rounded-xl p-4 bg-amber/10 border border-amber/40 text-sm">
+                <b className="text-amber">Importante:</b> llega antes de las 10:00 p. m.
+                para mantener el descuento. Si llegas después, pagas la diferencia al precio regular.
+              </div>
+              <ol className="space-y-3">
+                {POLITICAS_PREORDEN.map((politica, indice) => (
+                  <li key={politica.titulo} className="flex gap-3 text-sm">
+                    <span className="w-6 h-6 rounded-full bg-neon1/15 text-neon1 flex items-center justify-center text-xs font-bold shrink-0">
+                      {indice + 1}
+                    </span>
+                    <span>
+                      <b className="block">{politica.titulo}</b>
+                      <span className="text-muted leading-relaxed">{politica.texto}</span>
+                    </span>
+                  </li>
+                ))}
+              </ol>
+              <label className="card p-4 flex items-start gap-3 cursor-pointer border-neon2/40">
+                <input
+                  type="checkbox"
+                  checked={politicasAceptadas}
+                  onChange={(e) => setPoliticasAceptadas(e.target.checked)}
+                  className="mt-0.5 w-5 h-5 accent-[var(--neon-2)] shrink-0"
+                />
+                <span className="text-sm">
+                  He leído y acepto las políticas de preorden, incluidos los cargos por llegada tardía y la retención por inasistencia.
+                </span>
+              </label>
+            </div>
+
+            <footer className="p-4 border-t border-line bg-surface">
+              <button
+                type="button"
+                disabled={!politicasAceptadas}
+                onClick={() => void confirmar()}
+                className="btn-neon w-full rounded-full py-3.5 font-bold text-white disabled:opacity-40 disabled:shadow-none"
+              >
+                Aceptar y pagar {cop(total)}
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
     </main>
   );
 }

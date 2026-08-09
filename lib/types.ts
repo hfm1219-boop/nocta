@@ -98,6 +98,8 @@ export interface Pedido {
   creadoEn: number;
   tipo?: "inmediato" | "preorden";
   programadoPara?: number;
+  politicasPreordenVersion?: string;
+  politicasPreordenAceptadasEn?: number;
   notas?: string;
 }
 

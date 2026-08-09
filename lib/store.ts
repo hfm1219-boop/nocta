@@ -130,6 +130,8 @@ export function crearPedido(datos: {
   programadoPara?: number;
   descuento?: number;
   descuentoPct?: number;
+  politicasPreordenVersion?: string;
+  politicasPreordenAceptadasEn?: number;
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
@@ -160,6 +162,10 @@ export function crearPedido(datos: {
       creadoEn: Date.now(),
       tipo: datos.tipo ?? "inmediato",
       programadoPara: datos.programadoPara,
+      politicasPreordenVersion: datos.politicasPreordenVersion,
+      politicasPreordenAceptadasEn: datos.politicasPreordenVersion
+        ? (datos.politicasPreordenAceptadasEn ?? Date.now())
+        : undefined,
       cobro: anticipado
         ? {
             medio: "digital", monto: total,
