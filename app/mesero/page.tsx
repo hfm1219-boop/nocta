@@ -42,7 +42,7 @@ export default function Mesero() {
         const p = validando;
         setValidando(null);
         setPinIngresado("");
-        if (p.estadoPago === "pendiente") {
+        if (p.estadoPago === "pendiente" && !p.pagoAlFinal) {
           setCobrando(p);
         } else {
           avanzarPedido(p.id, "entregado");
@@ -124,7 +124,11 @@ export default function Mesero() {
               </div>
 
               <div className="flex items-center gap-2">
-                {p.estadoPago === "pendiente" ? (
+                {p.pagoAlFinal && p.estadoPago === "pendiente" ? (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-neon1/15 text-neon1">
+                    🧾 CUENTA ABIERTA
+                  </span>
+                ) : p.estadoPago === "pendiente" ? (
                   <>
                     <BadgePendienteCobro />
                     <span className="font-bold text-danger">{cop(p.total)}</span>
@@ -141,7 +145,7 @@ export default function Mesero() {
                       setValidando(p);
                       setPinIngresado("");
                       setPinError(false);
-                    } else if (p.estadoPago === "pendiente") {
+                    } else if (p.estadoPago === "pendiente" && !p.pagoAlFinal) {
                       setCobrando(p);
                     } else {
                       avanzarPedido(p.id, "entregado");
@@ -149,7 +153,11 @@ export default function Mesero() {
                   }}
                   className="flex-1 btn-neon rounded-xl py-3 font-semibold text-white active:scale-[0.98]"
                 >
-                  {esZona ? "Validar PIN" : p.estadoPago === "pendiente" ? "Cobrar y entregar" : "Entregado"}
+                  {esZona
+                    ? "Validar PIN"
+                    : p.pagoAlFinal && p.estadoPago === "pendiente"
+                      ? "Entregar · cuenta abierta"
+                      : p.estadoPago === "pendiente" ? "Cobrar y entregar" : "Entregado"}
                 </button>
                 {esZona && (
                   <button

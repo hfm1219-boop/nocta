@@ -265,7 +265,9 @@ export default function EstadoPedido() {
         <div className="flex justify-between text-xs text-muted">
           <span>Pago</span>
           <span>
-            {p.estadoPago === "pagado"
+            {p.pagoAlFinal && p.estadoPago !== "pagado"
+              ? "Cuenta abierta · pagas al final"
+              : p.estadoPago === "pagado"
               ? `Pagado ${p.cobro?.referencia ? `· ${p.cobro.referencia}` : ""}`
               : "Pagas al recibir"}
           </span>

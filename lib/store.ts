@@ -23,6 +23,7 @@ function normalizarDB(db: DB): DB {
     precioMinPct: 80,
     precioMaxPct: 125,
   };
+  db.config.pagoAlFinalActivo ??= false;
   return db;
 }
 
@@ -140,6 +141,7 @@ export function crearPedido(datos: {
   descuentoPct?: number;
   politicasPreordenVersion?: string;
   politicasPreordenAceptadasEn?: number;
+  pagoAlFinal?: boolean;
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
@@ -174,6 +176,7 @@ export function crearPedido(datos: {
       politicasPreordenAceptadasEn: datos.politicasPreordenVersion
         ? (datos.politicasPreordenAceptadasEn ?? Date.now())
         : undefined,
+      pagoAlFinal: datos.pagoAlFinal,
       cobro: anticipado
         ? {
             medio: "digital", monto: total,

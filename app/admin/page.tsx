@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import {
-  cop, editarPrecio, guardarDB, toggleDisponible, useDB, useReloj,
+  cop, editarPrecio, guardarDB, registrarCobro, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
@@ -755,6 +755,9 @@ function Interruptor({
 
 function Pagos({ db }: { db: DB }) {
   const c = db.config;
+  const cuentasAbiertas = db.pedidos.filter(
+    (pedido) => pedido.pagoAlFinal && pedido.estadoPago === "pendiente",
+  );
   const filas: { clave: MedioPago; nombre: string; nota: string }[] = [
     { clave: "digital", nombre: "Pago anticipado digital", nota: "Recaudo propio del local con webhook en tiempo real" },
     { clave: "efectivo", nombre: "Efectivo contra entrega", nota: "Riesgo del local: vueltas, no retirados, descuadre" },
@@ -762,6 +765,47 @@ function Pagos({ db }: { db: DB }) {
   ];
   return (
     <div className="space-y-4 max-w-2xl">
+      <div className={`card p-4 flex items-center justify-between ${c.pagoAlFinalActivo ? "border-neon1/50" : ""}`}>
+        <div>
+          <p className="font-semibold">Pago al final para Mesa/VIP</p>
+          <p className="text-xs text-muted mt-0.5">
+            Permite abrir una cuenta, entregar los pedidos y cobrar cuando el cliente termine su visita.
+          </p>
+        </div>
+        <Interruptor
+          activo={c.pagoAlFinalActivo}
+          onCambiar={() => guardarDB((d) => { d.config.pagoAlFinalActivo = !d.config.pagoAlFinalActivo; })}
+        />
+      </div>
+
+      {cuentasAbiertas.length > 0 && (
+        <section className="card p-4 border-amber/40 space-y-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="font-semibold text-amber">🧾 Cuentas abiertas</h2>
+              <p className="text-xs text-muted">{cuentasAbiertas.length} pedidos pendientes de pago</p>
+            </div>
+            <b className="text-amber">{cop(cuentasAbiertas.reduce((total, pedido) => total + pedido.total, 0))}</b>
+          </div>
+          {cuentasAbiertas.map((pedido) => (
+            <div key={pedido.id} className="bg-surface2 rounded-xl p-3 flex items-center gap-3">
+              <span className="font-bold wordmark">#{pedido.numero}</span>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">
+                  {db.zonas.find((zona) => zona.id === pedido.zonaId)?.nombre ?? "Mesa"}
+                </p>
+                <p className="text-xs text-muted">{cop(pedido.total)} · {pedido.estado === "entregado" ? "Entregado" : "En servicio"}</p>
+              </div>
+              <button
+                onClick={() => registrarCobro(pedido.id, "datafono", "st-admin", "CIERRE-MESA")}
+                className="rounded-full px-3 py-2 text-xs font-semibold bg-lime/15 text-lime border border-lime/40"
+              >
+                Marcar pagada
+              </button>
+            </div>
+          ))}
+        </section>
+      )}
       <div
         className={`card p-4 flex items-center justify-between ${!c.recaudoActivo ? "border-amber/50" : ""}`}
       >

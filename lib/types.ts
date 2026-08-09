@@ -101,6 +101,7 @@ export interface Pedido {
   programadoPara?: number;
   politicasPreordenVersion?: string;
   politicasPreordenAceptadasEn?: number;
+  pagoAlFinal?: boolean;
   notas?: string;
 }
 
@@ -135,6 +136,7 @@ export interface ConfigLocal {
   minutosVencimiento: number; // pedido pagado no retirado
   minutosNoEncontrado: number; // modo B → pasa a barra
   preciosDinamicos: ConfigPreciosDinamicos;
+  pagoAlFinalActivo: boolean;
 }
 
 export interface ConfigPreciosDinamicos {

@@ -37,6 +37,7 @@ export default function Checkout() {
   const [politicasAbiertas, setPoliticasAbiertas] = useState(false);
   const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
   const [escaneandoMesa, setEscaneandoMesa] = useState(false);
+  const [pagoAlFinal, setPagoAlFinal] = useState(false);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
 
   const subtotal = totalCarrito(items);
@@ -52,6 +53,7 @@ export default function Checkout() {
 
   const mediosDisponibles = useMemo(() => {
     if (!config) return [] as MedioPago[];
+    if (pagoAlFinal) return ["datafono"] as MedioPago[];
     const lista: MedioPago[] = [];
     if (config.mediosHabilitados.digital && config.recaudoActivo) lista.push("digital");
     if (esPreorden) return lista;
@@ -63,7 +65,7 @@ export default function Checkout() {
       if (config.mediosHabilitados.datafono) lista.push("datafono");
     }
     return lista;
-  }, [config, esPreorden, modo, total]);
+  }, [config, esPreorden, modo, pagoAlFinal, total]);
 
   const medioValido = mediosDisponibles.includes(medio)
     ? medio
@@ -110,6 +112,7 @@ export default function Checkout() {
       descuento,
       descuentoPct,
       politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
+      pagoAlFinal: !esPreorden && pagoAlFinal,
     });
     vaciarCarrito();
     router.push(`/m/pedido/${pedido.id}`);
@@ -160,6 +163,7 @@ export default function Checkout() {
             setModo("barra");
             setZonaId("");
             setMedio("digital");
+            setPagoAlFinal(false);
           }}
           className={`rounded-xl py-3 text-sm transition ${
             esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
@@ -268,6 +272,7 @@ export default function Checkout() {
               onClick={() => {
                 setModo(m);
                 setZonaId("");
+                if (m !== "mesa") setPagoAlFinal(false);
               }}
               className={`card py-3 px-1 text-xs transition ${
                 modo === m ? "chip-active font-semibold" : "text-muted"
@@ -349,6 +354,37 @@ export default function Checkout() {
         </section>
       )}
 
+      {!esPreorden && modo === "mesa" && config.pagoAlFinalActivo && (
+        <section className="card p-4 border-neon1/40 space-y-3">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h2 className="font-semibold">🧾 Cuenta de la mesa</h2>
+              <p className="text-xs text-muted mt-1">
+                Agrega este pedido a tu cuenta y paga todo al finalizar tu visita.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={pagoAlFinal}
+              onClick={() => setPagoAlFinal((activo) => !activo)}
+              className={`w-12 h-7 rounded-full transition relative shrink-0 ${
+                pagoAlFinal ? "bg-neon1" : "bg-surface2 border border-line"
+              }`}
+            >
+              <span className={`absolute top-1 w-5 h-5 rounded-full bg-white transition-all ${
+                pagoAlFinal ? "left-6" : "left-1"
+              }`} />
+            </button>
+          </div>
+          {pagoAlFinal && (
+            <p className="rounded-xl bg-neon1/10 p-3 text-xs text-neon3">
+              Tu pedido se preparará ahora y quedará como cuenta pendiente de esta mesa.
+            </p>
+          )}
+        </section>
+      )}
+
       {escaneandoMesa && (
         <EscanerMesa
           onCerrar={() => setEscaneandoMesa(false)}
@@ -383,6 +419,15 @@ export default function Checkout() {
 
       <section>
         <h2 className="font-semibold mb-2">Medio de pago</h2>
+        {pagoAlFinal ? (
+          <div className="card p-4 border-lime/40 flex items-center gap-3">
+            <span className="text-2xl">🧾</span>
+            <div>
+              <p className="font-semibold text-lime">Pago al final</p>
+              <p className="text-xs text-muted">El personal cerrará la cuenta cuando termines tu visita.</p>
+            </div>
+          </div>
+        ) : <>
         {superaTope && (
           <p className="text-xs text-amber mb-2">
             Por el valor del pedido (más de {cop(config.topeContraEntrega)}), este local
@@ -422,6 +467,7 @@ export default function Checkout() {
             </button>
           ))}
         </div>
+        </>}
       </section>
 
       <section>
@@ -481,6 +527,8 @@ export default function Checkout() {
       >
         {esPreorden
           ? `Preordenar y pagar ${cop(total)}`
+          : pagoAlFinal
+            ? `Confirmar pedido · pagar al final ${cop(total)}`
           : medioValido === "digital"
             ? `Pagar ${cop(total)}`
             : `Pedir · pagar al recibir ${cop(total)}`}

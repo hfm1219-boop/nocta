@@ -223,6 +223,7 @@ export function crearDBInicial(): DB {
         precioMinPct: 80,
         precioMaxPct: 125,
       },
+      pagoAlFinalActivo: false,
     },
     pedidos: historico,
     contador: historico.length,
