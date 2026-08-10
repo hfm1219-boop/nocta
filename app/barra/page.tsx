@@ -80,7 +80,7 @@ export default function Barra() {
     <div className="min-h-dvh flex flex-col">
       <EncabezadoStaff
         titulo="Barra — despacho"
-        subtitulo="Eclipse Rooftop"
+        subtitulo={db.config.nombre}
         extra={
           <div className="flex gap-1.5">
             {barristas.map((b) => (

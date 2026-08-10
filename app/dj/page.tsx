@@ -30,7 +30,7 @@ export default function ConsolaDJ() {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <EncabezadoStaff titulo="DJ — Rockola" subtitulo="Solicitudes en vivo · Eclipse Rooftop" />
+      <EncabezadoStaff titulo="DJ — Rockola" subtitulo={`Solicitudes en vivo · ${db.config.nombre}`} />
       <main className="flex-1 p-4 max-w-4xl w-full mx-auto space-y-4">
         <div className="grid grid-cols-3 gap-3">
           <Kpi etiqueta="En cola" valor={pendientes} clase="text-neon3" />

@@ -6,12 +6,36 @@ import type {
   DB, DespachoPedido, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion, Vaquita,
 } from "./types";
 
-const KEY = "nocta-db-v1";
+const LEGACY_KEY = "nocta-db-v1";
+const ACTIVE_LOCAL_KEY = "nocta-active-local-v1";
 const CHANNEL = "nocta-sync";
 
 let cache: DB | null = null;
 let canal: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
+
+export function idLocalActivo(): string {
+  if (typeof window === "undefined") return "eclipse";
+  return localStorage.getItem(ACTIVE_LOCAL_KEY) || "eclipse";
+}
+
+function claveDB(): string {
+  return `${LEGACY_KEY}:${idLocalActivo()}`;
+}
+
+export function seleccionarLocal(id: string, nombre?: string) {
+  localStorage.setItem(ACTIVE_LOCAL_KEY, id);
+  const key = `${LEGACY_KEY}:${id}`;
+  if (!localStorage.getItem(key)) {
+    const inicial = crearDBInicial();
+    inicial.config.nombre = nombre || id;
+    inicial.pedidos = [];
+    inicial.contador = 0;
+    localStorage.setItem(key, JSON.stringify(inicial));
+  }
+  cache = null;
+  emitir();
+}
 
 function normalizarDB(db: DB): DB {
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
@@ -50,7 +74,9 @@ export function leerDB(): DB {
   if (cache) return normalizarDB(cache);
   if (typeof window === "undefined") return crearDBInicial();
   try {
-    const raw = localStorage.getItem(KEY);
+    const key = claveDB();
+    const raw = localStorage.getItem(key)
+      ?? (idLocalActivo() === "eclipse" ? localStorage.getItem(LEGACY_KEY) : null);
     if (raw) {
       cache = normalizarDB(JSON.parse(raw) as DB);
       return cache;
@@ -59,7 +85,7 @@ export function leerDB(): DB {
     // datos corruptos → re-seed
   }
   cache = crearDBInicial();
-  localStorage.setItem(KEY, JSON.stringify(cache));
+  localStorage.setItem(claveDB(), JSON.stringify(cache));
   return cache;
 }
 
@@ -70,14 +96,14 @@ export function guardarDB(mutar: (db: DB) => void) {
   const db = leerDB();
   mutar(db);
   cache = db;
-  localStorage.setItem(KEY, JSON.stringify(db));
+  localStorage.setItem(claveDB(), JSON.stringify(db));
   getCanal()?.postMessage("sync");
   emitir();
 }
 
 export function resetDemo() {
   cache = crearDBInicial();
-  localStorage.setItem(KEY, JSON.stringify(cache));
+  localStorage.setItem(claveDB(), JSON.stringify(cache));
   getCanal()?.postMessage("sync");
   emitir();
 }
@@ -91,7 +117,7 @@ export function useDB(): DB | null {
     listeners.add(refrescar);
     getCanal();
     const onStorage = (e: StorageEvent) => {
-      if (e.key === KEY) {
+      if (e.key === claveDB() || e.key === ACTIVE_LOCAL_KEY) {
         cache = null;
         refrescar();
       }
@@ -165,7 +191,7 @@ export function crearPedido(datos: {
     creado = {
       id: `p-${Date.now()}-${db.contador}`,
       numero: db.contador,
-      localId: "eclipse",
+      localId: idLocalActivo(),
       modo: datos.modo,
       zonaId: datos.zonaId,
       items: datos.items,

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { LOCALES_DEMO } from "@/lib/seed";
-import { cop, useDB } from "@/lib/store";
+import { cop, seleccionarLocal, useDB } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 
 const ESTADO_RECAUDO = {
@@ -12,6 +13,7 @@ const ESTADO_RECAUDO = {
 };
 
 export default function Superadmin() {
+  const router = useRouter();
   const db = useDB();
   const [altaAbierta, setAltaAbierta] = useState(false);
   const [nuevos, setNuevos] = useState<{ nombre: string; ciudad: string }[]>([]);
@@ -99,6 +101,15 @@ export default function Superadmin() {
                   contra entrega es el modo de arranque durante la vinculación).
                 </p>
               )}
+              <button
+                onClick={() => {
+                  seleccionarLocal(l.id, l.nombre);
+                  router.push("/admin");
+                }}
+                className="w-full rounded-xl border border-neon2/50 py-2.5 text-sm font-semibold text-neon2"
+              >
+                Configurar este local
+              </button>
             </div>
           ))}
 
@@ -145,10 +156,14 @@ export default function Superadmin() {
             <button
               onClick={() => {
                 if (!nombre.trim()) return;
-                setNuevos((prev) => [...prev, { nombre: nombre.trim(), ciudad: ciudad.trim() || "—" }]);
+                const nombreLocal = nombre.trim();
+                const id = `local-${Date.now()}`;
+                setNuevos((prev) => [...prev, { nombre: nombreLocal, ciudad: ciudad.trim() || "—" }]);
+                seleccionarLocal(id, nombreLocal);
                 setNombre("");
                 setCiudad("");
                 setAltaAbierta(false);
+                router.push("/admin");
               }}
               className="btn-neon rounded-full w-full py-3 font-semibold text-white"
             >

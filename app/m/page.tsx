@@ -29,7 +29,7 @@ export default function MenuCliente() {
       <header className="flex items-center justify-between">
         <Logo size="text-2xl" />
         <span className="text-xs text-muted border border-line rounded-full px-3 py-1.5">
-          📍 Eclipse Rooftop
+          📍 {db.config.nombre}
         </span>
       </header>
 

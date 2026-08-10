@@ -42,7 +42,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <EncabezadoStaff titulo="Administración" subtitulo="Eclipse Rooftop" />
+      <EncabezadoStaff titulo="Administración" subtitulo={db.config.nombre} />
       <div className="px-4 pt-3 flex gap-2 overflow-x-auto">
         {TABS.map((t) => (
           <button

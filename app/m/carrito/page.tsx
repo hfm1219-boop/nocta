@@ -361,7 +361,7 @@ export default function Checkout() {
         <section>
           <h2 className="font-semibold mb-2">{modo === "zona" ? "¿En qué zona estás?" : "Identifica tu mesa"}</h2>
           {modo === "zona" ? (
-            <MapaZonas zonas={db.zonas.filter((zona) => zona.tipo === "zona")} seleccionada={zonaId} onSeleccionar={setZonaId} />
+            <MapaZonas zonas={db.zonas.filter((zona) => zona.tipo === "zona")} seleccionada={zonaId} onSeleccionar={setZonaId} nombreLocal={db.config.nombre} />
           ) : (
             <div className="card p-4 space-y-3 border-neon3/35">
               {zonaSel ? (

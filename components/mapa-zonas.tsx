@@ -11,11 +11,12 @@ const AREAS = [
 ] as const;
 
 export function MapaZonas({
-  zonas, seleccionada, onSeleccionar,
+  zonas, seleccionada, onSeleccionar, nombreLocal,
 }: {
   zonas: Zona[];
   seleccionada: string;
   onSeleccionar: (zonaId: string) => void;
+  nombreLocal: string;
 }) {
   const porId = new Map(zonas.map((zona) => [zona.id, zona]));
 
@@ -23,7 +24,7 @@ export function MapaZonas({
     <div className="card p-3 border-neon3/30">
       <div className="flex items-center justify-between mb-2">
         <div>
-          <p className="font-semibold text-sm">Mapa de Eclipse Rooftop</p>
+          <p className="font-semibold text-sm">Mapa de {nombreLocal}</p>
           <p className="text-[10px] text-muted">Toca la zona donde te encuentras.</p>
         </div>
         <span className="text-[10px] text-muted">ENTRADA ↓</span>
