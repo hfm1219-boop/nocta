@@ -804,6 +804,25 @@ function Interruptor({
   );
 }
 
+function OpcionInterruptor({
+  nombre, nota, activo, onCambiar,
+}: {
+  nombre: string;
+  nota: string;
+  activo: boolean;
+  onCambiar: () => void;
+}) {
+  return (
+    <div className="card p-4 flex items-center justify-between gap-4">
+      <div className="min-w-0">
+        <p className="font-semibold">{nombre}</p>
+        <p className="text-xs text-muted mt-0.5">{nota}</p>
+      </div>
+      <Interruptor activo={activo} onCambiar={onCambiar} />
+    </div>
+  );
+}
+
 function Pagos({ db }: { db: DB }) {
   const c = db.config;
   const cuentasAbiertas = db.pedidos.filter(
@@ -816,18 +835,12 @@ function Pagos({ db }: { db: DB }) {
   ];
   return (
     <div className="space-y-4 max-w-2xl">
-      <div className="card p-4 flex items-center justify-between">
-        <div>
-          <p className="font-semibold">Pago al final para Mesa/VIP</p>
-          <p className="text-xs text-muted mt-0.5">
-            Permite abrir una cuenta, entregar los pedidos y cobrar cuando el cliente termine su visita.
-          </p>
-        </div>
-        <Interruptor
-          activo={c.pagoAlFinalActivo}
-          onCambiar={() => guardarDB((d) => { d.config.pagoAlFinalActivo = !d.config.pagoAlFinalActivo; })}
-        />
-      </div>
+      <OpcionInterruptor
+        nombre="Pago al final para Mesa/VIP"
+        nota="Permite abrir una cuenta, entregar los pedidos y cobrar cuando el cliente termine su visita."
+        activo={c.pagoAlFinalActivo}
+        onCambiar={() => guardarDB((d) => { d.config.pagoAlFinalActivo = !d.config.pagoAlFinalActivo; })}
+      />
 
       {cuentasAbiertas.length > 0 && (
         <section className="card p-4 border-amber/40 space-y-3">
@@ -857,50 +870,31 @@ function Pagos({ db }: { db: DB }) {
           ))}
         </section>
       )}
-      <div className="card p-4 flex items-center justify-between">
-        <div>
-          <p className="font-semibold">Recaudo digital operativo</p>
-          <p className="text-xs text-muted mt-0.5">
-            Kill switch: si la entidad falla, conmuta a contra entrega en un toque
-            sin detener la operación.
-          </p>
-        </div>
-        <Interruptor
-          activo={c.recaudoActivo}
-          onCambiar={() => guardarDB((d) => { d.config.recaudoActivo = !d.config.recaudoActivo; })}
-        />
-      </div>
+      <OpcionInterruptor
+        nombre="Recaudo digital operativo"
+        nota="Kill switch: si la entidad falla, conmuta a contra entrega en un toque sin detener la operación."
+        activo={c.recaudoActivo}
+        onCambiar={() => guardarDB((d) => { d.config.recaudoActivo = !d.config.recaudoActivo; })}
+      />
 
       {filas.map((f) => (
-        <div key={f.clave} className="card p-4 flex items-center justify-between">
-          <div>
-            <p className="font-semibold">{f.nombre}</p>
-            <p className="text-xs text-muted mt-0.5">{f.nota}</p>
-          </div>
-          <Interruptor
-            activo={c.mediosHabilitados[f.clave]}
-            onCambiar={() =>
-              guardarDB((d) => {
-                d.config.mediosHabilitados[f.clave] = !d.config.mediosHabilitados[f.clave];
-              })
-            }
-          />
-        </div>
+        <OpcionInterruptor
+          key={f.clave}
+          nombre={f.nombre}
+          nota={f.nota}
+          activo={c.mediosHabilitados[f.clave]}
+          onCambiar={() => guardarDB((d) => {
+            d.config.mediosHabilitados[f.clave] = !d.config.mediosHabilitados[f.clave];
+          })}
+        />
       ))}
 
-      <div className="card p-4 flex items-center justify-between">
-        <div>
-          <p className="font-semibold">Efectivo en entrega por zonas (modo B)</p>
-          <p className="text-xs text-muted mt-0.5">
-            Desaconsejado: el mesero carga dinero entre la multitud. Actívalo solo
-            de forma consciente y con tope bajo.
-          </p>
-        </div>
-        <Interruptor
-          activo={c.efectivoEnZona}
-          onCambiar={() => guardarDB((d) => { d.config.efectivoEnZona = !d.config.efectivoEnZona; })}
-        />
-      </div>
+      <OpcionInterruptor
+        nombre="Efectivo en entrega por zonas (modo B)"
+        nota="Desaconsejado: el mesero carga dinero entre la multitud. Actívalo solo de forma consciente y con tope bajo."
+        activo={c.efectivoEnZona}
+        onCambiar={() => guardarDB((d) => { d.config.efectivoEnZona = !d.config.efectivoEnZona; })}
+      />
 
       <div className="card p-4">
         <p className="font-semibold">Tope de pago contra entrega</p>
@@ -920,18 +914,12 @@ function Pagos({ db }: { db: DB }) {
         <span className="ml-2 text-muted text-sm">COP</span>
       </div>
 
-      <div className="card p-4 flex items-center justify-between">
-        <div>
-          <p className="font-semibold">Ventana de pedidos abierta</p>
-          <p className="text-xs text-muted mt-0.5">
-            Fuera del horario de servicio el menú queda en solo lectura.
-          </p>
-        </div>
-        <Interruptor
-          activo={c.ventanaAbierta}
-          onCambiar={() => guardarDB((d) => { d.config.ventanaAbierta = !d.config.ventanaAbierta; })}
-        />
-      </div>
+      <OpcionInterruptor
+        nombre="Ventana de pedidos abierta"
+        nota="Fuera del horario de servicio el menú queda en solo lectura."
+        activo={c.ventanaAbierta}
+        onCambiar={() => guardarDB((d) => { d.config.ventanaAbierta = !d.config.ventanaAbierta; })}
+      />
     </div>
   );
 }
