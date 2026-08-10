@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
-  avanzarPedido, cop, guardarDB, mmss, toggleDisponible, useDB, useReloj,
+  avanzarDespachoPedido, avanzarPedido, cop, guardarDB, mmss, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
 import {
   BadgePendienteCobro, EncabezadoStaff, ETIQUETA_MODO,
@@ -179,19 +179,61 @@ export default function Barra() {
                 </div>
               )}
 
-              <div className="text-sm space-y-0.5">
-                {p.items.map((i, idx) => (
-                  <div key={idx}>
-                    <b>{i.cantidad}×</b> {i.nombre}
-                    {i.tamano && i.tamano !== "Normal" && (
-                      <span className="text-muted"> · {i.tamano}</span>
-                    )}
-                    {!!i.extras?.length && (
-                      <span className="text-muted text-xs"> · {i.extras.join(", ")}</span>
-                    )}
-                  </div>
-                ))}
-              </div>
+              {p.despachos?.length ? (
+                <div className="space-y-2">
+                  {p.despachos.map((despacho) => {
+                    const estacion = db.estacionesDespacho.find((item) => item.id === despacho.estacionId);
+                    return (
+                      <section key={despacho.estacionId} className="rounded-xl bg-surface2 p-3 border border-line">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <p className="text-xs font-bold text-neon3">
+                            {despacho.estacionId.includes("nevera") ? "❄️" : despacho.estacionId.includes("botelleria") ? "🍾" : "🍸"}{" "}
+                            {estacion?.nombre ?? "Barra general"}
+                          </p>
+                          <span className={`text-[10px] font-bold ${
+                            despacho.estado === "listo" ? "text-lime" : despacho.estado === "preparando" ? "text-amber" : "text-muted"
+                          }`}>
+                            {despacho.estado === "listo" ? "LISTO" : despacho.estado === "preparando" ? "PREPARANDO" : "PENDIENTE"}
+                          </span>
+                        </div>
+                        <div className="text-sm space-y-0.5">
+                          {despacho.itemIndices.map((indice) => {
+                            const item = p.items[indice];
+                            return item ? (
+                              <div key={indice}>
+                                <b>{item.cantidad}×</b> {item.nombre}
+                                {item.tamano && item.tamano !== "Normal" && <span className="text-muted"> · {item.tamano}</span>}
+                              </div>
+                            ) : null;
+                          })}
+                        </div>
+                        {despacho.estado !== "listo" && (
+                          <button
+                            onClick={() => avanzarDespachoPedido(
+                              p.id,
+                              despacho.estacionId,
+                              despacho.estado === "pendiente" ? "preparando" : "listo",
+                            )}
+                            className={`w-full mt-2 rounded-lg py-2 text-xs font-semibold border ${
+                              despacho.estado === "pendiente"
+                                ? "bg-amber/10 text-amber border-amber/30"
+                                : "bg-lime/10 text-lime border-lime/30"
+                            }`}
+                          >
+                            {despacho.estado === "pendiente" ? "Iniciar estación" : "✓ Estación lista"}
+                          </button>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-sm space-y-0.5">
+                  {p.items.map((i, idx) => (
+                    <div key={idx}><b>{i.cantidad}×</b> {i.nombre}</div>
+                  ))}
+                </div>
+              )}
 
               <div className="flex items-center gap-2 flex-wrap">
                 {p.estadoPago === "pendiente" && <BadgePendienteCobro />}
@@ -204,7 +246,7 @@ export default function Barra() {
               </div>
 
               <div className="flex gap-2 pt-1">
-                {p.estado === "nuevo" && (
+                {p.estado === "nuevo" && !p.despachos?.length && (
                   <button
                     onClick={() => avanzarPedido(p.id, "preparando")}
                     className="flex-1 rounded-xl py-2.5 font-semibold bg-amber/15 text-amber border border-amber/40 active:scale-[0.98]"
@@ -212,7 +254,7 @@ export default function Barra() {
                     Preparando
                   </button>
                 )}
-                {p.estado === "preparando" && (
+                {p.estado === "preparando" && !p.despachos?.length && (
                   <button
                     onClick={() => marcarListo(p)}
                     className="flex-1 rounded-xl py-2.5 font-semibold bg-lime/15 text-lime border border-lime/40 active:scale-[0.98]"

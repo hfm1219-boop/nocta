@@ -102,7 +102,23 @@ export interface Pedido {
   politicasPreordenVersion?: string;
   politicasPreordenAceptadasEn?: number;
   pagoAlFinal?: boolean;
+  vaquitaId?: string;
+  despachos?: DespachoPedido[];
   notas?: string;
+}
+
+export interface DespachoPedido {
+  estacionId: string;
+  itemIndices: number[];
+  estado: "pendiente" | "preparando" | "listo";
+}
+
+export interface EstacionDespacho {
+  id: string;
+  nombre: string;
+  categorias: string[];
+  zonasCercanas: string[];
+  activa: boolean;
 }
 
 export interface UsuarioStaff {
@@ -124,6 +140,27 @@ export interface SolicitudCancion {
   estado: EstadoCancion;
   creadoEn: number;
   actualizadoEn: number;
+}
+
+export interface AporteVaquita {
+  id: string;
+  nombre: string;
+  monto: number;
+  clienteToken: string;
+  creadoEn: number;
+}
+
+export interface Vaquita {
+  id: string;
+  codigo: string;
+  items: ItemPedido[];
+  total: number;
+  participantesObjetivo: number;
+  aportes: AporteVaquita[];
+  creadorToken: string;
+  creadaEn: number;
+  estado: "abierta" | "completa" | "convertida";
+  pedidoId?: string;
 }
 
 export interface ConfigLocal {
@@ -171,4 +208,6 @@ export interface DB {
   nocheCerrada: boolean;
   efectivoDeclarado: Record<string, number>; // staffId → monto declarado en cierre
   solicitudesCanciones: SolicitudCancion[];
+  vaquitas: Vaquita[];
+  estacionesDespacho: EstacionDespacho[];
 }

@@ -29,6 +29,7 @@ const TABS = [
   { id: "menu", nombre: "Menú" },
   { id: "mercado", nombre: "Bolsa de precios" },
   { id: "zonas", nombre: "Zonas y QRs" },
+  { id: "estaciones", nombre: "Estaciones" },
   { id: "pagos", nombre: "Medios de pago" },
   { id: "personal", nombre: "Personal" },
   { id: "cierre", nombre: "Cierre de noche" },
@@ -62,6 +63,7 @@ export default function Admin() {
         {tab === "menu" && <MenuAdmin db={db} />}
         {tab === "mercado" && <MercadoPrecios db={db} />}
         {tab === "zonas" && <Zonas db={db} />}
+        {tab === "estaciones" && <Estaciones db={db} />}
         {tab === "pagos" && <Pagos db={db} />}
         {tab === "personal" && <Personal db={db} />}
         {tab === "cierre" && <Cierre db={db} />}
@@ -262,6 +264,51 @@ function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: stri
       <p className="text-xs text-muted">{titulo}</p>
       <p className="text-2xl font-bold mt-1">{valor}</p>
       {sub && <p className="text-[10px] text-muted mt-0.5">{sub}</p>}
+    </div>
+  );
+}
+
+// ---------------- Estaciones de despacho ----------------
+
+function Estaciones({ db }: { db: DB }) {
+  return (
+    <div className="space-y-4 max-w-3xl">
+      <section className="card p-4 border-neon3/35">
+        <h2 className="font-bold">Despacho paralelo por estación</h2>
+        <p className="text-xs text-muted mt-1">
+          Nocta separa cada pedido por categoría y lo envía a la estación activa más cercana a la zona del cliente.
+          El pedido se libera cuando todas las estaciones terminan.
+        </p>
+      </section>
+      {db.estacionesDespacho.map((estacion) => (
+        <section key={estacion.id} className={`card p-4 ${estacion.activa ? "border-lime/30" : "opacity-60"}`}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold">
+                {estacion.id.includes("nevera") ? "❄️" : estacion.id.includes("botelleria") ? "🍾" : "🍸"}{" "}
+                {estacion.nombre}
+              </h3>
+              <p className="text-xs text-muted mt-1">
+                Productos: {estacion.categorias.join(", ")}
+              </p>
+            </div>
+            <Interruptor
+              activo={estacion.activa}
+              onCambiar={() => guardarDB((datos) => {
+                const actual = datos.estacionesDespacho.find((item) => item.id === estacion.id);
+                if (actual) actual.activa = !actual.activa;
+              })}
+            />
+          </div>
+          <div className="flex gap-1.5 flex-wrap mt-3">
+            {estacion.zonasCercanas.length ? estacion.zonasCercanas.map((zonaId) => (
+              <span key={zonaId} className="rounded-full px-2.5 py-1 text-[10px] bg-neon3/10 text-neon3">
+                {db.zonas.find((zona) => zona.id === zonaId)?.nombre ?? zonaId}
+              </span>
+            )) : <span className="text-[10px] text-muted">Atiende todas las zonas</span>}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

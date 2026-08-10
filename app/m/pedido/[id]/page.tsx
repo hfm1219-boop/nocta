@@ -2,9 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { cambiarZonaPedidoCliente, useDB, cop } from "@/lib/store";
 import { ETIQUETA_MODO } from "@/components/ui";
+import { reemplazarCarrito } from "@/lib/cart";
 
 const PASOS = ["Recibido", "Preparando", "Listo", "Entregado"] as const;
 
@@ -21,6 +23,7 @@ function pasoActual(estado: string): number {
 
 export default function EstadoPedido() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const db = useDB();
   const [luzAbierta, setLuzAbierta] = useState(false);
   const [cambiandoZona, setCambiandoZona] = useState(false);
@@ -276,6 +279,20 @@ export default function EstadoPedido() {
           Enviar recibo por WhatsApp o correo
         </button>
       </section>
+
+      <button
+        onClick={() => {
+          reemplazarCarrito(p.items);
+          router.push("/m/carrito");
+        }}
+        className="btn-neon w-full rounded-full py-4 px-6 text-white font-bold flex items-center justify-between"
+      >
+        <span>🍻 Otra ronda</span>
+        <span>{cop(p.subtotal)}</span>
+      </button>
+      <p className="text-[10px] text-muted text-center -mt-4">
+        Copia todos los productos al carrito para confirmar una nueva ronda.
+      </p>
 
       <Link href="/m" className="block text-center text-muted text-sm">
         ← Volver al menú

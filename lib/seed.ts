@@ -230,6 +230,33 @@ export function crearDBInicial(): DB {
     nocheCerrada: false,
     efectivoDeclarado: {},
     solicitudesCanciones: [],
+    vaquitas: [],
+    estacionesDespacho: [
+      {
+        id: "cocteles-terraza", nombre: "Coctelería Terraza",
+        categorias: ["cocteles", "shots"],
+        zonasCercanas: ["terraza1", "tarima-izq"], activa: true,
+      },
+      {
+        id: "cocteles-principal", nombre: "Coctelería Principal",
+        categorias: ["cocteles", "shots"],
+        zonasCercanas: ["terraza2", "tarima-der", "mesa-1", "mesa-2", "mesa-3", "vip-1", "vip-2"], activa: true,
+      },
+      {
+        id: "nevera-terraza", nombre: "Nevera Terraza",
+        categorias: ["cervezas", "sinalcohol"],
+        zonasCercanas: ["terraza1", "tarima-izq"], activa: true,
+      },
+      {
+        id: "nevera-principal", nombre: "Nevera Principal",
+        categorias: ["cervezas", "sinalcohol"],
+        zonasCercanas: ["terraza2", "tarima-der", "mesa-1", "mesa-2", "mesa-3", "vip-1", "vip-2"], activa: true,
+      },
+      {
+        id: "botelleria", nombre: "Botellería Principal",
+        categorias: ["licores"], zonasCercanas: [], activa: true,
+      },
+    ],
   };
 }
 

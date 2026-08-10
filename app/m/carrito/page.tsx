@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useMemo, useRef, useState } from "react";
 import { useCarrito, cambiarCantidad, totalCarrito, vaciarCarrito } from "@/lib/cart";
-import { useDB, cop, crearPedido, useReloj } from "@/lib/store";
+import { crearVaquita, useDB, cop, crearPedido, useReloj } from "@/lib/store";
 import { BotonPrimario, ETIQUETA_MEDIO, ETIQUETA_MODO } from "@/components/ui";
 import type { MedioPago, ModoServicio } from "@/lib/types";
 import {
@@ -38,6 +38,8 @@ export default function Checkout() {
   const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
   const [escaneandoMesa, setEscaneandoMesa] = useState(false);
   const [pagoAlFinal, setPagoAlFinal] = useState(false);
+  const [armandoVaquita, setArmandoVaquita] = useState(false);
+  const [participantesVaquita, setParticipantesVaquita] = useState(4);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
 
   const subtotal = totalCarrito(items);
@@ -261,6 +263,53 @@ export default function Checkout() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className="card p-4 border-amber/40 bg-amber/5 space-y-3">
+        <div className="flex items-center gap-3">
+          <span className="text-3xl">🐮</span>
+          <div className="flex-1">
+            <h2 className="font-bold">Vaquita para la botella</h2>
+            <p className="text-xs text-muted mt-0.5">Divide este carrito entre amigos antes de hacer el pedido.</p>
+          </div>
+          <button onClick={() => setArmandoVaquita((abierto) => !abierto)} className="text-sm text-amber font-semibold">
+            {armandoVaquita ? "Cerrar" : "Dividir"}
+          </button>
+        </div>
+        {armandoVaquita && (
+          <div className="space-y-3 pt-2 border-t border-amber/20">
+            <label className="block">
+              <span className="text-xs text-muted">¿Entre cuántas personas?</span>
+              <div className="grid grid-cols-7 gap-1.5 mt-2">
+                {[2, 3, 4, 5, 6, 7, 8].map((cantidad) => (
+                  <button
+                    type="button"
+                    key={cantidad}
+                    onClick={() => setParticipantesVaquita(cantidad)}
+                    className={`rounded-lg py-2 text-sm border ${
+                      participantesVaquita === cantidad ? "border-amber text-amber font-bold bg-amber/10" : "border-line text-muted"
+                    }`}
+                  >
+                    {cantidad}
+                  </button>
+                ))}
+              </div>
+            </label>
+            <div className="flex justify-between text-sm">
+              <span className="text-muted">Aporte aproximado</span>
+              <b className="text-amber">{cop(Math.floor(subtotal / participantesVaquita))} por persona</b>
+            </div>
+            <button
+              onClick={() => {
+                const vaquita = crearVaquita(items, participantesVaquita);
+                router.push(`/m/vaquita/${vaquita.codigo}`);
+              }}
+              className="w-full rounded-full py-3 bg-amber text-black font-bold"
+            >
+              Crear vaquita y compartir
+            </button>
+          </div>
+        )}
       </section>
 
       {!esPreorden && <section>

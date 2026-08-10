@@ -57,6 +57,13 @@ export function vaciarCarrito() {
   guardar([]);
 }
 
+export function reemplazarCarrito(items: ItemPedido[]) {
+  guardar(items.map((item) => ({
+    ...item,
+    extras: item.extras ? [...item.extras] : undefined,
+  })));
+}
+
 export function totalCarrito(items: ItemPedido[]) {
   return items.reduce((s, i) => s + i.precioUnit * i.cantidad, 0);
 }

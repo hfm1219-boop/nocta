@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { crearDBInicial, COLORES_LUZ, PATRONES } from "./seed";
 import type {
-  DB, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion,
+  DB, DespachoPedido, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion, Vaquita,
 } from "./types";
 
 const KEY = "nocta-db-v1";
@@ -15,6 +15,10 @@ const listeners = new Set<() => void>();
 
 function normalizarDB(db: DB): DB {
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
+  if (!Array.isArray(db.vaquitas)) db.vaquitas = [];
+  if (!Array.isArray(db.estacionesDespacho)) {
+    db.estacionesDespacho = crearDBInicial().estacionesDespacho;
+  }
   db.config.preciosDinamicos ??= {
     activo: false,
     volatilidadPct: 12,
@@ -142,14 +146,22 @@ export function crearPedido(datos: {
   politicasPreordenVersion?: string;
   politicasPreordenAceptadasEn?: number;
   pagoAlFinal?: boolean;
+  vaquitaId?: string;
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
-    db.contador += 1;
     const subtotal = datos.items.reduce((s, i) => s + i.precioUnit * i.cantidad, 0);
     const descuento = datos.descuento ?? 0;
     const total = subtotal - descuento + datos.propina;
+    const vaquitaPago = datos.vaquitaId
+      ? db.vaquitas.find((vaquita) => vaquita.id === datos.vaquitaId)
+      : undefined;
+    if (datos.vaquitaId && (!vaquitaPago || vaquitaPago.estado !== "completa" || vaquitaPago.total !== total)) {
+      throw new Error("La vaquita no está completa o no coincide con el total del pedido.");
+    }
+    db.contador += 1;
     const anticipado = datos.medioPago === "digital";
+    const despachos = crearDespachosPedido(datos.items, datos.zonaId, db);
     creado = {
       id: `p-${Date.now()}-${db.contador}`,
       numero: db.contador,
@@ -177,17 +189,119 @@ export function crearPedido(datos: {
         ? (datos.politicasPreordenAceptadasEn ?? Date.now())
         : undefined,
       pagoAlFinal: datos.pagoAlFinal,
+      vaquitaId: datos.vaquitaId,
+      despachos,
       cobro: anticipado
         ? {
             medio: "digital", monto: total,
-            referencia: `TX-${Math.floor(100000 + Math.random() * 899999)}`,
+            referencia: datos.vaquitaId
+              ? `VAQ-${vaquitaPago?.codigo ?? "GRUPO"}`
+              : `TX-${Math.floor(100000 + Math.random() * 899999)}`,
             ts: Date.now(),
           }
         : undefined,
     };
     db.pedidos.push(creado);
+    if (datos.vaquitaId) {
+      const vaquita = db.vaquitas.find((item) => item.id === datos.vaquitaId);
+      if (vaquita && vaquita.estado === "completa") {
+        vaquita.estado = "convertida";
+        vaquita.pedidoId = creado.id;
+      }
+    }
   });
   return creado;
+}
+
+function crearDespachosPedido(items: ItemPedido[], zonaId: string | undefined, db: DB): DespachoPedido[] {
+  const grupos = new Map<string, number[]>();
+  items.forEach((item, indice) => {
+    const categoria = db.productos.find((producto) => producto.id === item.productoId)?.categoria ?? "general";
+    const candidatas = db.estacionesDespacho.filter(
+      (estacion) => estacion.activa && estacion.categorias.includes(categoria),
+    );
+    const estacion = candidatas.find((itemEstacion) => zonaId && itemEstacion.zonasCercanas.includes(zonaId))
+      ?? candidatas.find((itemEstacion) => itemEstacion.id.includes("principal"))
+      ?? candidatas[0];
+    const estacionId = estacion?.id ?? "barra-general";
+    grupos.set(estacionId, [...(grupos.get(estacionId) ?? []), indice]);
+  });
+  return [...grupos.entries()].map(([estacionId, itemIndices]) => ({
+    estacionId, itemIndices, estado: "pendiente",
+  }));
+}
+
+export function avanzarDespachoPedido(
+  pedidoId: string,
+  estacionId: string,
+  estado: DespachoPedido["estado"],
+) {
+  let todasListas = false;
+  let modo: ModoServicio = "barra";
+  guardarDB((db) => {
+    const pedido = db.pedidos.find((item) => item.id === pedidoId);
+    const despacho = pedido?.despachos?.find((item) => item.estacionId === estacionId);
+    if (!pedido || !despacho || ["entregado", "anulado", "vencido"].includes(pedido.estado)) return;
+    despacho.estado = estado;
+    modo = pedido.modo;
+    todasListas = pedido.despachos?.every((item) => item.estado === "listo") ?? false;
+    if (!todasListas && pedido.estado === "nuevo") {
+      pedido.estado = "preparando";
+      pedido.timestamps.preparando = Date.now();
+    }
+  });
+  if (todasListas) {
+    avanzarPedido(pedidoId, "listo");
+    if (modo !== "barra") avanzarPedido(pedidoId, "en_camino");
+  }
+}
+
+// ---------- Vaquitas ----------
+export function crearVaquita(items: ItemPedido[], participantes: number): Vaquita {
+  let creada!: Vaquita;
+  guardarDB((db) => {
+    const ahora = Date.now();
+    const codigo = Math.random().toString(36).slice(2, 8).toUpperCase();
+    creada = {
+      id: `vaquita-${ahora}-${codigo}`,
+      codigo,
+      items: items.map((item) => ({ ...item, extras: item.extras ? [...item.extras] : undefined })),
+      total: items.reduce((suma, item) => suma + item.precioUnit * item.cantidad, 0),
+      participantesObjetivo: Math.min(8, Math.max(2, Math.round(participantes))),
+      aportes: [],
+      creadorToken: tokenCliente(),
+      creadaEn: ahora,
+      estado: "abierta",
+    };
+    db.vaquitas.push(creada);
+  });
+  return creada;
+}
+
+export function montoSiguienteAporte(vaquita: Vaquita): number {
+  const aportado = vaquita.aportes.reduce((suma, aporte) => suma + aporte.monto, 0);
+  const restantes = vaquita.participantesObjetivo - vaquita.aportes.length;
+  if (restantes <= 1) return Math.max(0, vaquita.total - aportado);
+  return Math.floor(vaquita.total / vaquita.participantesObjetivo);
+}
+
+export function aportarVaquita(codigo: string, nombre: string): boolean {
+  let registrado = false;
+  guardarDB((db) => {
+    const vaquita = db.vaquitas.find((item) => item.codigo === codigo);
+    if (!vaquita || vaquita.estado !== "abierta" || vaquita.aportes.length >= vaquita.participantesObjetivo) return;
+    const monto = montoSiguienteAporte(vaquita);
+    vaquita.aportes.push({
+      id: `aporte-${Date.now()}-${vaquita.aportes.length + 1}`,
+      nombre: nombre.trim() || `Amigo ${vaquita.aportes.length + 1}`,
+      monto,
+      clienteToken: tokenCliente(),
+      creadoEn: Date.now(),
+    });
+    if (vaquita.aportes.length >= vaquita.participantesObjetivo) vaquita.estado = "completa";
+    registrado = true;
+  });
+  return registrado;
 }
 
 function asignarLuz(db: DB, pedido: Pedido) {
