@@ -62,7 +62,7 @@ export default function Superadmin() {
               onClick={() => setAltaAbierta(true)}
               className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white"
             >
-              + Alta de local
+              + Agregar local
             </button>
           </div>
 
@@ -127,7 +127,7 @@ export default function Superadmin() {
         <div className="fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4">
           <div className="card bg-surface w-full max-w-sm p-5 space-y-3">
             <div className="flex justify-between items-center">
-              <h2 className="font-bold">Alta de local</h2>
+              <h2 className="font-bold">Agregar local</h2>
               <button onClick={() => setAltaAbierta(false)} className="text-muted text-xl px-2">✕</button>
             </div>
             <input
