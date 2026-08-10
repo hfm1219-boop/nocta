@@ -29,6 +29,8 @@ export default function Checkout() {
   const [modo, setModo] = useState<ModoServicio>("barra");
   const [zonaId, setZonaId] = useState<string>("");
   const [propinaPct, setPropinaPct] = useState(0);
+  const [propinaPersonalizada, setPropinaPersonalizada] = useState("");
+  const [usarPropinaPersonalizada, setUsarPropinaPersonalizada] = useState(false);
   const [medio, setMedio] = useState<MedioPago>("digital");
   const [telefono, setTelefono] = useState("");
   const [esPreorden, setEsPreorden] = useState(false);
@@ -46,7 +48,10 @@ export default function Checkout() {
   const descuentoPct = esPreorden ? porcentajeDescuentoVolumen(items) : 0;
   const descuento = esPreorden ? descuentoVolumen(items, subtotal) : 0;
   const subtotalConDescuento = subtotal - descuento;
-  const propina = Math.round((subtotalConDescuento * propinaPct) / 100 / 500) * 500;
+  const porcentajePropina = usarPropinaPersonalizada
+    ? Math.min(100, Math.max(0, Number(propinaPersonalizada) || 0))
+    : propinaPct;
+  const propina = Math.round((subtotalConDescuento * porcentajePropina) / 100 / 500) * 500;
   const total = subtotalConDescuento + propina;
   const unidades = cantidadTotal(items);
   const proximoNivel = siguienteNivel(items);
@@ -451,19 +456,53 @@ export default function Checkout() {
 
       <section>
         <h2 className="font-semibold mb-2">Propina</h2>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {PROPINAS.map((p) => (
             <button
               key={p}
-              onClick={() => setPropinaPct(p)}
+              onClick={() => {
+                setPropinaPct(p);
+                setUsarPropinaPersonalizada(false);
+              }}
               className={`card py-2.5 text-sm transition ${
-                propinaPct === p ? "chip-active font-semibold" : "text-muted"
+                !usarPropinaPersonalizada && propinaPct === p ? "chip-active font-semibold" : "text-muted"
               }`}
             >
               {p === 0 ? "Sin propina" : `${p}%`}
             </button>
           ))}
+          <button
+            onClick={() => setUsarPropinaPersonalizada(true)}
+            className={`card py-2.5 text-sm transition ${
+              usarPropinaPersonalizada ? "chip-active font-semibold" : "text-muted"
+            }`}
+          >
+            Otro %
+          </button>
         </div>
+        {usarPropinaPersonalizada && (
+          <label className="card mt-3 px-4 py-3 flex items-center gap-3 border-neon2/40">
+            <span className="text-sm text-muted flex-1">Porcentaje personalizado</span>
+            <input
+              value={propinaPersonalizada}
+              onChange={(evento) => {
+                const valor = evento.target.value.replace(/\D/g, "").slice(0, 3);
+                setPropinaPersonalizada(valor && Number(valor) > 100 ? "100" : valor);
+              }}
+              inputMode="numeric"
+              autoFocus
+              placeholder="0"
+              aria-label="Porcentaje personalizado de propina"
+              className="w-16 bg-transparent outline-none text-right text-xl font-bold text-neon2"
+            />
+            <span className="text-neon2 font-bold text-xl">%</span>
+          </label>
+        )}
+        {porcentajePropina > 0 && (
+          <p className="text-xs text-muted mt-2 text-right">
+            {porcentajePropina}% = <b className="text-neon2">{cop(propina)}</b>
+          </p>
+        )}
       </section>
 
       <section>
