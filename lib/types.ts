@@ -91,6 +91,7 @@ export interface Pedido {
   color?: string; // hex asignado en modo zona
   colorNombre?: string;
   patron?: string; // solido | pulso | franjas | destello
+  senalNumero?: number; // identificador único entre entregas activas de la misma zona
   meseroId?: string;
   cobro?: Cobro;
   clienteToken: string;

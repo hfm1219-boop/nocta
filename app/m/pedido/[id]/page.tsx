@@ -48,6 +48,9 @@ export default function EstadoPedido() {
         className={`fixed inset-0 z-50 pat-${p.patron ?? "solido"} flex flex-col items-center justify-center gap-6`}
         style={{ background: p.color }}
       >
+        <span className="rounded-full bg-black/70 text-white px-6 py-3 text-4xl font-black">
+          {String(p.senalNumero ?? 1).padStart(2, "0")}
+        </span>
         <p className="text-black/70 font-bold text-xl">Mantén esta pantalla visible</p>
         <p className="text-black/60 text-sm">Toca para volver</p>
       </button>
@@ -221,7 +224,7 @@ export default function EstadoPedido() {
           className={`w-full rounded-2xl py-6 font-bold text-black text-lg pat-${p.patron}`}
           style={{ background: p.color, boxShadow: `0 0 30px ${p.color}66` }}
         >
-          Abrir pantalla-luz · {p.colorNombre}
+          Abrir señal {String(p.senalNumero ?? 1).padStart(2, "0")} · {p.colorNombre}
         </button>
       )}
 

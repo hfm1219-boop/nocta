@@ -126,7 +126,7 @@ export default function Mesero() {
             <div key={p.id} className="rounded-xl border border-line bg-surface2 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 {esZona ? (
-                  <MuestraLuz color={p.color} patron={p.patron} grande />
+                  <MuestraLuz color={p.color} patron={p.patron} codigo={p.senalNumero} grande />
                 ) : (
                   <div className="w-20 h-20 rounded-xl bg-surface2 flex items-center justify-center text-3xl">
                     🪑
@@ -140,7 +140,7 @@ export default function Mesero() {
                   <div className="text-neon3 font-semibold">📍 {zona?.nombre}</div>
                   {esZona && (
                     <div className="text-xs text-muted">
-                      Luz: {p.colorNombre} · {p.patron}
+                      Señal {String(p.senalNumero ?? 1).padStart(2, "0")} · {p.colorNombre} · {p.patron}
                     </div>
                   )}
                 </div>

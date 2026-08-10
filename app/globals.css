@@ -95,6 +95,16 @@ body {
   background-size: 120px 120px;
   animation: franjas-mov 1.4s linear infinite;
 }
+.pat-puntos {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.7) 22%, transparent 24%) !important;
+  background-size: 28px 28px !important;
+}
+.pat-cuadricula {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.55) 4px, transparent 4px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.55) 4px, transparent 4px) !important;
+  background-size: 32px 32px !important;
+}
 
 @keyframes alerta-borde {
   0%, 100% { border-color: var(--danger); box-shadow: 0 0 0 rgba(255,77,94,0); }

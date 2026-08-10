@@ -129,8 +129,11 @@ export const COLORES_LUZ = [
   { nombre: "Lima", hex: "#a3e635" },
   { nombre: "Ámbar", hex: "#fbbf24" },
   { nombre: "Violeta", hex: "#b644ff" },
+  { nombre: "Naranja", hex: "#fb923c" },
+  { nombre: "Azul", hex: "#3b82f6" },
+  { nombre: "Rojo", hex: "#f43f5e" },
 ];
-export const PATRONES = ["solido", "pulso", "franjas", "destello"];
+export const PATRONES = ["solido", "pulso", "franjas", "destello", "puntos", "cuadricula"];
 
 // ---- Pedidos históricos de la noche (para reportes y cierre) ----
 // Determinístico para que la demo siempre cuadre igual.

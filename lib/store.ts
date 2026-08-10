@@ -309,6 +309,10 @@ function asignarLuz(db: DB, pedido: Pedido) {
     (p) => p.estado === "en_camino" && p.zonaId === pedido.zonaId && p.id !== pedido.id,
   );
   const usadas = new Set(activas.map((p) => `${p.color}|${p.patron}`));
+  const numerosUsados = new Set(activas.map((p) => p.senalNumero).filter(Boolean));
+  let numero = 1;
+  while (numerosUsados.has(numero)) numero += 1;
+  pedido.senalNumero = numero;
   for (const pat of PATRONES) {
     for (const c of COLORES_LUZ) {
       if (!usadas.has(`${c.hex}|${pat}`)) {

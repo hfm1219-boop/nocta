@@ -121,17 +121,24 @@ export function EncabezadoStaff({
 
 /** Muestra de color+patrón para modo B (mini pantalla-luz). */
 export function MuestraLuz({
-  color, patron, grande = false,
+  color, patron, codigo, grande = false,
 }: {
   color?: string;
   patron?: string;
+  codigo?: number;
   grande?: boolean;
 }) {
   if (!color) return null;
   return (
     <div
-      className={`rounded-xl pat-${patron ?? "solido"} ${grande ? "w-20 h-20" : "w-10 h-10"}`}
+      className={`rounded-xl pat-${patron ?? "solido"} flex items-center justify-center ${grande ? "w-20 h-20" : "w-10 h-10"}`}
       style={{ background: color, boxShadow: `0 0 ${grande ? 24 : 12}px ${color}66` }}
-    />
+    >
+      {codigo && (
+        <span className={`rounded-full bg-black/70 text-white font-black ${grande ? "px-3 py-1.5 text-xl" : "px-1.5 py-0.5 text-xs"}`}>
+          {String(codigo).padStart(2, "0")}
+        </span>
+      )}
+    </div>
   );
 }
