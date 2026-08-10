@@ -271,6 +271,16 @@ function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: stri
 // ---------------- Estaciones de despacho ----------------
 
 function Estaciones({ db }: { db: DB }) {
+  const [creando, setCreando] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [grupo, setGrupo] = useState<"cocteles" | "bebidas" | "botellas">("cocteles");
+
+  const categoriasPorGrupo = {
+    cocteles: ["cocteles", "shots"],
+    bebidas: ["cervezas", "sinalcohol"],
+    botellas: ["licores"],
+  };
+
   return (
     <div className="space-y-4 max-w-3xl">
       <section className="card p-4 border-neon3/35">
@@ -280,6 +290,44 @@ function Estaciones({ db }: { db: DB }) {
           El pedido se libera cuando todas las estaciones terminan.
         </p>
       </section>
+      <div className="flex justify-end">
+        <button onClick={() => setCreando((valor) => !valor)} className="btn-neon rounded-full px-5 py-2.5 text-sm font-semibold text-white">
+          + Agregar estación
+        </button>
+      </div>
+      {creando && (
+        <form
+          className="card p-4 space-y-3"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            const limpio = nombre.trim();
+            if (!limpio) return;
+            guardarDB((datos) => {
+              datos.estacionesDespacho.push({
+                id: `estacion-${Date.now()}`,
+                nombre: limpio,
+                categorias: categoriasPorGrupo[grupo],
+                zonasCercanas: [],
+                activa: true,
+              });
+            });
+            setNombre("");
+            setCreando(false);
+          }}
+        >
+          <h3 className="font-semibold">Nueva estación</h3>
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre de la estación" className="card w-full px-3 py-2 bg-transparent outline-none text-sm" autoFocus />
+          <select value={grupo} onChange={(e) => setGrupo(e.target.value as typeof grupo)} className="card w-full px-3 py-2 bg-surface outline-none text-sm">
+            <option value="cocteles">Coctelería y shots</option>
+            <option value="bebidas">Cervezas y bebidas sin alcohol</option>
+            <option value="botellas">Botellería</option>
+          </select>
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setCreando(false)} className="rounded-full border border-line px-4 py-2 text-sm text-muted">Cancelar</button>
+            <button type="submit" disabled={!nombre.trim()} className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">Crear estación</button>
+          </div>
+        </form>
+      )}
       {db.estacionesDespacho.map((estacion) => (
         <section key={estacion.id} className="card p-4">
           <div className="flex items-center justify-between gap-4">
@@ -728,12 +776,59 @@ function QRFalso({ id }: { id: string }) {
 }
 
 function Zonas({ db }: { db: DB }) {
+  const [creando, setCreando] = useState(false);
+  const [nombre, setNombre] = useState("");
+  const [tipo, setTipo] = useState<"zona" | "mesa" | "vip">("zona");
+  const [consumoMinimo, setConsumoMinimo] = useState("");
+
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">
         Las zonas de no-entrega (ej. pista de baile) existen pero no se ofrecen en
         el checkout. Cada mesa/VIP tiene QR fijo propio.
       </p>
+      <div className="flex justify-end">
+        <button onClick={() => setCreando((valor) => !valor)} className="btn-neon rounded-full px-5 py-2.5 text-sm font-semibold text-white">
+          + Agregar zona
+        </button>
+      </div>
+      {creando && (
+        <form
+          className="card p-4 space-y-3"
+          onSubmit={(evento) => {
+            evento.preventDefault();
+            const limpio = nombre.trim();
+            if (!limpio) return;
+            guardarDB((datos) => {
+              datos.zonas.push({
+                id: `${tipo}-${Date.now()}`,
+                nombre: limpio,
+                tipo,
+                entregable: true,
+                consumoMinimo: tipo === "vip" ? Number(consumoMinimo) || undefined : undefined,
+              });
+            });
+            setNombre("");
+            setConsumoMinimo("");
+            setCreando(false);
+          }}
+        >
+          <h3 className="font-semibold">Nueva zona, mesa o VIP</h3>
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Nombre visible" className="card w-full px-3 py-2 bg-transparent outline-none text-sm" autoFocus />
+          <select value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)} className="card w-full px-3 py-2 bg-surface outline-none text-sm">
+            <option value="zona">Zona</option>
+            <option value="mesa">Mesa</option>
+            <option value="vip">VIP</option>
+          </select>
+          {tipo === "vip" && (
+            <input value={consumoMinimo} onChange={(e) => setConsumoMinimo(e.target.value.replace(/\D/g, ""))} inputMode="numeric" placeholder="Consumo mínimo COP (opcional)" className="card w-full px-3 py-2 bg-transparent outline-none text-sm" />
+          )}
+          <div className="flex gap-2 justify-end">
+            <button type="button" onClick={() => setCreando(false)} className="rounded-full border border-line px-4 py-2 text-sm text-muted">Cancelar</button>
+            <button type="submit" disabled={!nombre.trim()} className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">Crear zona</button>
+          </div>
+        </form>
+      )}
       {db.zonas.map((z) => (
         <div key={z.id} className="card px-4 py-3 flex items-center gap-4">
           {z.tipo === "zona" ? (
@@ -929,10 +1024,24 @@ function Pagos({ db }: { db: DB }) {
 function Personal({ db }: { db: DB }) {
   const [nombre, setNombre] = useState("");
   const [rol, setRol] = useState<"mesero" | "barra">("mesero");
+  const [confirmacion, setConfirmacion] = useState("");
 
   return (
     <div className="space-y-3 max-w-2xl">
-      <div className="card p-4 flex gap-2 items-center flex-wrap">
+      <form
+        className="card p-4 flex gap-2 items-center flex-wrap"
+        onSubmit={(evento) => {
+          evento.preventDefault();
+          const limpio = nombre.trim();
+          if (!limpio) return;
+          const pin = String(1000 + Math.floor(Math.random() * 9000));
+          guardarDB((d) => {
+            d.staff.push({ id: `st-${Date.now()}`, nombre: limpio, rol, pin, activo: true });
+          });
+          setConfirmacion(`${limpio} agregado · PIN ${pin}`);
+          setNombre("");
+        }}
+      >
         <input
           value={nombre}
           onChange={(e) => setNombre(e.target.value)}
@@ -948,24 +1057,14 @@ function Personal({ db }: { db: DB }) {
           <option value="barra">Barra</option>
         </select>
         <button
-          onClick={() => {
-            if (!nombre.trim()) return;
-            guardarDB((d) => {
-              d.staff.push({
-                id: `st-${Date.now()}`,
-                nombre: nombre.trim(),
-                rol,
-                pin: String(1000 + Math.floor(Math.random() * 9000)),
-                activo: true,
-              });
-            });
-            setNombre("");
-          }}
-          className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white"
+          type="submit"
+          disabled={!nombre.trim()}
+          className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white disabled:opacity-40"
         >
           + Agregar
         </button>
-      </div>
+      </form>
+      {confirmacion && <p className="text-sm text-lime font-semibold">✓ {confirmacion}</p>}
       {db.staff.map((s) => (
         <div key={s.id} className="card px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
