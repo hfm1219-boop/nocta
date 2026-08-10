@@ -358,7 +358,7 @@ export function registrarCobro(
   });
 }
 
-export function noEncontrado(id: string) {
+export function noEncontrado(id: string, barraId: string, barraNombre: string) {
   // Modo B: el cliente no aparece → pasa a recogida en barra express
   guardarDB((db) => {
     const p = db.pedidos.find((x) => x.id === id);
@@ -366,7 +366,9 @@ export function noEncontrado(id: string) {
     p.modo = "barra";
     p.estado = "listo";
     p.timestamps["a_barra"] = Date.now();
-    p.notas = "Pasó a recogida en barra: cliente no localizado en zona";
+    p.barraRecogidaId = barraId;
+    p.barraRecogidaNombre = barraNombre;
+    p.notas = `No logramos encontrarte. Tu pedido quedó en ${barraNombre}.`;
   });
 }
 

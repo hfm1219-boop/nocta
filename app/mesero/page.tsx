@@ -18,6 +18,8 @@ export default function Mesero() {
   const [pinIngresado, setPinIngresado] = useState("");
   const [pinError, setPinError] = useState(false);
   const [cobrando, setCobrando] = useState<Pedido | null>(null);
+  const [noLocalizado, setNoLocalizado] = useState<Pedido | null>(null);
+  const [barraSeleccionada, setBarraSeleccionada] = useState("");
 
   const entregas = useMemo(() => {
     if (!db) return [];
@@ -31,6 +33,16 @@ export default function Mesero() {
   const propinasNoche = db.pedidos
     .filter((p) => p.meseroId === staffId && p.estado === "entregado")
     .reduce((s, p) => s + p.propina, 0);
+  const barrasRecogida = Array.from(new Map(
+    db.estacionesDespacho
+      .filter((estacion) => estacion.activa)
+      .map((estacion) => {
+        const terraza = estacion.nombre.toLowerCase().includes("terraza");
+        const id = terraza ? "barra-terraza" : "barra-principal";
+        const nombre = terraza ? "Barra Terraza" : "Barra Principal";
+        return [id, { id, nombre }] as const;
+      }),
+  ).values());
 
   function tocarDigito(d: string) {
     if (!validando) return;
@@ -161,7 +173,10 @@ export default function Mesero() {
                 </button>
                 {esZona && (
                   <button
-                    onClick={() => noEncontrado(p.id)}
+                    onClick={() => {
+                      setNoLocalizado(p);
+                      setBarraSeleccionada("");
+                    }}
                     className="rounded-xl px-4 py-3 text-sm font-semibold border border-amber/50 text-amber active:scale-[0.98]"
                   >
                     No encontrado
@@ -232,6 +247,61 @@ export default function Mesero() {
           onCerrar={() => setCobrando(null)}
           onCobrado={() => avanzarPedido(cobrando.id, "entregado")}
         />
+      )}
+
+      {noLocalizado && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-6">
+          <div className="card bg-surface w-full max-w-sm p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-lg">¿Cliente no encontrado?</h2>
+              <p className="text-sm text-muted mt-1">
+                Confirma dónde dejarás el pedido #{noLocalizado.numero}. El cliente verá esta ubicación para recogerlo.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs font-semibold text-muted">Selecciona la barra de recogida</p>
+              {barrasRecogida.map((barra) => (
+                <button
+                  key={barra.id}
+                  type="button"
+                  onClick={() => setBarraSeleccionada(barra.id)}
+                  className={`w-full rounded-xl border p-3 text-left transition ${
+                    barraSeleccionada === barra.id
+                      ? "border-amber bg-amber/10 text-amber font-semibold"
+                      : "border-line text-muted"
+                  }`}
+                >
+                  📍 {barra.nombre}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setNoLocalizado(null)}
+                className="flex-1 rounded-xl py-3 border border-line text-muted font-semibold"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={!barraSeleccionada}
+                onClick={() => {
+                  const barra = barrasRecogida.find((item) => item.id === barraSeleccionada);
+                  if (!barra) return;
+                  noEncontrado(noLocalizado.id, barra.id, barra.nombre);
+                  setNoLocalizado(null);
+                  setBarraSeleccionada("");
+                }}
+                className="flex-1 rounded-xl py-3 bg-amber text-black font-bold disabled:opacity-40"
+              >
+                Sí, dejar en barra
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

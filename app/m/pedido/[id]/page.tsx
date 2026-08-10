@@ -205,6 +205,16 @@ export default function EstadoPedido() {
         </section>
       )}
 
+      {p.estado === "listo" && p.barraRecogidaNombre && (
+        <section className="card p-5 border-amber/50 bg-amber/5 text-center space-y-2">
+          <p className="text-2xl">📍</p>
+          <h2 className="font-bold text-amber text-lg">Recoge tu pedido en {p.barraRecogidaNombre}</h2>
+          <p className="text-sm text-muted">
+            El mesero no logró encontrarte en la zona. Presenta el número #{p.numero} y tu PIN para recibirlo.
+          </p>
+        </section>
+      )}
+
       {p.estado === "en_camino" && p.color && (
         <button
           onClick={() => setLuzAbierta(true)}

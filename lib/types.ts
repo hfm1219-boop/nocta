@@ -105,6 +105,8 @@ export interface Pedido {
   vaquitaId?: string;
   despachos?: DespachoPedido[];
   notas?: string;
+  barraRecogidaId?: string;
+  barraRecogidaNombre?: string;
 }
 
 export interface DespachoPedido {
