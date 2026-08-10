@@ -52,6 +52,18 @@ export default function MenuCliente() {
         <span className="text-neon3">→</span>
       </Link>
 
+      <Link
+        href="/m/vaquita"
+        className="card p-3 flex items-center gap-3 border-amber/35 bg-amber/5"
+      >
+        <span className="text-2xl">🐮</span>
+        <span className="flex-1">
+          <span className="block text-sm font-semibold text-amber">¿Te invitaron a una vaquita?</span>
+          <span className="block text-[11px] text-muted">Ingresa el código y paga tu parte.</span>
+        </span>
+        <span className="text-amber">→</span>
+      </Link>
+
       {ventanaCerrada && (
         <div className="card p-3 border-amber/40 text-amber text-sm">
           El local no está recibiendo pedidos en este momento. Menú solo lectura.

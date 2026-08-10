@@ -315,6 +315,14 @@ export default function Checkout() {
             </button>
           </div>
         )}
+        {!armandoVaquita && (
+          <button
+            onClick={() => router.push("/m/vaquita")}
+            className="text-xs text-amber underline underline-offset-4"
+          >
+            Ya tengo un código · unirme a pagar
+          </button>
+        )}
       </section>
 
       {!esPreorden && <section>
