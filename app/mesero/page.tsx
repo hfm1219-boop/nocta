@@ -43,6 +43,17 @@ export default function Mesero() {
         return [id, { id, nombre }] as const;
       }),
   ).values());
+  const entregasPorZona = Array.from(
+    entregas.reduce((grupos, pedido) => {
+      const clave = pedido.zonaId ?? "sin-zona";
+      grupos.set(clave, [...(grupos.get(clave) ?? []), pedido]);
+      return grupos;
+    }, new Map<string, Pedido[]>()),
+  ).map(([zonaId, pedidos]) => ({
+    zonaId,
+    nombre: db.zonas.find((zona) => zona.id === zonaId)?.nombre ?? "Sin zona asignada",
+    pedidos,
+  }));
 
   function tocarDigito(d: string) {
     if (!validando) return;
@@ -97,11 +108,22 @@ export default function Mesero() {
             aparecerá aquí con su zona y color.
           </p>
         )}
-        {entregas.map((p) => {
+        {entregasPorZona.map((grupo) => (
+          <section key={grupo.zonaId} className="card p-3 space-y-3 border-neon3/35">
+            <div className="flex items-center justify-between gap-3 px-1">
+              <div>
+                <p className="font-bold text-neon3">📍 {grupo.nombre}</p>
+                <p className="text-xs text-muted">Lleva estos pedidos en un solo recorrido</p>
+              </div>
+              <span className="rounded-full bg-neon3/15 text-neon3 px-3 py-1 text-xs font-bold">
+                {grupo.pedidos.length} {grupo.pedidos.length === 1 ? "pedido" : "pedidos"}
+              </span>
+            </div>
+          {grupo.pedidos.map((p) => {
           const zona = db.zonas.find((z) => z.id === p.zonaId);
           const esZona = p.modo === "zona";
           return (
-            <div key={p.id} className="card p-4 space-y-3">
+            <div key={p.id} className="rounded-xl border border-line bg-surface2 p-4 space-y-3">
               <div className="flex items-center gap-3">
                 {esZona ? (
                   <MuestraLuz color={p.color} patron={p.patron} grande />
@@ -185,7 +207,9 @@ export default function Mesero() {
               </div>
             </div>
           );
-        })}
+          })}
+          </section>
+        ))}
       </main>
 
       {validando && (

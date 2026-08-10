@@ -334,11 +334,19 @@ export function avanzarPedido(id: string, nuevoEstado: Pedido["estado"]) {
       if (p.modo === "zona") asignarLuz(db, p);
       if (!p.meseroId) {
         const meseros = db.staff.filter((s) => s.rol === "mesero" && s.activo);
+        const meseroMismaZona = db.pedidos.find(
+          (x) => x.id !== p.id
+            && x.estado === "en_camino"
+            && x.zonaId === p.zonaId
+            && x.meseroId
+            && meseros.some((mesero) => mesero.id === x.meseroId),
+        )?.meseroId;
         const carga = new Map(meseros.map((m) => [m.id, 0]));
         db.pedidos
           .filter((x) => x.estado === "en_camino" && x.meseroId)
           .forEach((x) => carga.set(x.meseroId!, (carga.get(x.meseroId!) ?? 0) + 1));
-        p.meseroId = [...carga.entries()].sort((a, b) => a[1] - b[1])[0]?.[0];
+        p.meseroId = meseroMismaZona
+          ?? [...carga.entries()].sort((a, b) => a[1] - b[1])[0]?.[0];
       }
     }
   });
