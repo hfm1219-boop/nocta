@@ -853,9 +853,7 @@ function Pagos({ db }: { db: DB }) {
           ))}
         </section>
       )}
-      <div
-        className={`card p-4 flex items-center justify-between ${!c.recaudoActivo ? "border-amber/50" : ""}`}
-      >
+      <div className="card p-4 flex items-center justify-between">
         <div>
           <p className="font-semibold">Recaudo digital operativo</p>
           <p className="text-xs text-muted mt-0.5">
