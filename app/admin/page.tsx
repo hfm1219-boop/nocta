@@ -281,7 +281,7 @@ function Estaciones({ db }: { db: DB }) {
         </p>
       </section>
       {db.estacionesDespacho.map((estacion) => (
-        <section key={estacion.id} className={`card p-4 ${estacion.activa ? "border-lime/30" : "opacity-60"}`}>
+        <section key={estacion.id} className="card p-4">
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold">
@@ -327,7 +327,7 @@ function MercadoPrecios({ db }: { db: DB }) {
 
   return (
     <div className="space-y-4 max-w-3xl">
-      <section className={`card p-5 border-2 ${config.activo ? "border-lime/50" : "border-line"}`}>
+      <section className="card p-5">
         <div className="flex items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -786,8 +786,12 @@ function Interruptor({
 }) {
   return (
     <button
+      type="button"
+      role="switch"
+      aria-checked={activo}
+      aria-label={activo ? "Desactivar" : "Activar"}
       onClick={onCambiar}
-      className={`w-12 h-7 rounded-full transition relative ${
+      className={`w-12 h-7 shrink-0 rounded-full transition relative ${
         activo ? "bg-neon1" : "bg-surface2 border border-line"
       }`}
     >
@@ -812,7 +816,7 @@ function Pagos({ db }: { db: DB }) {
   ];
   return (
     <div className="space-y-4 max-w-2xl">
-      <div className={`card p-4 flex items-center justify-between ${c.pagoAlFinalActivo ? "border-neon1/50" : ""}`}>
+      <div className="card p-4 flex items-center justify-between">
         <div>
           <p className="font-semibold">Pago al final para Mesa/VIP</p>
           <p className="text-xs text-muted mt-0.5">
