@@ -165,12 +165,8 @@ export default function Checkout() {
         </button>
         <button
           onClick={() => {
-            setEsPreorden(true);
             setPoliticasAceptadas(false);
-            setModo("barra");
-            setZonaId("");
-            setMedio("digital");
-            setPagoAlFinal(false);
+            setPoliticasAbiertas(true);
           }}
           className={`rounded-xl py-3 text-sm transition ${
             esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
@@ -605,18 +601,12 @@ export default function Checkout() {
       </p>
 
       <BotonPrimario
-        onClick={() => {
-          if (esPreorden) {
-            setPoliticasAceptadas(false);
-            setPoliticasAbiertas(true);
-          } else {
-            void confirmar();
-          }
-        }}
+        onClick={() => void confirmar()}
         disabled={
           items.length === 0 ||
           (!esPreorden && necesitaZona && !zonaId) ||
           (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) ||
+          (esPreorden && !politicasAceptadas) ||
           !medioValido
         }
         className="w-full text-lg"
@@ -630,7 +620,7 @@ export default function Checkout() {
             : `Pedir · pagar al recibir ${cop(total)}`}
       </BotonPrimario>
 
-      {politicasAbiertas && esPreorden && (
+      {politicasAbiertas && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4">
           <section
             role="dialog"
@@ -640,7 +630,7 @@ export default function Checkout() {
           >
             <header className="p-5 border-b border-line flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-semibold text-neon3">ANTES DE PAGAR</p>
+                <p className="text-xs font-semibold text-neon3">ANTES DEL CHECKOUT</p>
                 <h2 id="titulo-politicas" className="text-xl font-bold mt-1">
                   Políticas de preorden
                 </h2>
@@ -691,10 +681,17 @@ export default function Checkout() {
               <button
                 type="button"
                 disabled={!politicasAceptadas}
-                onClick={() => void confirmar()}
+                onClick={() => {
+                  setEsPreorden(true);
+                  setModo("barra");
+                  setZonaId("");
+                  setMedio("digital");
+                  setPagoAlFinal(false);
+                  setPoliticasAbiertas(false);
+                }}
                 className="btn-neon w-full rounded-full py-3.5 font-bold text-white disabled:opacity-40 disabled:shadow-none"
               >
-                Aceptar y pagar {cop(total)}
+                Aceptar y continuar al checkout
               </button>
             </footer>
           </section>
