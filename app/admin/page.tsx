@@ -77,6 +77,22 @@ export default function Admin() {
 // ---------------- Funciones del establecimiento ----------------
 
 function Funciones({ db }: { db: DB }) {
+  const recepciones = [
+    db.config.funciones.recepcionBarra,
+    db.config.funciones.recepcionZona,
+    db.config.funciones.recepcionMesa,
+  ];
+  function cambiarRecepcion(campo: "recepcionBarra" | "recepcionZona" | "recepcionMesa") {
+    guardarDB((datos) => {
+      const activas = [
+        datos.config.funciones.recepcionBarra,
+        datos.config.funciones.recepcionZona,
+        datos.config.funciones.recepcionMesa,
+      ].filter(Boolean).length;
+      if (datos.config.funciones[campo] && activas === 1) return;
+      datos.config.funciones[campo] = !datos.config.funciones[campo];
+    });
+  }
   return (
     <div className="space-y-4 max-w-2xl">
       <div>
@@ -93,6 +109,33 @@ function Funciones({ db }: { db: DB }) {
           datos.config.funciones.rockola = !datos.config.funciones.rockola;
         })}
       />
+      <section className="space-y-3 pt-2">
+        <div>
+          <h3 className="font-bold">¿Cómo reciben los pedidos?</h3>
+          <p className="text-xs text-muted mt-1">Elige las modalidades disponibles en este establecimiento. Al menos una debe permanecer activa.</p>
+        </div>
+        <OpcionInterruptor
+          nombre="Barra express"
+          nota="El cliente recoge el pedido directamente en la barra."
+          activo={db.config.funciones.recepcionBarra}
+          onCambiar={() => cambiarRecepcion("recepcionBarra")}
+        />
+        <OpcionInterruptor
+          nombre="Entrega por zona"
+          nota="Un mesero lleva el pedido a la zona seleccionada por el cliente."
+          activo={db.config.funciones.recepcionZona}
+          onCambiar={() => cambiarRecepcion("recepcionZona")}
+        />
+        <OpcionInterruptor
+          nombre="Mesa/VIP"
+          nota="La mesa se identifica mediante su código QR."
+          activo={db.config.funciones.recepcionMesa}
+          onCambiar={() => cambiarRecepcion("recepcionMesa")}
+        />
+        {recepciones.filter(Boolean).length === 1 && (
+          <p className="text-xs text-amber">La última modalidad activa no se puede apagar.</p>
+        )}
+      </section>
       <OpcionInterruptor
         nombre="Preordenar"
         nota="Permite comprar antes de llegar, aceptar las políticas y obtener descuentos por volumen."

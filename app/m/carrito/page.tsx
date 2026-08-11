@@ -57,6 +57,12 @@ export default function Checkout() {
   const proximoNivel = siguienteNivel(items);
 
   const config = db?.config;
+  const modosHabilitados = config ? ([
+    config.funciones.recepcionBarra && "barra",
+    config.funciones.recepcionZona && "zona",
+    config.funciones.recepcionMesa && "mesa",
+  ].filter(Boolean) as ModoServicio[]) : [];
+  const modoValido = modosHabilitados.includes(modo) ? modo : (modosHabilitados[0] ?? "barra");
   const mediosDisponibles = useMemo(() => {
     if (!config) return [] as MedioPago[];
     if (pagoAlFinal) return ["datafono"] as MedioPago[];
@@ -65,13 +71,13 @@ export default function Checkout() {
     if (esPreorden) return lista;
     const superaTope = total > config.topeContraEntrega;
     if (!superaTope) {
-      if (config.mediosHabilitados.efectivo && (modo !== "zona" || config.efectivoEnZona)) {
+      if (config.mediosHabilitados.efectivo && (modoValido !== "zona" || config.efectivoEnZona)) {
         lista.push("efectivo");
       }
       if (config.mediosHabilitados.datafono) lista.push("datafono");
     }
     return lista;
-  }, [config, esPreorden, modo, pagoAlFinal, total]);
+  }, [config, esPreorden, modoValido, pagoAlFinal, total]);
 
   const medioValido = mediosDisponibles.includes(medio)
     ? medio
@@ -79,7 +85,7 @@ export default function Checkout() {
 
   if (!db || !config) return null;
 
-  const necesitaZona = modo !== "barra";
+  const necesitaZona = modoValido !== "barra";
   const superaTope = total > config.topeContraEntrega;
   const programadoPara = fechaLlegada ? new Date(fechaLlegada).getTime() : 0;
   const fechaValida = !esPreorden || (ahora > 0 && programadoPara >= ahora + 30 * 60_000);
@@ -109,7 +115,7 @@ export default function Checkout() {
     await new Promise((r) => setTimeout(r, medioValido === "digital" ? 1600 : 400));
     const pedido = crearPedido({
       items,
-      modo,
+      modo: modoValido,
       zonaId: necesitaZona ? zonaId : undefined,
       medioPago: medioValido,
       propina,
@@ -325,8 +331,8 @@ export default function Checkout() {
 
       {!esPreorden && <section>
         <h2 className="font-semibold mb-2">¿Cómo recibes tu pedido?</h2>
-        <div className="grid grid-cols-3 gap-2">
-          {(["barra", "zona", "mesa"] as ModoServicio[]).map((m) => (
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${modosHabilitados.length}, minmax(0, 1fr))` }}>
+          {modosHabilitados.map((m) => (
             <button
               key={m}
               onClick={() => {
@@ -335,7 +341,7 @@ export default function Checkout() {
                 if (m !== "mesa") setPagoAlFinal(false);
               }}
               className={`card py-3 px-1 text-xs transition ${
-                modo === m ? "chip-active font-semibold" : "text-muted"
+                modoValido === m ? "chip-active font-semibold" : "text-muted"
               }`}
             >
               <div className="text-lg mb-1">{m === "barra" ? "🍹" : m === "zona" ? "📍" : "🪑"}</div>
@@ -343,12 +349,12 @@ export default function Checkout() {
             </button>
           ))}
         </div>
-        {modo === "barra" && (
+        {modoValido === "barra" && (
           <p className="text-xs text-muted mt-2">
             Te avisamos cuando esté listo y lo recoges en la barra express, sin fila.
           </p>
         )}
-        {modo === "zona" && (
+        {modoValido === "zona" && (
           <p className="text-xs text-muted mt-2">
             Un mesero te lo lleva. Mantén tu pantalla-luz visible para que te encuentre.
           </p>
@@ -357,8 +363,8 @@ export default function Checkout() {
 
       {!esPreorden && necesitaZona && (
         <section>
-          <h2 className="font-semibold mb-2">{modo === "zona" ? "¿En qué zona estás?" : "Identifica tu mesa"}</h2>
-          {modo === "zona" ? (
+          <h2 className="font-semibold mb-2">{modoValido === "zona" ? "¿En qué zona estás?" : "Identifica tu mesa"}</h2>
+          {modoValido === "zona" ? (
             <MapaZonas zonas={db.zonas.filter((zona) => zona.tipo === "zona")} seleccionada={zonaId} onSeleccionar={setZonaId} nombreLocal={db.config.nombre} />
           ) : (
             <div className="card p-4 space-y-3 border-neon3/35">
@@ -414,7 +420,7 @@ export default function Checkout() {
         </section>
       )}
 
-      {!esPreorden && modo === "mesa" && config.pagoAlFinalActivo && (
+      {!esPreorden && modoValido === "mesa" && config.pagoAlFinalActivo && (
         <section className="card p-4 border-neon1/40 space-y-3">
           <div className="flex items-center justify-between gap-4">
             <div>

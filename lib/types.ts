@@ -171,6 +171,9 @@ export interface ConfigLocal {
   funciones: {
     rockola: boolean;
     preorden: boolean;
+    recepcionBarra: boolean;
+    recepcionZona: boolean;
+    recepcionMesa: boolean;
   };
   mediosHabilitados: Record<MedioPago, boolean>;
   efectivoEnZona: boolean; // modo B con efectivo requiere autorización expresa

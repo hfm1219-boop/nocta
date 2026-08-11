@@ -105,8 +105,17 @@ function normalizarDB(db: DB): DB {
     db.version = 2;
   }
   if (!Array.isArray(db.categorias)) db.categorias = crearDBInicial().categorias;
-  db.config.funciones ??= { rockola: true, preorden: true };
+  db.config.funciones ??= {
+    rockola: true,
+    preorden: true,
+    recepcionBarra: true,
+    recepcionZona: true,
+    recepcionMesa: true,
+  };
   db.config.funciones.preorden ??= true;
+  db.config.funciones.recepcionBarra ??= true;
+  db.config.funciones.recepcionZona ??= true;
+  db.config.funciones.recepcionMesa ??= true;
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
   if (!Array.isArray(db.vaquitas)) db.vaquitas = [];
   if (!Array.isArray(db.estacionesDespacho)) {
