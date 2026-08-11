@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CATEGORIAS } from "@/lib/seed";
 import { useDB, cop, useReloj } from "@/lib/store";
 import { agregarItem } from "@/lib/cart";
 import { Logo } from "@/components/ui";
@@ -96,7 +95,7 @@ export default function MenuCliente() {
 
       {!busqueda && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-          {CATEGORIAS.map((c) => (
+          {db.categorias.map((c) => (
             <button
               key={c.id}
               onClick={() => setCat(c.id)}

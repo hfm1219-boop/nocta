@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { crearDBInicial, COLORES_LUZ, PATRONES } from "./seed";
+import { crearDBInicial, crearDBParaLocal, COLORES_LUZ, PATRONES } from "./seed";
 import type {
   DB, DespachoPedido, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion, Vaquita,
 } from "./types";
@@ -15,8 +15,8 @@ let canal: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
 
 export function idLocalActivo(): string {
-  if (typeof window === "undefined") return "eclipse";
-  return localStorage.getItem(ACTIVE_LOCAL_KEY) || "eclipse";
+  if (typeof window === "undefined") return "la-movida";
+  return localStorage.getItem(ACTIVE_LOCAL_KEY) || "la-movida";
 }
 
 function claveDB(): string {
@@ -27,10 +27,7 @@ export function seleccionarLocal(id: string, nombre?: string) {
   localStorage.setItem(ACTIVE_LOCAL_KEY, id);
   const key = `${LEGACY_KEY}:${id}`;
   if (!localStorage.getItem(key)) {
-    const inicial = crearDBInicial();
-    inicial.config.nombre = nombre || id;
-    inicial.pedidos = [];
-    inicial.contador = 0;
+    const inicial = crearDBParaLocal(id, nombre || id);
     localStorage.setItem(key, JSON.stringify(inicial));
   }
   cache = null;
@@ -38,6 +35,7 @@ export function seleccionarLocal(id: string, nombre?: string) {
 }
 
 function normalizarDB(db: DB): DB {
+  if (!Array.isArray(db.categorias)) db.categorias = crearDBInicial().categorias;
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
   if (!Array.isArray(db.vaquitas)) db.vaquitas = [];
   if (!Array.isArray(db.estacionesDespacho)) {
@@ -76,7 +74,7 @@ export function leerDB(): DB {
   try {
     const key = claveDB();
     const raw = localStorage.getItem(key)
-      ?? (idLocalActivo() === "eclipse" ? localStorage.getItem(LEGACY_KEY) : null);
+      ?? (idLocalActivo() === "la-movida" ? localStorage.getItem(LEGACY_KEY) : null);
     if (raw) {
       cache = normalizarDB(JSON.parse(raw) as DB);
       return cache;
@@ -102,7 +100,9 @@ export function guardarDB(mutar: (db: DB) => void) {
 }
 
 export function resetDemo() {
-  cache = crearDBInicial();
+  const id = idLocalActivo();
+  const nombre = leerDB().config.nombre;
+  cache = crearDBParaLocal(id, nombre);
   localStorage.setItem(claveDB(), JSON.stringify(cache));
   getCanal()?.postMessage("sync");
   emitir();

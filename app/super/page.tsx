@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { LOCALES_DEMO } from "@/lib/seed";
-import { cop, seleccionarLocal, useDB } from "@/lib/store";
+import { cop, idLocalActivo, seleccionarLocal, useDB } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 
 const ESTADO_RECAUDO = {
@@ -22,11 +22,11 @@ export default function Superadmin() {
 
   if (!db) return null;
 
-  // Métricas en vivo del local demo (Eclipse) + locales estáticos
+  // Métricas en vivo del establecimiento seleccionado + catálogo afiliado.
   const entregados = db.pedidos.filter((p) => p.estado === "entregado");
   const ventasEclipse = entregados.reduce((s, p) => s + p.total, 0);
   const locales = LOCALES_DEMO.map((l) =>
-    l.id === "eclipse"
+    l.id === idLocalActivo()
       ? {
           ...l,
           pedidosNoche: entregados.length,
@@ -74,8 +74,8 @@ export default function Superadmin() {
                 <div className="flex-1 min-w-40">
                   <div className="font-bold">
                     {l.nombre}
-                    {l.id === "eclipse" && (
-                      <span className="text-neon3 text-xs ml-2">● EN VIVO (demo)</span>
+                    {l.id === idLocalActivo() && (
+                      <span className="text-neon3 text-xs ml-2">● SELECCIONADO</span>
                     )}
                   </div>
                   <div className="text-xs text-muted">{l.ciudad}</div>

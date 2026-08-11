@@ -1,4 +1,4 @@
-import type { DB, Pedido, Producto, UsuarioStaff, Zona } from "./types";
+import type { DB, LocalResumen, Pedido, Producto, UsuarioStaff, Zona } from "./types";
 
 const TAM_COCTEL = [
   { id: "normal", nombre: "Normal", delta: 0 },
@@ -206,11 +206,12 @@ export function crearDBInicial(): DB {
   const historico = generarHistorico();
   return {
     version: 1,
+    categorias: CATEGORIAS.map((categoria) => ({ ...categoria })),
     productos: PRODUCTOS.map((p) => ({ ...p })),
     zonas: ZONAS.map((z) => ({ ...z })),
     staff: STAFF.map((s) => ({ ...s })),
     config: {
-      nombre: "Eclipse Rooftop",
+      nombre: "La Movida",
       mediosHabilitados: { digital: true, efectivo: true, datafono: true },
       efectivoEnZona: false,
       topeContraEntrega: 150000,
@@ -263,20 +264,151 @@ export function crearDBInicial(): DB {
   };
 }
 
-export const LOCALES_DEMO = [
+const CATEGORIAS_COMIDA = [
+  { id: "entradas", nombre: "Para compartir", icono: "🍽️" },
+  { id: "fuertes", nombre: "Platos fuertes", icono: "🐟" },
+  { id: "postres", nombre: "Postres", icono: "🍰" },
+  { id: "cocteles", nombre: "Coctelería", icono: "🍸" },
+  { id: "sinalcohol", nombre: "Sin alcohol", icono: "🫧" },
+];
+
+function producto(
+  id: string, nombre: string, categoria: string, descripcion: string,
+  precio: number, icono: string, color: string,
+): Producto {
+  return { id, nombre, categoria, descripcion, precio, icono, color, disponible: true };
+}
+
+export function crearDBParaLocal(id: string, nombre: string): DB {
+  const db = crearDBInicial();
+  db.config.nombre = nombre;
+  db.pedidos = [];
+  db.contador = 0;
+
+  if (id === "la-movida") {
+    db.zonas = db.zonas.map((zona, indice) => zona.tipo === "zona"
+      ? { ...zona, nombre: ["Main Room", "Almodóvar Patio", "Rossy Rooftop", "La Ratonera", "Pista"][indice] ?? zona.nombre }
+      : zona);
+  }
+
+  if (id === "la-jugada-club-house") {
+    db.categorias = [
+      { id: "cocteles", nombre: "Draft cocktails", icono: "🍹" },
+      { id: "comida", nombre: "Food", icono: "🍔" },
+      { id: "licores", nombre: "Botellas", icono: "🍾" },
+      { id: "cervezas", nombre: "Cervezas", icono: "🍺" },
+      { id: "sinalcohol", nombre: "Sin alcohol", icono: "🫧" },
+    ];
+    db.productos = [
+      producto("draft-caribe", "Draft Caribe", "cocteles", "Coctel tropical de barril, fresco y listo para servir.", 30000, "🍹", "#ff2d9a"),
+      producto("draft-house", "Draft Club House", "cocteles", "Coctel de la casa servido desde barril.", 32000, "🥃", "#b644ff"),
+      producto("sliders", "Sliders Club House", "comida", "Mini hamburguesas para compartir.", 42000, "🍔", "#f97316"),
+      producto("tacos", "Tacos de la casa", "comida", "Tacos para compartir con salsa fresca.", 38000, "🌮", "#a3e635"),
+      producto("botella-ron", "Ron añejo · botella", "licores", "Botella con mezcladores y hielo.", 190000, "🍾", "#fbbf24"),
+      producto("cerveza-jugada", "Cerveza fría", "cervezas", "Cerveza individual.", 12000, "🍺", "#22d3ee"),
+      producto("soda-tropical", "Soda tropical", "sinalcohol", "Frutas tropicales y soda.", 14000, "🫧", "#3b82f6"),
+    ];
+  }
+
+  if (id === "restaurante-lobo-de-mar") {
+    db.categorias = CATEGORIAS_COMIDA;
+    db.productos = [
+      producto("ceviche-mar", "Ceviche del día", "entradas", "Pesca fresca, cítricos y sabores del Caribe.", 48000, "🐟", "#22d3ee"),
+      producto("pulpo-fuego", "Pulpo al fuego", "entradas", "Pulpo asado pensado para compartir.", 62000, "🐙", "#f97316"),
+      producto("socarrat-mar", "Socarrat de mar", "fuertes", "Arroz mediterráneo de fondo intenso y producto del mar.", 78000, "🥘", "#fbbf24"),
+      producto("pesca-local", "Pesca local", "fuertes", "Pescado fresco con acompañamientos de temporada.", 72000, "🐟", "#3b82f6"),
+      producto("chocolate-mar", "Chocolate y sal marina", "postres", "Postre de chocolate con contraste salino.", 28000, "🍫", "#b644ff"),
+      producto("coctel-lobo", "Coctel de autor Lobo", "cocteles", "Coctelería de autor inspirada en el mar.", 39000, "🍸", "#ff2d9a"),
+      producto("agua-gas-lobo", "Agua con gas", "sinalcohol", "Agua mineral con gas.", 10000, "🫧", "#22d3ee"),
+    ];
+    db.zonas = db.zonas.map((zona, indice) => zona.tipo === "zona"
+      ? { ...zona, nombre: ["Terraza frente al mar", "Salón principal", "Barra mediterránea", "Patio", "Área de espera"][indice] ?? zona.nombre }
+      : zona);
+    db.config.pagoAlFinalActivo = true;
+  }
+
+  if (id === "cardinal-bar") {
+    db.categorias = [
+      { id: "cocteles", nombre: "Cocteles de autor", icono: "🍸" },
+      { id: "clasicos", nombre: "Clásicos", icono: "🥃" },
+      { id: "sinalcohol", nombre: "Sin alcohol", icono: "🫧" },
+    ];
+    db.productos = [
+      producto("cardinal-signature", "Cardinal Signature", "cocteles", "Coctel de autor de perfil aromático y servicio personalizado.", 38000, "🍸", "#f43f5e"),
+      producto("caribe-clarificado", "Caribe clarificado", "cocteles", "Trago tropical de textura limpia y balance cítrico.", 40000, "🍹", "#22d3ee"),
+      producto("old-fashioned", "Old Fashioned", "clasicos", "Whisky, bitters y azúcar.", 38000, "🥃", "#fbbf24"),
+      producto("negroni", "Negroni", "clasicos", "Gin, vermut rojo y bitter italiano.", 36000, "🥃", "#f97316"),
+      producto("mocktail-cardinal", "Cardinal Zero", "sinalcohol", "Coctel sin alcohol, cítrico y herbal.", 26000, "🫧", "#a3e635"),
+    ];
+    db.zonas = db.zonas.map((zona) => zona.tipo === "zona" ? { ...zona, nombre: `Salón · ${zona.nombre}` } : zona);
+  }
+
+  if (id === "casa-la-movida") {
+    db.categorias = [
+      { id: "desayunos", nombre: "Desayunos", icono: "☕" },
+      { id: "comida", nombre: "Comida casual", icono: "🍽️" },
+      { id: "cocteles", nombre: "Cocteles", icono: "🍹" },
+      { id: "sinalcohol", nombre: "Café y bebidas", icono: "🧃" },
+    ];
+    db.productos = [
+      producto("desayuno-caribe", "Desayuno Caribe", "desayunos", "Huevos, fruta fresca, pan y café.", 32000, "🍳", "#fbbf24"),
+      producto("bowl-frutas", "Bowl de frutas", "desayunos", "Frutas tropicales de temporada y granola.", 24000, "🥭", "#a3e635"),
+      producto("sandwich-casa", "Sándwich de la casa", "comida", "Opción casual para huéspedes y visitantes.", 34000, "🥪", "#f97316"),
+      producto("coctel-piscina", "Coctel de la casa", "cocteles", "Coctel tropical para disfrutar en las áreas comunes.", 32000, "🍹", "#ff2d9a"),
+      producto("limonada-coco", "Limonada de coco", "sinalcohol", "Limonada cremosa de coco.", 16000, "🥥", "#22d3ee"),
+      producto("cafe-colombiano", "Café colombiano", "sinalcohol", "Café recién preparado.", 9000, "☕", "#b644ff"),
+    ];
+    db.zonas = db.zonas.map((zona, indice) => zona.tipo === "zona"
+      ? { ...zona, nombre: ["Patio", "Piscina", "Lobby", "Rooftop", "Recepción"][indice] ?? zona.nombre }
+      : zona);
+    db.config.pagoAlFinalActivo = true;
+  }
+
+  if (id === "restaurante-lobo-de-mar") {
+    db.estacionesDespacho = [
+      { id: "cocina-fria", nombre: "Cocina fría", categorias: ["entradas", "postres"], zonasCercanas: [], activa: true },
+      { id: "cocina-caliente", nombre: "Cocina caliente", categorias: ["fuertes"], zonasCercanas: [], activa: true },
+      { id: "barra-autor", nombre: "Barra de autor", categorias: ["cocteles", "sinalcohol"], zonasCercanas: [], activa: true },
+    ];
+  } else if (id === "casa-la-movida") {
+    db.estacionesDespacho = [
+      { id: "cocina-casa", nombre: "Cocina Casa", categorias: ["desayunos", "comida"], zonasCercanas: [], activa: true },
+      { id: "barra-casa", nombre: "Barra y café", categorias: ["cocteles", "sinalcohol"], zonasCercanas: [], activa: true },
+    ];
+  } else if (id === "cardinal-bar") {
+    db.estacionesDespacho = [
+      { id: "barra-cardinal", nombre: "Barra Cardinal", categorias: ["cocteles", "clasicos", "sinalcohol"], zonasCercanas: [], activa: true },
+    ];
+  } else if (id === "la-jugada-club-house") {
+    db.estacionesDespacho = [
+      { id: "draft-bar", nombre: "Draft Bar", categorias: ["cocteles", "cervezas", "sinalcohol"], zonasCercanas: [], activa: true },
+      { id: "cocina-club-house", nombre: "Cocina Club House", categorias: ["comida"], zonasCercanas: [], activa: true },
+      { id: "botelleria", nombre: "Botellería", categorias: ["licores"], zonasCercanas: [], activa: true },
+    ];
+  }
+  return db;
+}
+
+export const LOCALES_DEMO: LocalResumen[] = [
   {
-    id: "eclipse", nombre: "Eclipse Rooftop", ciudad: "Cartagena", fase: 2 as const,
-    estadoRecaudo: "activo" as const, pedidosNoche: 58, ticketProm: 61000,
-    pctDigital: 55, activo: true,
-  },
-  {
-    id: "lacava", nombre: "La Cava Club", ciudad: "Barranquilla", fase: 1 as const,
-    estadoRecaudo: "en_vinculacion" as const, pedidosNoche: 34, ticketProm: 48000,
+    id: "la-movida", nombre: "La Movida", ciudad: "Cartagena, Bolívar", fase: 3 as const,
+    estadoRecaudo: "activo" as const, pedidosNoche: 0, ticketProm: 0,
     pctDigital: 0, activo: true,
   },
   {
-    id: "maradentro", nombre: "Mar Adentro Beach Club", ciudad: "Cartagena", fase: 1 as const,
-    estadoRecaudo: "pendiente" as const, pedidosNoche: 0, ticketProm: 0,
-    pctDigital: 0, activo: false,
+    id: "la-jugada-club-house", nombre: "La Jugada Club House", ciudad: "Cartagena, Bolívar", fase: 3 as const,
+    estadoRecaudo: "activo" as const, pedidosNoche: 0, ticketProm: 0, pctDigital: 0, activo: true,
+  },
+  {
+    id: "casa-la-movida", nombre: "Casa La Movida", ciudad: "Cartagena, Bolívar", fase: 3 as const,
+    estadoRecaudo: "activo" as const, pedidosNoche: 0, ticketProm: 0, pctDigital: 0, activo: true,
+  },
+  {
+    id: "restaurante-lobo-de-mar", nombre: "Restaurante Lobo de Mar", ciudad: "Cartagena, Bolívar", fase: 3 as const,
+    estadoRecaudo: "activo" as const, pedidosNoche: 0, ticketProm: 0, pctDigital: 0, activo: true,
+  },
+  {
+    id: "cardinal-bar", nombre: "Cardinal Bar", ciudad: "Cartagena, Bolívar", fase: 3 as const,
+    estadoRecaudo: "activo" as const, pedidosNoche: 0, ticketProm: 0, pctDigital: 0, activo: true,
   },
 ];

@@ -84,13 +84,13 @@ export function VolverMenuRoles({ compacto = false }: { compacto?: boolean }) {
   return (
     <Link
       href="/"
-      aria-label="Volver al menú de roles"
+      aria-label="Cambiar establecimiento"
       className={`inline-flex items-center justify-center rounded-full border border-line text-muted hover:text-foreground hover:border-neon2/60 transition ${
         compacto ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"
       }`}
     >
-      <span className="sm:hidden">← Roles</span>
-      <span className="hidden sm:inline">← Cambiar rol</span>
+      <span className="sm:hidden">← Local</span>
+      <span className="hidden sm:inline">← Cambiar establecimiento</span>
     </Link>
   );
 }

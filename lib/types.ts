@@ -202,6 +202,7 @@ export interface LocalResumen {
 
 export interface DB {
   version: number;
+  categorias: Categoria[];
   productos: Producto[];
   zonas: Zona[];
   staff: UsuarioStaff[];
