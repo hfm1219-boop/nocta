@@ -10,7 +10,7 @@ import { cotizarProducto } from "@/lib/mercado";
 export default function MenuCliente() {
   const db = useDB();
   const ahora = useReloj(10_000);
-  const [cat, setCat] = useState("cocteles");
+  const [cat, setCat] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
 
   if (!db) return null;
@@ -20,7 +20,7 @@ export default function MenuCliente() {
     if (busqueda) {
       return p.nombre.toLowerCase().includes(busqueda.toLowerCase());
     }
-    return p.categoria === cat;
+    return cat === "todos" || p.categoria === cat;
   });
 
   return (
@@ -95,7 +95,7 @@ export default function MenuCliente() {
 
       {!busqueda && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-          {db.categorias.map((c) => (
+          {[{ id: "todos", nombre: "Todos", icono: "✨" }, ...db.categorias].map((c) => (
             <button
               key={c.id}
               onClick={() => setCat(c.id)}

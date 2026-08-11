@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { LOCALES_DEMO } from "@/lib/seed";
-import { cop, idLocalActivo, seleccionarLocal, useDB } from "@/lib/store";
+import { afiliarLocal, cop, idLocalActivo, seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 
 const ESTADO_RECAUDO = {
@@ -15,8 +14,8 @@ const ESTADO_RECAUDO = {
 export default function Superadmin() {
   const router = useRouter();
   const db = useDB();
+  const afiliados = useLocalesAfiliados();
   const [altaAbierta, setAltaAbierta] = useState(false);
-  const [nuevos, setNuevos] = useState<{ nombre: string; ciudad: string }[]>([]);
   const [nombre, setNombre] = useState("");
   const [ciudad, setCiudad] = useState("");
 
@@ -24,13 +23,13 @@ export default function Superadmin() {
 
   // Métricas en vivo del establecimiento seleccionado + catálogo afiliado.
   const entregados = db.pedidos.filter((p) => p.estado === "entregado");
-  const ventasEclipse = entregados.reduce((s, p) => s + p.total, 0);
-  const locales = LOCALES_DEMO.map((l) =>
+  const ventasLocalActivo = entregados.reduce((s, p) => s + p.total, 0);
+  const locales = afiliados.map((l) =>
     l.id === idLocalActivo()
       ? {
           ...l,
           pedidosNoche: entregados.length,
-          ticketProm: entregados.length ? ventasEclipse / entregados.length : 0,
+          ticketProm: entregados.length ? ventasLocalActivo / entregados.length : 0,
           pctDigital: entregados.length
             ? Math.round(
                 (entregados.filter((p) => p.medioPago === "digital").length /
@@ -113,16 +112,6 @@ export default function Superadmin() {
             </div>
           ))}
 
-          {nuevos.map((n, i) => (
-            <div key={i} className="card p-4 border-dashed">
-              <div className="font-bold">{n.nombre}</div>
-              <div className="text-xs text-muted">{n.ciudad}</div>
-              <p className="text-[11px] text-amber mt-2">
-                Onboarding pendiente: contrato de software independiente, encargo
-                fiduciario propio, estación express y checklist de WiFi.
-              </p>
-            </div>
-          ))}
         </section>
 
         <section className="card p-4 text-xs text-muted leading-relaxed">
@@ -156,10 +145,7 @@ export default function Superadmin() {
             <button
               onClick={() => {
                 if (!nombre.trim()) return;
-                const nombreLocal = nombre.trim();
-                const id = `local-${Date.now()}`;
-                setNuevos((prev) => [...prev, { nombre: nombreLocal, ciudad: ciudad.trim() || "—" }]);
-                seleccionarLocal(id, nombreLocal);
+                afiliarLocal(nombre, ciudad);
                 setNombre("");
                 setCiudad("");
                 setAltaAbierta(false);

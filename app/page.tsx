@@ -4,8 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
-import { LOCALES_DEMO } from "@/lib/seed";
-import { seleccionarLocal, useDB } from "@/lib/store";
+import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 
 const ROLES_LOCAL = [
   { href: "/barra", nombre: "Bartender", desc: "Pedidos y despacho", icono: "🍹" },
@@ -17,15 +16,16 @@ const ROLES_LOCAL = [
 export default function Landing() {
   const router = useRouter();
   const db = useDB();
+  const afiliados = useLocalesAfiliados();
   const [busqueda, setBusqueda] = useState("");
   const [localId, setLocalId] = useState<string | null>(null);
-  const local = LOCALES_DEMO.find((item) => item.id === localId);
+  const local = afiliados.find((item) => item.id === localId);
   const locales = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
     return texto
-      ? LOCALES_DEMO.filter((item) => item.nombre.toLowerCase().includes(texto))
-      : LOCALES_DEMO;
-  }, [busqueda]);
+      ? afiliados.filter((item) => item.nombre.toLowerCase().includes(texto))
+      : afiliados;
+  }, [afiliados, busqueda]);
 
   function activarLocal(id: string, nombre: string) {
     seleccionarLocal(id, nombre);

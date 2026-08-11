@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { crearDBInicial, crearDBParaLocal, COLORES_LUZ, PATRONES } from "./seed";
+import { crearDBInicial, crearDBParaLocal, COLORES_LUZ, LOCALES_DEMO, PATRONES } from "./seed";
 import type {
-  DB, DespachoPedido, EstadoCancion, ItemPedido, MedioPago, ModoServicio, Pedido, SolicitudCancion, Vaquita,
+  DB, DespachoPedido, EstadoCancion, ItemPedido, LocalResumen, MedioPago, ModoServicio, Pedido, SolicitudCancion, Vaquita,
 } from "./types";
 
 const LEGACY_KEY = "nocta-db-v1";
 const ACTIVE_LOCAL_KEY = "nocta-active-local-v1";
+const CUSTOM_LOCALS_KEY = "nocta-affiliated-locals-v1";
 const CHANNEL = "nocta-sync";
 
 let cache: DB | null = null;
@@ -34,7 +35,75 @@ export function seleccionarLocal(id: string, nombre?: string) {
   emitir();
 }
 
+export function listarLocalesAfiliados(): LocalResumen[] {
+  if (typeof window === "undefined") return LOCALES_DEMO;
+  try {
+    const personalizados = JSON.parse(localStorage.getItem(CUSTOM_LOCALS_KEY) || "[]") as LocalResumen[];
+    return [...LOCALES_DEMO, ...personalizados.filter(
+      (local) => !LOCALES_DEMO.some((base) => base.id === local.id),
+    )];
+  } catch {
+    return LOCALES_DEMO;
+  }
+}
+
+export function afiliarLocal(nombre: string, ciudad: string): LocalResumen {
+  const local: LocalResumen = {
+    id: `local-${Date.now()}`,
+    nombre: nombre.trim(),
+    ciudad: ciudad.trim() || "Cartagena, Bolívar",
+    fase: 1,
+    estadoRecaudo: "pendiente",
+    pedidosNoche: 0,
+    ticketProm: 0,
+    pctDigital: 0,
+    activo: true,
+  };
+  const personalizados = listarLocalesAfiliados().filter(
+    (item) => !LOCALES_DEMO.some((base) => base.id === item.id),
+  );
+  localStorage.setItem(CUSTOM_LOCALS_KEY, JSON.stringify([...personalizados, local]));
+  seleccionarLocal(local.id, local.nombre);
+  return local;
+}
+
+export function useLocalesAfiliados(): LocalResumen[] {
+  const [locales, setLocales] = useState<LocalResumen[]>(LOCALES_DEMO);
+  useEffect(() => {
+    const refrescar = () => setLocales(listarLocalesAfiliados());
+    refrescar();
+    listeners.add(refrescar);
+    const onStorage = (evento: StorageEvent) => {
+      if (evento.key === CUSTOM_LOCALS_KEY) refrescar();
+    };
+    window.addEventListener("storage", onStorage);
+    return () => {
+      listeners.delete(refrescar);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+  return locales;
+}
+
 function normalizarDB(db: DB): DB {
+  if ((db.version ?? 1) < 2) {
+    const id = idLocalActivo();
+    const afiliadoBase = LOCALES_DEMO.find((local) => local.id === id);
+    const requierePerfil = id !== "la-movida"
+      && afiliadoBase
+      && db.productos.some((producto) => producto.id === "mojito");
+    if (requierePerfil) {
+      const perfil = crearDBParaLocal(id, afiliadoBase.nombre);
+      db.categorias = perfil.categorias;
+      db.productos = perfil.productos;
+      db.zonas = perfil.zonas;
+      db.estacionesDespacho = perfil.estacionesDespacho;
+      db.config.funciones = perfil.config.funciones;
+      db.config.pagoAlFinalActivo = perfil.config.pagoAlFinalActivo;
+    }
+    if (afiliadoBase) db.config.nombre = afiliadoBase.nombre;
+    db.version = 2;
+  }
   if (!Array.isArray(db.categorias)) db.categorias = crearDBInicial().categorias;
   db.config.funciones ??= { rockola: true };
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
@@ -107,6 +176,17 @@ export function resetDemo() {
   localStorage.setItem(claveDB(), JSON.stringify(cache));
   getCanal()?.postMessage("sync");
   emitir();
+}
+
+export function borrarDatosPrueba() {
+  guardarDB((db) => {
+    db.pedidos = [];
+    db.contador = 0;
+    db.solicitudesCanciones = [];
+    db.vaquitas = [];
+    db.efectivoDeclarado = {};
+    db.nocheCerrada = false;
+  });
 }
 
 /** Hook: re-renderiza cuando cambia la DB (esta pestaña u otra). */

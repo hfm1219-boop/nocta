@@ -205,7 +205,7 @@ function generarHistorico(): Pedido[] {
 export function crearDBInicial(): DB {
   const historico = generarHistorico();
   return {
-    version: 1,
+    version: 2,
     categorias: CATEGORIAS.map((categoria) => ({ ...categoria })),
     productos: PRODUCTOS.map((p) => ({ ...p })),
     zonas: ZONAS.map((z) => ({ ...z })),

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import {
-  cop, editarPrecio, guardarDB, registrarCobro, toggleDisponible, useDB, useReloj,
+  borrarDatosPrueba, cop, editarPrecio, guardarDB, registrarCobro, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
@@ -104,6 +104,7 @@ function entregados(db: DB): Pedido[] {
 }
 
 function Reportes({ db }: { db: DB }) {
+  const [confirmandoLimpieza, setConfirmandoLimpieza] = useState(false);
   const pedidos = entregados(db);
   const ventas = pedidos.reduce((s, p) => s + p.total, 0);
   const ticket = pedidos.length ? ventas / pedidos.length : 0;
@@ -164,6 +165,42 @@ function Reportes({ db }: { db: DB }) {
 
   return (
     <div className="space-y-5">
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={() => setConfirmandoLimpieza(true)}
+          className="rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger"
+        >
+          🗑 Borrar datos de prueba
+        </button>
+      </div>
+      {confirmandoLimpieza && (
+        <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-5">
+          <div className="card bg-surface w-full max-w-sm p-5 space-y-4">
+            <div>
+              <h2 className="font-bold text-lg">¿Borrar datos de prueba?</h2>
+              <p className="text-sm text-muted mt-1">
+                Se eliminarán los pedidos, canciones, Vaquitas y datos de cierre de {db.config.nombre}. El menú, personal, zonas y configuraciones se conservarán.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setConfirmandoLimpieza(false)} className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-muted">
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  borrarDatosPrueba();
+                  setConfirmandoLimpieza(false);
+                }}
+                className="flex-1 rounded-xl bg-danger py-3 text-sm font-bold text-white"
+              >
+                Sí, borrar pruebas
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Kpi titulo="Ventas de la noche" valor={cop(ventas)} />
         <Kpi titulo="Pedidos entregados" valor={String(pedidos.length)} />

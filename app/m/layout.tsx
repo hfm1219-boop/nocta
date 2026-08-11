@@ -27,7 +27,7 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
     ...(db?.config.funciones.rockola
       ? [{ href: "/m/rockola", label: "Rockola", icono: "🎵", badge: cancionesPendientes }]
       : []),
-    { href: "/", label: "Roles", icono: "👥" },
+    { href: "/", label: "Locales", icono: "📍" },
   ];
 
   const esFull = path.includes("/pedido/") || path.includes("/p/");
