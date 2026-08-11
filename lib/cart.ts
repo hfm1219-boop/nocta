@@ -1,22 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { idLocalActivo } from "./store";
 import type { ItemPedido } from "./types";
 
-const KEY = "nocta-cart";
+const KEY = "nocta-cart-v2";
 const listeners = new Set<() => void>();
+
+function claveCarrito() {
+  return `${KEY}:${idLocalActivo()}`;
+}
 
 function leer(): ItemPedido[] {
   if (typeof window === "undefined") return [];
   try {
-    return JSON.parse(localStorage.getItem(KEY) ?? "[]");
+    return JSON.parse(localStorage.getItem(claveCarrito()) ?? "[]");
   } catch {
     return [];
   }
 }
 
 function guardar(items: ItemPedido[]) {
-  localStorage.setItem(KEY, JSON.stringify(items));
+  localStorage.setItem(claveCarrito(), JSON.stringify(items));
   listeners.forEach((l) => l());
 }
 
