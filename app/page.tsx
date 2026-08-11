@@ -17,15 +17,22 @@ export default function Landing() {
   const router = useRouter();
   const db = useDB();
   const afiliados = useLocalesAfiliados();
+  const [ciudad, setCiudad] = useState("");
   const [busqueda, setBusqueda] = useState("");
   const [localId, setLocalId] = useState<string | null>(null);
   const local = afiliados.find((item) => item.id === localId);
+  const ciudades = useMemo(() => Array.from(new Set(
+    afiliados.map((item) => item.ciudad.split(",")[0].trim()).filter(Boolean),
+  )).sort((a, b) => a.localeCompare(b, "es")), [afiliados]);
   const locales = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    return texto
-      ? afiliados.filter((item) => item.nombre.toLowerCase().includes(texto))
-      : afiliados;
-  }, [afiliados, busqueda]);
+    if (!ciudad) return [];
+    return afiliados.filter((item) => {
+      const ciudadLocal = item.ciudad.split(",")[0].trim();
+      return ciudadLocal === ciudad
+        && (!texto || item.nombre.toLowerCase().includes(texto));
+    });
+  }, [afiliados, busqueda, ciudad]);
 
   function activarLocal(id: string, nombre: string) {
     seleccionarLocal(id, nombre);
@@ -76,12 +83,30 @@ export default function Landing() {
         <p className="text-sm text-muted">Selecciona el establecimiento para ver su menú, precios y servicios.</p>
       </header>
 
-      <input
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        placeholder="Buscar establecimiento"
-        className="card w-full px-4 py-3.5 bg-transparent outline-none focus:border-neon2"
-      />
+      <section className="space-y-3">
+        <label className="block text-sm font-semibold" htmlFor="selector-ciudad">Ciudad</label>
+        <select
+          id="selector-ciudad"
+          value={ciudad}
+          onChange={(e) => {
+            setCiudad(e.target.value);
+            setBusqueda("");
+          }}
+          className="card w-full px-4 py-3.5 bg-background outline-none focus:border-neon2"
+        >
+          <option value="">Selecciona una ciudad</option>
+          {ciudades.map((item) => <option key={item} value={item}>{item}</option>)}
+        </select>
+
+        {ciudad && (
+          <input
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder={`Buscar establecimiento en ${ciudad}`}
+            className="card w-full px-4 py-3.5 bg-transparent outline-none focus:border-neon2"
+          />
+        )}
+      </section>
 
       <section className="space-y-3">
         {locales.map((item) => (
@@ -98,7 +123,8 @@ export default function Landing() {
             <span className="text-muted">›</span>
           </button>
         ))}
-        {locales.length === 0 && <p className="text-center text-muted text-sm py-8">No encontramos un establecimiento con ese nombre.</p>}
+        {!ciudad && <p className="text-center text-muted text-sm py-8">Selecciona una ciudad para ver sus establecimientos.</p>}
+        {ciudad && locales.length === 0 && <p className="text-center text-muted text-sm py-8">No encontramos un establecimiento con ese nombre en {ciudad}.</p>}
       </section>
 
       <Link href="/super" className="block text-center text-xs text-muted py-2">Acceso de operador NOCTA</Link>
