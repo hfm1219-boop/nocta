@@ -104,7 +104,7 @@ export default function Mesero() {
       <main className="flex-1 px-4 pb-8 space-y-3">
         {entregas.length === 0 && (
           <p className="text-muted text-center py-16 text-sm">
-            Sin entregas activas. Cuando barra marque un pedido como listo,
+            Sin entregas activas. Cuando preparación marque un pedido como listo,
             aparecerá aquí con su zona y color.
           </p>
         )}

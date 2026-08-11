@@ -373,12 +373,17 @@ function Kpi({ titulo, valor, sub }: { titulo: string; valor: string; sub?: stri
 function Estaciones({ db }: { db: DB }) {
   const [creando, setCreando] = useState(false);
   const [nombre, setNombre] = useState("");
-  const [grupo, setGrupo] = useState<"cocteles" | "bebidas" | "botellas">("cocteles");
+  const [grupo, setGrupo] = useState<"cocteles" | "bebidas" | "botellas" | "cocina">("cocteles");
+
+  const categoriasCocina = db.categorias
+    .filter((categoria) => !["cocteles", "shots", "cervezas", "sinalcohol", "licores", "clasicos"].includes(categoria.id))
+    .map((categoria) => categoria.id);
 
   const categoriasPorGrupo = {
     cocteles: ["cocteles", "shots"],
     bebidas: ["cervezas", "sinalcohol"],
     botellas: ["licores"],
+    cocina: categoriasCocina,
   };
 
   return (
@@ -421,7 +426,13 @@ function Estaciones({ db }: { db: DB }) {
             <option value="cocteles">Coctelería y shots</option>
             <option value="bebidas">Cervezas y bebidas sin alcohol</option>
             <option value="botellas">Botellería</option>
+            <option value="cocina" disabled={categoriasCocina.length === 0}>Cocina · categorías de alimentos</option>
           </select>
+          {grupo === "cocina" && (
+            <p className="text-xs text-neon3">
+              Recibirá: {db.categorias.filter((categoria) => categoriasCocina.includes(categoria.id)).map((categoria) => categoria.nombre).join(", ")}.
+            </p>
+          )}
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setCreando(false)} className="rounded-full border border-line px-4 py-2 text-sm text-muted">Cancelar</button>
             <button type="submit" disabled={!nombre.trim()} className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white disabled:opacity-40">Crear estación</button>
@@ -433,7 +444,7 @@ function Estaciones({ db }: { db: DB }) {
           <div className="flex items-center justify-between gap-4">
             <div>
               <h3 className="font-semibold">
-                {estacion.id.includes("nevera") ? "❄️" : estacion.id.includes("botelleria") ? "🍾" : "🍸"}{" "}
+                {estacion.nombre.toLowerCase().includes("cocina") ? "👨‍🍳" : estacion.id.includes("nevera") ? "❄️" : estacion.id.includes("botelleria") ? "🍾" : "🍸"}{" "}
                 {estacion.nombre}
               </h3>
               <p className="text-xs text-muted mt-1">
@@ -1123,7 +1134,7 @@ function Pagos({ db }: { db: DB }) {
 
 function Personal({ db }: { db: DB }) {
   const [nombre, setNombre] = useState("");
-  const [rol, setRol] = useState<"mesero" | "barra">("mesero");
+  const [rol, setRol] = useState<"mesero" | "barra" | "cocina">("mesero");
   const [confirmacion, setConfirmacion] = useState("");
 
   return (
@@ -1150,11 +1161,12 @@ function Personal({ db }: { db: DB }) {
         />
         <select
           value={rol}
-          onChange={(e) => setRol(e.target.value as "mesero" | "barra")}
+          onChange={(e) => setRol(e.target.value as "mesero" | "barra" | "cocina")}
           className="card px-3 py-2 bg-surface text-sm outline-none"
         >
           <option value="mesero">Mesero</option>
           <option value="barra">Barra</option>
+          <option value="cocina">Cocina</option>
         </select>
         <button
           type="submit"

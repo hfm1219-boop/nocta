@@ -127,7 +127,7 @@ export interface EstacionDespacho {
 export interface UsuarioStaff {
   id: string;
   nombre: string;
-  rol: "barra" | "mesero" | "admin";
+  rol: "barra" | "cocina" | "mesero" | "admin";
   pin: string;
   activo: boolean;
 }

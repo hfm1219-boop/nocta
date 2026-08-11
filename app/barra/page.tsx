@@ -19,6 +19,7 @@ export default function Barra() {
   const [cobrando, setCobrando] = useState<Pedido | null>(null);
   const [panelAgotados, setPanelAgotados] = useState(false);
   const [verLote, setVerLote] = useState(false);
+  const [estacionId, setEstacionId] = useState("todas");
 
   // La pantalla de barra actúa como "servidor" de la demo:
   // vence pedidos pagados no retirados según la política del local.
@@ -48,26 +49,32 @@ export default function Barra() {
     return db.pedidos
       .filter((p) =>
         ["nuevo", "preparando", "listo"].includes(p.estado) &&
-        (p.tipo !== "preorden" || !p.programadoPara || p.programadoPara <= ahora + 60 * 60_000),
+        (p.tipo !== "preorden" || !p.programadoPara || p.programadoPara <= ahora + 60 * 60_000) &&
+        (estacionId === "todas" || p.despachos?.some((despacho) => despacho.estacionId === estacionId)),
       )
       .sort((a, b) => (a.programadoPara ?? a.creadoEn) - (b.programadoPara ?? b.creadoEn));
-  }, [ahora, db]);
+  }, [ahora, db, estacionId]);
 
   const lote = useMemo(() => {
     const agg = new Map<string, number>();
     cola
       .filter((p) => ["nuevo", "preparando"].includes(p.estado))
-      .forEach((p) =>
-        p.items.forEach((i) => {
+      .forEach((p) => {
+        const indices = estacionId === "todas"
+          ? p.items.map((_, indice) => indice)
+          : (p.despachos?.find((despacho) => despacho.estacionId === estacionId)?.itemIndices ?? []);
+        indices.forEach((indice) => {
+          const i = p.items[indice];
+          if (!i) return;
           const k = `${i.nombre}${i.tamano && i.tamano !== "Normal" ? ` (${i.tamano})` : ""}`;
           agg.set(k, (agg.get(k) ?? 0) + i.cantidad);
-        }),
-      );
+        });
+      });
     return [...agg.entries()].sort((a, b) => b[1] - a[1]);
-  }, [cola]);
+  }, [cola, estacionId]);
 
   if (!db) return null;
-  const barristas = db.staff.filter((s) => s.rol === "barra" && s.activo);
+  const personalPreparacion = db.staff.filter((s) => ["barra", "cocina"].includes(s.rol) && s.activo);
   const agotados = db.productos.filter((p) => !p.disponible).length;
 
   function marcarListo(p: Pedido) {
@@ -79,11 +86,11 @@ export default function Barra() {
   return (
     <div className="min-h-dvh flex flex-col">
       <EncabezadoStaff
-        titulo="Barra — despacho"
+        titulo="Preparación y despacho"
         subtitulo={db.config.nombre}
         extra={
           <div className="flex gap-1.5">
-            {barristas.map((b) => (
+            {personalPreparacion.map((b) => (
               <button
                 key={b.id}
                 onClick={() => setStaffId(b.id)}
@@ -99,6 +106,17 @@ export default function Barra() {
           </div>
         }
       />
+
+      <div className="px-4 pt-3 flex gap-2 overflow-x-auto">
+        <button onClick={() => setEstacionId("todas")} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${estacionId === "todas" ? "border-neon2 text-neon2 bg-neon2/10 font-semibold" : "border-line text-muted"}`}>
+          Todas las estaciones
+        </button>
+        {db.estacionesDespacho.filter((estacion) => estacion.activa).map((estacion) => (
+          <button key={estacion.id} onClick={() => setEstacionId(estacion.id)} className={`shrink-0 rounded-full border px-3 py-1.5 text-xs ${estacionId === estacion.id ? "border-neon2 text-neon2 bg-neon2/10 font-semibold" : "border-line text-muted"}`}>
+            {estacion.nombre.toLowerCase().includes("cocina") ? "👨‍🍳" : estacion.nombre.toLowerCase().includes("café") ? "☕" : "🍹"} {estacion.nombre}
+          </button>
+        ))}
+      </div>
 
       <div className="px-4 py-3 flex gap-2 flex-wrap items-center">
         <span className="card px-3 py-1.5 text-sm">
@@ -181,14 +199,14 @@ export default function Barra() {
 
               {p.despachos?.length ? (
                 <div className="space-y-2">
-                  {p.despachos.map((despacho) => {
+                  {p.despachos.filter((despacho) => estacionId === "todas" || despacho.estacionId === estacionId).map((despacho) => {
                     const estacion = db.estacionesDespacho.find((item) => item.id === despacho.estacionId);
                     return (
                       <section key={despacho.estacionId} className="rounded-xl bg-surface2 p-3 border border-line">
                         <div className="flex items-center justify-between gap-2 mb-2">
                           <p className="text-xs font-bold text-neon3">
-                            {despacho.estacionId.includes("nevera") ? "❄️" : despacho.estacionId.includes("botelleria") ? "🍾" : "🍸"}{" "}
-                            {estacion?.nombre ?? "Barra general"}
+                            {estacion?.nombre.toLowerCase().includes("cocina") ? "👨‍🍳" : despacho.estacionId.includes("nevera") ? "❄️" : despacho.estacionId.includes("botelleria") ? "🍾" : "🍸"}{" "}
+                            {estacion?.nombre ?? "Estación general"}
                           </p>
                           <span className={`text-[10px] font-bold ${
                             despacho.estado === "listo" ? "text-lime" : despacho.estado === "preparando" ? "text-amber" : "text-muted"

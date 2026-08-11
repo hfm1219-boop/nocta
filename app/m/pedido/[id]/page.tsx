@@ -188,9 +188,9 @@ export default function EstadoPedido() {
             {p.estado === "nuevo" && (
               p.tipo === "preorden"
                 ? "Tu preorden está confirmada. La barra la preparará para tu llegada."
-                : "Tu pedido entró a la cola de la barra."
+                : "Tu pedido entró a la cola de preparación."
             )}
-            {p.estado === "preparando" && "La barra está preparando tu pedido. 🍹"}
+            {p.estado === "preparando" && "El equipo está preparando tu pedido. 👨‍🍳"}
             {p.estado === "listo" && p.modo !== "zona" && (
               <span className="text-lime font-semibold text-base">
                 ¡Listo! Pasa por la barra express con tu número{p.estadoPago === "pendiente" ? " y paga al retirar" : ""}.

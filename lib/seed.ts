@@ -333,6 +333,13 @@ export function crearDBParaLocal(id: string, nombre: string): DB {
       : zona);
     db.config.pagoAlFinalActivo = true;
     db.config.funciones.rockola = false;
+    db.staff = [
+      { id: "st-admin", nombre: "Administración", rol: "admin", pin: "0000", activo: true },
+      { id: "st-cocina-fria", nombre: "Cocina fría", rol: "cocina", pin: "1111", activo: true },
+      { id: "st-cocina-caliente", nombre: "Cocina caliente", rol: "cocina", pin: "2222", activo: true },
+      { id: "st-barra-lobo", nombre: "Barra de autor", rol: "barra", pin: "3333", activo: true },
+      { id: "st-mesero-lobo", nombre: "Servicio de mesa", rol: "mesero", pin: "4444", activo: true },
+    ];
   }
 
   if (id === "cardinal-bar") {

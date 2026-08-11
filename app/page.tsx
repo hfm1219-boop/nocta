@@ -7,7 +7,7 @@ import { Logo } from "@/components/ui";
 import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 
 const ROLES_LOCAL = [
-  { href: "/barra", nombre: "Bartender", desc: "Pedidos y despacho", icono: "🍹" },
+  { href: "/barra", nombre: "Preparación", desc: "Cocina, barra y estaciones", icono: "👨‍🍳" },
   { href: "/mesero", nombre: "Mesero", desc: "Entregas y cobro", icono: "🛎️" },
   { href: "/dj", nombre: "DJ", desc: "Rockola del lugar", icono: "🎧" },
   { href: "/admin", nombre: "Administrador", desc: "Configuración del local", icono: "📊" },
