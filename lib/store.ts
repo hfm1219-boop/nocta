@@ -105,7 +105,8 @@ function normalizarDB(db: DB): DB {
     db.version = 2;
   }
   if (!Array.isArray(db.categorias)) db.categorias = crearDBInicial().categorias;
-  db.config.funciones ??= { rockola: true };
+  db.config.funciones ??= { rockola: true, preorden: true };
+  db.config.funciones.preorden ??= true;
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
   if (!Array.isArray(db.vaquitas)) db.vaquitas = [];
   if (!Array.isArray(db.estacionesDespacho)) {

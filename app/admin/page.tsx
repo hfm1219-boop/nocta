@@ -93,6 +93,14 @@ function Funciones({ db }: { db: DB }) {
           datos.config.funciones.rockola = !datos.config.funciones.rockola;
         })}
       />
+      <OpcionInterruptor
+        nombre="Preordenar"
+        nota="Permite comprar antes de llegar, aceptar las políticas y obtener descuentos por volumen."
+        activo={db.config.funciones.preorden}
+        onCambiar={() => guardarDB((datos) => {
+          datos.config.funciones.preorden = !datos.config.funciones.preorden;
+        })}
+      />
     </div>
   );
 }
@@ -165,38 +173,25 @@ function Reportes({ db }: { db: DB }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => setConfirmandoLimpieza(true)}
-          className="rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger"
-        >
+      <section className="card p-4 border-danger/35 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold">Datos de prueba</h2>
+          <p className="text-xs text-muted mt-1">Borra pedidos, canciones y Vaquitas de prueba de este establecimiento.</p>
+        </div>
+        <button type="button" onClick={() => setConfirmandoLimpieza(true)} className="shrink-0 rounded-full border border-danger/50 px-4 py-2 text-xs font-semibold text-danger">
           🗑 Borrar datos de prueba
         </button>
-      </div>
+      </section>
       {confirmandoLimpieza && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-5">
           <div className="card bg-surface w-full max-w-sm p-5 space-y-4">
             <div>
               <h2 className="font-bold text-lg">¿Borrar datos de prueba?</h2>
-              <p className="text-sm text-muted mt-1">
-                Se eliminarán los pedidos, canciones, Vaquitas y datos de cierre de {db.config.nombre}. El menú, personal, zonas y configuraciones se conservarán.
-              </p>
+              <p className="text-sm text-muted mt-1">Se eliminarán los pedidos, canciones, Vaquitas y datos de cierre de {db.config.nombre}. El menú, personal, zonas y configuraciones se conservarán.</p>
             </div>
             <div className="flex gap-2">
-              <button type="button" onClick={() => setConfirmandoLimpieza(false)} className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-muted">
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  borrarDatosPrueba();
-                  setConfirmandoLimpieza(false);
-                }}
-                className="flex-1 rounded-xl bg-danger py-3 text-sm font-bold text-white"
-              >
-                Sí, borrar pruebas
-              </button>
+              <button type="button" onClick={() => setConfirmandoLimpieza(false)} className="flex-1 rounded-xl border border-line py-3 text-sm font-semibold text-muted">Cancelar</button>
+              <button type="button" onClick={() => { borrarDatosPrueba(); setConfirmandoLimpieza(false); }} className="flex-1 rounded-xl bg-danger py-3 text-sm font-bold text-white">Sí, borrar pruebas</button>
             </div>
           </div>
         </div>

@@ -37,19 +37,21 @@ export default function MenuCliente() {
         <p className="text-muted">¿Qué vas a pedir hoy?</p>
       </div>
 
-      <Link
-        href="/m/carrito"
-        className="card p-4 flex items-center gap-3 border-neon3/40 bg-neon3/5"
-      >
-        <span className="text-3xl">🗓️</span>
-        <span className="flex-1">
-          <span className="block font-semibold text-neon3">Preordena antes de llegar</span>
-          <span className="block text-xs text-muted mt-0.5">
-            Ahorra 5%, 10% o 15% según la cantidad de productos.
+      {db.config.funciones.preorden && (
+        <Link
+          href="/m/carrito"
+          className="card p-4 flex items-center gap-3 border-neon3/40 bg-neon3/5"
+        >
+          <span className="text-3xl">🗓️</span>
+          <span className="flex-1">
+            <span className="block font-semibold text-neon3">Preordena antes de llegar</span>
+            <span className="block text-xs text-muted mt-0.5">
+              Ahorra 5%, 10% o 15% según la cantidad de productos.
+            </span>
           </span>
-        </span>
-        <span className="text-neon3">→</span>
-      </Link>
+          <span className="text-neon3">→</span>
+        </Link>
+      )}
 
       <Link
         href="/m/vaquita"

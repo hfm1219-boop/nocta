@@ -57,7 +57,6 @@ export default function Checkout() {
   const proximoNivel = siguienteNivel(items);
 
   const config = db?.config;
-
   const mediosDisponibles = useMemo(() => {
     if (!config) return [] as MedioPago[];
     if (pagoAlFinal) return ["datafono"] as MedioPago[];
@@ -98,6 +97,7 @@ export default function Checkout() {
 
   async function confirmar() {
     if (!medioValido || items.length === 0) return;
+    if (esPreorden && !config?.funciones.preorden) return;
     if (necesitaZona && !zonaId) return;
     if (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) return;
     if (esPreorden && !politicasAceptadas) return;
@@ -154,7 +154,7 @@ export default function Checkout() {
     <main className="px-4 pt-5 space-y-6 pb-10">
       <h1 className="text-2xl font-bold">Tu pedido</h1>
 
-      <section className="card p-1 grid grid-cols-2">
+      <section className={`card p-1 grid ${config.funciones.preorden ? "grid-cols-2" : "grid-cols-1"}`}>
         <button
           onClick={() => setEsPreorden(false)}
           className={`rounded-xl py-3 text-sm transition ${
@@ -163,17 +163,19 @@ export default function Checkout() {
         >
           ⚡ Pedir ahora
         </button>
-        <button
-          onClick={() => {
-            setPoliticasAceptadas(false);
-            setPoliticasAbiertas(true);
-          }}
-          className={`rounded-xl py-3 text-sm transition ${
-            esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
-          }`}
-        >
-          🗓️ Preordenar
-        </button>
+        {config.funciones.preorden && (
+          <button
+            onClick={() => {
+              setPoliticasAceptadas(false);
+              setPoliticasAbiertas(true);
+            }}
+            className={`rounded-xl py-3 text-sm transition ${
+              esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
+            }`}
+          >
+            🗓️ Preordenar
+          </button>
+        )}
       </section>
 
       {esPreorden && (

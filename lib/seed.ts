@@ -212,7 +212,7 @@ export function crearDBInicial(): DB {
     staff: STAFF.map((s) => ({ ...s })),
     config: {
       nombre: "La Movida",
-      funciones: { rockola: true },
+      funciones: { rockola: true, preorden: true },
       mediosHabilitados: { digital: true, efectivo: true, datafono: true },
       efectivoEnZona: false,
       topeContraEntrega: 150000,
