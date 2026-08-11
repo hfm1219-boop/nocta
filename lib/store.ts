@@ -36,6 +36,7 @@ export function seleccionarLocal(id: string, nombre?: string) {
 
 function normalizarDB(db: DB): DB {
   if (!Array.isArray(db.categorias)) db.categorias = crearDBInicial().categorias;
+  db.config.funciones ??= { rockola: true };
   if (!Array.isArray(db.solicitudesCanciones)) db.solicitudesCanciones = [];
   if (!Array.isArray(db.vaquitas)) db.vaquitas = [];
   if (!Array.isArray(db.estacionesDespacho)) {

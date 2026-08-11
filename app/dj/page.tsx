@@ -17,6 +17,20 @@ export default function ConsolaDJ() {
   );
 
   if (!db) return null;
+  if (!db.config.funciones.rockola) {
+    return (
+      <div className="min-h-dvh flex flex-col">
+        <EncabezadoStaff titulo="DJ — Rockola" subtitulo={db.config.nombre} />
+        <main className="flex-1 p-4 flex items-center justify-center">
+          <div className="card p-8 max-w-md text-center space-y-3">
+            <div className="text-5xl">🎧</div>
+            <h1 className="text-xl font-bold">Rockola desactivada</h1>
+            <p className="text-sm text-muted">El administrador de {db.config.nombre} no tiene habilitadas las solicitudes de canciones.</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
   const solicitudesDB = db.solicitudesCanciones;
   const pendientes = canciones.filter((c) => c.estado === "pendiente").length;
   const reproducidas = canciones.filter((c) => c.estado === "reproducida").length;

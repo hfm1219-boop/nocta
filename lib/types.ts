@@ -168,6 +168,9 @@ export interface Vaquita {
 
 export interface ConfigLocal {
   nombre: string;
+  funciones: {
+    rockola: boolean;
+  };
   mediosHabilitados: Record<MedioPago, boolean>;
   efectivoEnZona: boolean; // modo B con efectivo requiere autorización expresa
   topeContraEntrega: number; // por encima exige pago anticipado

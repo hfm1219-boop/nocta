@@ -22,6 +22,17 @@ export default function RockolaCliente() {
   );
 
   if (!db) return null;
+  if (!db.config.funciones.rockola) {
+    return (
+      <main className="px-4 pt-16 text-center">
+        <div className="card p-8 space-y-3">
+          <div className="text-5xl">🎵</div>
+          <h1 className="text-xl font-bold">Rockola no disponible</h1>
+          <p className="text-sm text-muted">{db.config.nombre} no tiene activa esta función.</p>
+        </div>
+      </main>
+    );
+  }
   const miToken = tokenCliente();
 
   function enviar(evento: FormEvent) {

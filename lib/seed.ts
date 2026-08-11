@@ -212,6 +212,7 @@ export function crearDBInicial(): DB {
     staff: STAFF.map((s) => ({ ...s })),
     config: {
       nombre: "La Movida",
+      funciones: { rockola: true },
       mediosHabilitados: { digital: true, efectivo: true, datafono: true },
       efectivoEnZona: false,
       topeContraEntrega: 150000,
@@ -325,6 +326,7 @@ export function crearDBParaLocal(id: string, nombre: string): DB {
       ? { ...zona, nombre: ["Terraza frente al mar", "Salón principal", "Barra mediterránea", "Patio", "Área de espera"][indice] ?? zona.nombre }
       : zona);
     db.config.pagoAlFinalActivo = true;
+    db.config.funciones.rockola = false;
   }
 
   if (id === "cardinal-bar") {
@@ -341,6 +343,7 @@ export function crearDBParaLocal(id: string, nombre: string): DB {
       producto("mocktail-cardinal", "Cardinal Zero", "sinalcohol", "Coctel sin alcohol, cítrico y herbal.", 26000, "🫧", "#a3e635"),
     ];
     db.zonas = db.zonas.map((zona) => zona.tipo === "zona" ? { ...zona, nombre: `Salón · ${zona.nombre}` } : zona);
+    db.config.funciones.rockola = false;
   }
 
   if (id === "casa-la-movida") {
@@ -362,6 +365,7 @@ export function crearDBParaLocal(id: string, nombre: string): DB {
       ? { ...zona, nombre: ["Patio", "Piscina", "Lobby", "Rooftop", "Recepción"][indice] ?? zona.nombre }
       : zona);
     db.config.pagoAlFinalActivo = true;
+    db.config.funciones.rockola = false;
   }
 
   if (id === "restaurante-lobo-de-mar") {

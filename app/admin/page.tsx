@@ -30,6 +30,7 @@ const TABS = [
   { id: "mercado", nombre: "Bolsa de precios" },
   { id: "zonas", nombre: "Zonas y QRs" },
   { id: "estaciones", nombre: "Estaciones" },
+  { id: "funciones", nombre: "Funciones" },
   { id: "pagos", nombre: "Medios de pago" },
   { id: "personal", nombre: "Personal" },
   { id: "cierre", nombre: "Cierre de noche" },
@@ -64,10 +65,34 @@ export default function Admin() {
         {tab === "mercado" && <MercadoPrecios db={db} />}
         {tab === "zonas" && <Zonas db={db} />}
         {tab === "estaciones" && <Estaciones db={db} />}
+        {tab === "funciones" && <Funciones db={db} />}
         {tab === "pagos" && <Pagos db={db} />}
         {tab === "personal" && <Personal db={db} />}
         {tab === "cierre" && <Cierre db={db} />}
       </main>
+    </div>
+  );
+}
+
+// ---------------- Funciones del establecimiento ----------------
+
+function Funciones({ db }: { db: DB }) {
+  return (
+    <div className="space-y-4 max-w-2xl">
+      <div>
+        <h2 className="font-bold text-lg">Funciones de {db.config.nombre}</h2>
+        <p className="text-sm text-muted mt-1">
+          Activa únicamente las experiencias que ofrece este establecimiento. Los cambios se reflejan de inmediato para clientes y personal.
+        </p>
+      </div>
+      <OpcionInterruptor
+        nombre="Rockola"
+        nota="Permite que los clientes soliciten canciones y habilita la consola del DJ."
+        activo={db.config.funciones.rockola}
+        onCambiar={() => guardarDB((datos) => {
+          datos.config.funciones.rockola = !datos.config.funciones.rockola;
+        })}
+      />
     </div>
   );
 }

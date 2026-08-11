@@ -24,7 +24,9 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
     { href: "/m", label: "Menú", icono: "🍸" },
     { href: "/m/pedidos", label: "Pedidos", icono: "🧾", badge: misActivos },
     { href: "/m/carrito", label: "Carrito", icono: "🛒", badge: enCarrito },
-    { href: "/m/rockola", label: "Rockola", icono: "🎵", badge: cancionesPendientes },
+    ...(db?.config.funciones.rockola
+      ? [{ href: "/m/rockola", label: "Rockola", icono: "🎵", badge: cancionesPendientes }]
+      : []),
     { href: "/", label: "Roles", icono: "👥" },
   ];
 
@@ -51,7 +53,10 @@ export default function ClienteLayout({ children }: { children: React.ReactNode 
               <span className="font-bold">{cop(totalCarrito(items))}</span>
             </Link>
           )}
-          <nav className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid grid-cols-5">
+          <nav
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-md z-30 backdrop-blur-lg bg-background/85 border-t border-line grid"
+            style={{ gridTemplateColumns: `repeat(${tabs.length}, minmax(0, 1fr))` }}
+          >
             {tabs.map((t) => {
               const activo = path === t.href;
               return (

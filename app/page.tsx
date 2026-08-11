@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
 import { LOCALES_DEMO } from "@/lib/seed";
-import { seleccionarLocal } from "@/lib/store";
+import { seleccionarLocal, useDB } from "@/lib/store";
 
 const ROLES_LOCAL = [
   { href: "/barra", nombre: "Bartender", desc: "Pedidos y despacho", icono: "🍹" },
@@ -16,6 +16,7 @@ const ROLES_LOCAL = [
 
 export default function Landing() {
   const router = useRouter();
+  const db = useDB();
   const [busqueda, setBusqueda] = useState("");
   const [localId, setLocalId] = useState<string | null>(null);
   const local = LOCALES_DEMO.find((item) => item.id === localId);
@@ -54,7 +55,7 @@ export default function Landing() {
             <p className="text-xs text-muted">Estos accesos pertenecen exclusivamente a {local.nombre}.</p>
           </div>
           <div className="grid grid-cols-2 gap-3">
-            {ROLES_LOCAL.map((rol) => (
+            {ROLES_LOCAL.filter((rol) => rol.href !== "/dj" || db?.config.funciones.rockola).map((rol) => (
               <Link key={rol.href} href={rol.href} className="card p-4 space-y-1 hover:border-neon1/60 transition">
                 <div className="text-2xl">{rol.icono}</div>
                 <div className="font-semibold">{rol.nombre}</div>
