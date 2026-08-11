@@ -40,7 +40,7 @@ export default function Landing() {
           <Logo size="text-4xl" />
           <p className="text-xs text-muted uppercase tracking-wider">Estás en</p>
           <h1 className="text-2xl font-bold">{local.nombre}</h1>
-          <span className="inline-block rounded-full bg-lime/15 text-lime px-3 py-1 text-xs font-semibold">● Afiliado a NOCTA</span>
+          <p className="text-sm text-muted">{local.ciudad}</p>
         </header>
 
         <button onClick={() => router.push("/m")} className="btn-neon w-full rounded-2xl p-5 text-left text-white">
@@ -73,7 +73,7 @@ export default function Landing() {
       <header className="text-center space-y-3">
         <Logo size="text-6xl" />
         <h1 className="text-2xl font-bold">¿Dónde estás?</h1>
-        <p className="text-sm text-muted">Selecciona el establecimiento afiliado para ver su menú, precios y servicios.</p>
+        <p className="text-sm text-muted">Selecciona el establecimiento para ver su menú, precios y servicios.</p>
       </header>
 
       <input
@@ -93,12 +93,12 @@ export default function Landing() {
             <span className="w-12 h-12 rounded-xl bg-neon1/15 flex items-center justify-center text-2xl">📍</span>
             <span className="flex-1 min-w-0">
               <span className="block font-bold">{item.nombre}</span>
-              <span className="block text-xs text-lime mt-0.5">● Afiliado a NOCTA</span>
+              <span className="block text-xs text-muted mt-0.5">{item.ciudad}</span>
             </span>
             <span className="text-muted">›</span>
           </button>
         ))}
-        {locales.length === 0 && <p className="text-center text-muted text-sm py-8">No encontramos un establecimiento afiliado con ese nombre.</p>}
+        {locales.length === 0 && <p className="text-center text-muted text-sm py-8">No encontramos un establecimiento con ese nombre.</p>}
       </section>
 
       <Link href="/super" className="block text-center text-xs text-muted py-2">Acceso de operador NOCTA</Link>
