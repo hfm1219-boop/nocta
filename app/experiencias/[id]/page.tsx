@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import {
-  confirmarCheckin, enviarFeedback, guardarCuestionario, PREGUNTAS_AFINIDAD,
+  actualizarExperiencia, confirmarCheckin, enviarFeedback, ejecutarMatching, guardarCuestionario, PREGUNTAS_AFINIDAD,
   registrarParticipante, useExperienciasSociales, useIdParticipanteActual,
   type RespuestasAfinidad,
 } from "@/lib/social-events";
@@ -72,7 +72,12 @@ function Cuestionario({ eventoId, participanteId }: { eventoId: string; particip
 }
 
 function Espera({ evento, participante }: { evento: NonNullable<ReturnType<typeof useExperienciasSociales>[number]>; participante: NonNullable<ReturnType<typeof useExperienciasSociales>[number]["participantes"][number]> }) {
-  return <main className="flex-1 px-5 py-12 max-w-md mx-auto w-full text-center space-y-6"><div className="text-6xl">✨</div><div><p className="text-neon3 text-sm font-semibold">Perfil completado</p><h1 className="text-3xl font-bold mt-2">Estamos buscando tu conexión</h1><p className="text-muted mt-3">El promotor revelará los matches a las {evento.horaRevelacion}.</p></div><section className="card p-5"><p className="text-xs text-muted">Estado de llegada</p><p className={`font-bold mt-2 ${participante.checkin ? "text-lime" : "text-amber"}`}>{participante.checkin ? "✓ Check-in confirmado" : "Aún no has confirmado tu llegada"}</p>{!participante.checkin && <button onClick={() => confirmarCheckin(evento.id, participante.id)} className="btn-neon w-full rounded-xl p-3 font-semibold mt-4">Ya llegué · Confirmar check-in</button>}</section><p className="text-xs text-muted">Tu información no se muestra a otros participantes antes de la revelación.</p></main>;
+  const sinMatch = evento.estado === "revealed" && !participante.matchId;
+  function revelarDemo() {
+    ejecutarMatching(evento.id);
+    actualizarExperiencia(evento.id, (actual) => { actual.estado = "revealed"; });
+  }
+  return <main className="flex-1 px-5 py-12 max-w-md mx-auto w-full text-center space-y-6"><div className="text-6xl">{sinMatch ? "🤝" : "✨"}</div><div><p className="text-neon3 text-sm font-semibold">{sinMatch ? "Ronda completada" : "Perfil completado"}</p><h1 className="text-3xl font-bold mt-2">{sinMatch ? "Seguimos buscando una conexión" : "Estamos buscando tu conexión"}</h1><p className="text-muted mt-3">{sinMatch ? "No encontramos un match disponible en esta ronda. El promotor puede incluirte en la siguiente." : `El promotor ejecutará el matching y revelará los resultados a las ${evento.horaRevelacion}.`}</p></div><section className="card p-5"><p className="text-xs text-muted">Estado de llegada</p><p className={`font-bold mt-2 ${participante.checkin ? "text-lime" : "text-amber"}`}>{participante.checkin ? "✓ Check-in confirmado" : "Aún no has confirmado tu llegada"}</p>{!participante.checkin && <button onClick={() => confirmarCheckin(evento.id, participante.id)} className="btn-neon w-full rounded-xl p-3 font-semibold mt-4">Ya llegué · Confirmar check-in</button>}</section>{participante.checkin && !sinMatch && <section className="card p-5 text-left space-y-3"><div className="flex justify-between"><span className="text-sm">Registro</span><span className="text-lime">✓ Completo</span></div><div className="flex justify-between"><span className="text-sm">Check-in</span><span className="text-lime">✓ Confirmado</span></div><div className="flex justify-between"><span className="text-sm">Matching</span><span className={evento.estado === "matching" ? "text-amber" : "text-muted"}>{evento.estado === "matching" ? "Calculado · falta revelar" : "Pendiente del promotor"}</span></div></section>}{evento.demo && participante.checkin && evento.estado !== "revealed" && <button onClick={revelarDemo} className="btn-neon w-full rounded-2xl p-4 font-bold">Demo · Ver mi match ahora →</button>}<div className="grid grid-cols-2 gap-3"><Link href="/" className="card p-3 text-sm font-semibold">← Explorar NOCTA</Link><Link href="/mis-entradas" className="card p-3 text-sm font-semibold">Mis entradas</Link></div><p className="text-xs text-muted">Puedes salir de esta pantalla y volver con el mismo enlace. Tu estado queda guardado en este dispositivo.</p></main>;
 }
 
 function Revelacion({ eventoId, participante, match }: { eventoId: string; participante: NonNullable<ReturnType<typeof useExperienciasSociales>[number]["participantes"][number]>; match: NonNullable<ReturnType<typeof useExperienciasSociales>[number]["participantes"][number]> }) {

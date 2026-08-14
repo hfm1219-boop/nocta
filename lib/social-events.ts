@@ -49,6 +49,7 @@ export interface ExperienciaSocial {
   promotor: string;
   participantes: ParticipanteSocial[];
   creadaEn: number;
+  demo?: boolean;
 }
 
 export const PREGUNTAS_AFINIDAD = [
@@ -80,6 +81,7 @@ export const EXPERIENCIA_DEMO: ExperienciaSocial = {
   tipo: "social", lugarId: "casa-la-movida", lugarNombre: "Casa La Movida",
   fechaISO: "2026-08-22T20:00:00-05:00", capacidad: 40, modoMatching: "one-to-one",
   horaRevelacion: "21:30", estado: "open", promotor: "NOCTA Social Club", creadaEn: Date.now() - 86_400_000,
+  demo: true,
   participantes: [
     participanteSemilla("demo-valentina", "Valentina M.", 29, "Networking profesional", ["Gastronomía", "Viajes", "Música"], "Activa y conversadora"),
     participanteSemilla("demo-santiago", "Santiago R.", 34, "Conocer pareja", ["Viajes", "Deporte", "Música"], "Equilibrada"),
