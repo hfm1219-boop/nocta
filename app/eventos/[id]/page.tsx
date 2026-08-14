@@ -75,10 +75,10 @@ export default async function EventoPage({ params }: PageProps<"/eventos/[id]">)
                 <p className="text-xs text-muted">Entrada</p>
                 <p className="text-2xl font-bold mt-1">{evento.precioDesde ? `Desde $${evento.precioDesde.toLocaleString("es-CO")}` : "Entrada libre"}</p>
               </div>
-              <button className="w-full rounded-2xl border border-neon2/60 px-5 py-4 font-bold text-neon2">
+              <Link href={`/eventos/${evento.id}/entradas`} className="block text-center w-full rounded-2xl border border-neon2/60 px-5 py-4 font-bold text-neon2">
                 {evento.disponibilidad === "lista" ? "Solicitar lista" : evento.precioDesde ? "Comprar entrada" : "Confirmar asistencia"}
-              </button>
-              <p className="text-[11px] text-center text-muted">Próximo módulo: inventario, checkout y QR de acceso.</p>
+              </Link>
+              <p className="text-[11px] text-center text-muted">Recibirás un QR único para validar en puerta.</p>
             </div>
             <EntrarLugar lugarId={lugar.id} nombre={lugar.nombre} />
           </aside>
