@@ -1,133 +1,124 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
-import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
+import { EVENTOS, formatearFecha, LUGARES } from "@/lib/discovery";
 
-const ROLES_LOCAL = [
-  { href: "/barra", nombre: "Preparación", desc: "Cocina, barra y estaciones", icono: "👨‍🍳" },
-  { href: "/mesero", nombre: "Mesero", desc: "Entregas y cobro", icono: "🛎️" },
-  { href: "/dj", nombre: "DJ", desc: "Rockola del lugar", icono: "🎧" },
-  { href: "/admin", nombre: "Administrador", desc: "Configuración del local", icono: "📊" },
-];
+const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
 
-export default function Landing() {
-  const router = useRouter();
-  const db = useDB();
-  const afiliados = useLocalesAfiliados();
-  const [ciudad, setCiudad] = useState("");
+export default function Descubrimiento() {
   const [busqueda, setBusqueda] = useState("");
-  const [localId, setLocalId] = useState<string | null>(null);
-  const local = afiliados.find((item) => item.id === localId);
-  const ciudades = useMemo(() => Array.from(new Set(
-    afiliados.map((item) => item.ciudad.split(",")[0].trim()).filter(Boolean),
-  )).sort((a, b) => a.localeCompare(b, "es")), [afiliados]);
-  const locales = useMemo(() => {
+  const [filtro, setFiltro] = useState("Todos");
+
+  const eventos = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
-    if (!ciudad) return [];
-    return afiliados.filter((item) => {
-      const ciudadLocal = item.ciudad.split(",")[0].trim();
-      return ciudadLocal === ciudad
-        && (!texto || item.nombre.toLowerCase().includes(texto));
+    return EVENTOS.filter((evento) => {
+      const lugar = LUGARES.find((item) => item.id === evento.lugarId);
+      const coincideTexto = !texto || [evento.nombre, evento.resumen, lugar?.nombre, ...evento.generos]
+        .some((valor) => valor?.toLowerCase().includes(texto));
+      const coincideFiltro = filtro === "Todos"
+        || (filtro === "Gratis" && evento.precioDesde === 0)
+        || (filtro === "Hoy" && evento.id === "ritual-caribe")
+        || (filtro === "Este fin de semana" && ["ritual-caribe", "jugada-live", "luna-afro"].includes(evento.id));
+      return coincideTexto && coincideFiltro;
     });
-  }, [afiliados, busqueda, ciudad]);
+  }, [busqueda, filtro]);
 
-  function activarLocal(id: string, nombre: string) {
-    seleccionarLocal(id, nombre);
-    setLocalId(id);
-  }
+  return (
+    <main className="flex-1 pb-12">
+      <header className="sticky top-0 z-20 border-b border-line bg-background/85 backdrop-blur-xl">
+        <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
+          <Logo size="text-3xl" />
+          <Link href="/accesos" className="text-xs text-muted hover:text-foreground">Operación del lugar →</Link>
+        </div>
+      </header>
 
-  if (local) {
-    return (
-      <main className="flex-1 px-5 py-8 max-w-md mx-auto w-full space-y-6">
-        <button onClick={() => setLocalId(null)} className="text-sm text-muted">← Cambiar establecimiento</button>
-        <header className="card p-5 border-neon2/40 text-center space-y-2">
-          <Logo size="text-4xl" />
-          <p className="text-xs text-muted uppercase tracking-wider">Estás en</p>
-          <h1 className="text-2xl font-bold">{local.nombre}</h1>
-          <p className="text-sm text-muted">{local.ciudad}</p>
-        </header>
-
-        <button onClick={() => router.push("/m")} className="btn-neon w-full rounded-2xl p-5 text-left text-white">
-          <span className="text-3xl">🍸</span>
-          <span className="block text-xl font-bold mt-2">Entrar como cliente</span>
-          <span className="block text-sm text-white/80">Ver el menú y hacer pedidos en {local.nombre}</span>
-        </button>
-
-        <section className="space-y-3">
-          <div>
-            <h2 className="font-bold">Personal del establecimiento</h2>
-            <p className="text-xs text-muted">Estos accesos pertenecen exclusivamente a {local.nombre}.</p>
+      <div className="max-w-5xl mx-auto px-5 space-y-9">
+        <section className="pt-10 md:pt-16 space-y-5">
+          <div className="max-w-2xl">
+            <p className="text-sm font-semibold text-neon3 mb-2">Cartagena · Esta noche</p>
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Tu noche empieza aquí.</h1>
+            <p className="text-muted mt-3 md:text-lg">Descubre lugares, eventos y experiencias para salir en Cartagena.</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            {ROLES_LOCAL.filter((rol) => rol.href !== "/dj" || db?.config.funciones.rockola).map((rol) => (
-              <Link key={rol.href} href={rol.href} className="card p-4 space-y-1 hover:border-neon1/60 transition">
-                <div className="text-2xl">{rol.icono}</div>
-                <div className="font-semibold">{rol.nombre}</div>
-                <div className="text-xs text-muted">{rol.desc}</div>
-              </Link>
+          <div className="card p-2 flex items-center gap-3 max-w-2xl focus-within:border-neon2/60">
+            <span className="pl-3 text-xl">⌕</span>
+            <input
+              value={busqueda}
+              onChange={(evento) => setBusqueda(evento.target.value)}
+              className="w-full bg-transparent px-1 py-3 outline-none"
+              placeholder="Busca un evento, lugar o género"
+              aria-label="Buscar eventos"
+            />
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {CATEGORIAS.map((categoria) => (
+              <button
+                key={categoria}
+                onClick={() => setFiltro(categoria)}
+                className={`shrink-0 rounded-full border px-4 py-2 text-sm transition ${filtro === categoria ? "chip-active bg-neon2/10" : "border-line text-muted"}`}
+              >
+                {categoria}
+              </button>
             ))}
           </div>
         </section>
-      </main>
-    );
-  }
 
-  return (
-    <main className="flex-1 px-5 py-10 max-w-md mx-auto w-full space-y-7">
-      <header className="text-center space-y-3">
-        <Logo size="text-6xl" />
-        <h1 className="text-2xl font-bold">¿Dónde estás?</h1>
-        <p className="text-sm text-muted">Selecciona el establecimiento para ver su menú, precios y servicios.</p>
-      </header>
+        <section className="space-y-4">
+          <div className="flex justify-between items-end">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-neon2">Selección NOCTA</p>
+              <h2 className="text-2xl font-bold mt-1">Próximos eventos</h2>
+            </div>
+            <span className="text-xs text-muted">{eventos.length} resultados</span>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {eventos.map((evento) => {
+              const lugar = LUGARES.find((item) => item.id === evento.lugarId)!;
+              return (
+                <Link key={evento.id} href={`/eventos/${evento.id}`} className="card overflow-hidden group hover:border-neon1/60 transition">
+                  <div className="h-36 p-5 flex flex-col justify-between relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${evento.color}55, #100e1c 75%)` }}>
+                    <div className="absolute -right-4 -bottom-8 text-8xl opacity-20 group-hover:scale-110 transition">{lugar.icono}</div>
+                    <span className="self-start rounded-full bg-black/35 backdrop-blur px-3 py-1 text-xs">{lugar.categoria} · {lugar.zona}</span>
+                    <div>
+                      <h3 className="text-2xl font-bold">{evento.nombre}</h3>
+                      <p className="text-sm text-white/70">{lugar.nombre}</p>
+                    </div>
+                  </div>
+                  <div className="p-5 space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-sm font-semibold text-neon3 capitalize">{formatearFecha(evento.fechaISO)}</span>
+                      <span className="text-sm font-bold">{evento.precioDesde ? `Desde $${evento.precioDesde.toLocaleString("es-CO")}` : "Entrada libre"}</span>
+                    </div>
+                    <p className="text-sm text-muted">{evento.resumen}</p>
+                    <div className="flex gap-2 flex-wrap">
+                      {evento.generos.map((genero) => <span key={genero} className="text-xs rounded-full bg-surface2 px-2.5 py-1 text-muted">{genero}</span>)}
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          {eventos.length === 0 && <div className="card p-10 text-center text-muted">No encontramos planes con esos filtros.</div>}
+        </section>
 
-      <section className="space-y-3">
-        <label className="block text-sm font-semibold" htmlFor="selector-ciudad">Ciudad</label>
-        <select
-          id="selector-ciudad"
-          value={ciudad}
-          onChange={(e) => {
-            setCiudad(e.target.value);
-            setBusqueda("");
-          }}
-          className="card w-full px-4 py-3.5 bg-background outline-none focus:border-neon2"
-        >
-          <option value="">Selecciona una ciudad</option>
-          {ciudades.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select>
-
-        {ciudad && (
-          <input
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder={`Buscar establecimiento en ${ciudad}`}
-            className="card w-full px-4 py-3.5 bg-transparent outline-none focus:border-neon2"
-          />
-        )}
-      </section>
-
-      <section className="space-y-3">
-        {locales.map((item) => (
-          <button
-            key={item.id}
-            onClick={() => activarLocal(item.id, item.nombre)}
-            className="card w-full p-4 flex items-center gap-4 text-left hover:border-neon2/60 transition"
-          >
-            <span className="w-12 h-12 rounded-xl bg-neon1/15 flex items-center justify-center text-2xl">📍</span>
-            <span className="flex-1 min-w-0">
-              <span className="block font-bold">{item.nombre}</span>
-              <span className="block text-xs text-muted mt-0.5">{item.ciudad}</span>
-            </span>
-            <span className="text-muted">›</span>
-          </button>
-        ))}
-        {!ciudad && <p className="text-center text-muted text-sm py-8">Selecciona una ciudad para ver sus establecimientos.</p>}
-        {ciudad && locales.length === 0 && <p className="text-center text-muted text-sm py-8">No encontramos un establecimiento con ese nombre en {ciudad}.</p>}
-      </section>
-
-      <Link href="/super" className="block text-center text-xs text-muted py-2">Acceso de operador NOCTA</Link>
+        <section className="space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon3">Explora</p>
+            <h2 className="text-2xl font-bold mt-1">Lugares para tu noche</h2>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-3 snap-x">
+            {LUGARES.map((lugar) => (
+              <article key={lugar.id} className="card min-w-[260px] md:min-w-[300px] p-5 snap-start" style={{ borderTopColor: lugar.color }}>
+                <div className="text-4xl mb-5">{lugar.icono}</div>
+                <h3 className="font-bold text-lg">{lugar.nombre}</h3>
+                <p className="text-xs text-neon3 mt-1">{lugar.zona} · {lugar.rangoPrecio}</p>
+                <p className="text-sm text-muted mt-3">{lugar.descripcion}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+      </div>
     </main>
   );
 }

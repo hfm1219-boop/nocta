@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nocta — Pide sin filas",
+  title: "NOCTA — Tu noche empieza aquí",
   description:
-    "Sistema de pedidos digitales para bares y discotecas. La noche, sin filas.",
+    "Descubre lugares, eventos y experiencias nocturnas. Compra, reserva y disfruta la noche con NOCTA.",
   manifest: "/manifest.json",
 };
 
