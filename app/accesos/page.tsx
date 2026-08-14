@@ -7,6 +7,7 @@ import { Logo } from "@/components/ui";
 import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 
 const ROLES = [
+  { href: "/promotor", nombre: "Promotor", icono: "✨" },
   { href: "/acceso", nombre: "Puerta / Acceso", icono: "🎟️" },
   { href: "/barra", nombre: "Preparación", icono: "👨‍🍳" },
   { href: "/mesero", nombre: "Mesero", icono: "🛎️" },
