@@ -134,9 +134,14 @@ export function actualizarExperiencia(id: string, mutar: (experiencia: Experienc
 }
 
 export function registrarParticipante(eventoId: string, datos: Pick<ParticipanteSocial, "nombre" | "telefono" | "edad" | "genero" | "intencion" | "consentimiento">) {
+  const lista = parsear(snapshot());
+  const evento = lista.find((item) => item.id === eventoId);
+  if (!evento || evento.estado !== "open" || evento.participantes.length >= evento.capacidad) return null;
+  if (!datos.nombre.trim() || !datos.telefono.trim() || datos.edad < 18 || !datos.consentimiento) return null;
   const participante: ParticipanteSocial = { ...datos, id: `part-${Date.now()}`, respuestas: {}, cuestionarioCompleto: false, checkin: false, creadoEn: Date.now() };
-  actualizarExperiencia(eventoId, (evento) => evento.participantes.push(participante));
+  evento.participantes.push(participante);
   localStorage.setItem(`${SESSION_KEY}:${eventoId}`, participante.id);
+  guardar(lista);
   return participante;
 }
 

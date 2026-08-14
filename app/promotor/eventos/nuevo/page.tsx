@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { LUGARES } from "@/lib/discovery";
-import { crearExperiencia, type ModoMatching, type TipoExperiencia } from "@/lib/social-events";
+import { crearExperiencia, type TipoExperiencia } from "@/lib/social-events";
 
 export default function NuevaExperiencia() {
   const router = useRouter();
@@ -13,14 +13,13 @@ export default function NuevaExperiencia() {
   const [lugarId, setLugarId] = useState(LUGARES[0].id);
   const [fecha, setFecha] = useState("2026-08-29T20:00");
   const [capacidad, setCapacidad] = useState(40);
-  const [modo, setModo] = useState<ModoMatching>("one-to-one");
   const [revelacion, setRevelacion] = useState("21:30");
   const [promotor, setPromotor] = useState("");
   const lugar = LUGARES.find((item) => item.id === lugarId)!;
 
   function crear() {
     if (!nombre.trim() || !promotor.trim()) return;
-    const evento = crearExperiencia({ nombre, descripcion, tipo, lugarId, lugarNombre: lugar.nombre, fechaISO: new Date(fecha).toISOString(), capacidad, modoMatching: modo, horaRevelacion: revelacion, promotor });
+    const evento = crearExperiencia({ nombre, descripcion, tipo, lugarId, lugarNombre: lugar.nombre, fechaISO: new Date(fecha).toISOString(), capacidad, modoMatching: "one-to-one", horaRevelacion: revelacion, promotor });
     router.push(`/promotor/eventos/${evento.id}`);
   }
 
@@ -35,7 +34,7 @@ export default function NuevaExperiencia() {
         <Campo titulo="Tipo"><select value={tipo} onChange={(e) => setTipo(e.target.value as TipoExperiencia)} className="entrada"><option value="dating">Dating</option><option value="networking">Networking</option><option value="social">Social mixto</option><option value="community">Comunidad privada</option></select></Campo>
         <Campo titulo="Lugar"><select value={lugarId} onChange={(e) => setLugarId(e.target.value)} className="entrada">{LUGARES.map((item) => <option key={item.id} value={item.id}>{item.nombre}</option>)}</select></Campo>
         <div className="grid grid-cols-2 gap-3"><Campo titulo="Fecha y hora"><input type="datetime-local" value={fecha} onChange={(e) => setFecha(e.target.value)} className="entrada" /></Campo><Campo titulo="Capacidad"><input type="number" min={4} value={capacidad} onChange={(e) => setCapacidad(Number(e.target.value))} className="entrada" /></Campo></div>
-        <Campo titulo="Modo de matching"><select value={modo} onChange={(e) => setModo(e.target.value as ModoMatching)} className="entrada"><option value="one-to-one">Uno a uno</option><option value="groups">Grupos de afinidad</option><option value="rounds">Rondas múltiples</option></select></Campo>
+        <Campo titulo="Modo de matching"><div className="entrada"><b>Uno a uno</b><p className="text-xs text-muted mt-1">Cada asistente recibe un match único. Grupos y rondas estarán disponibles cuando sus algoritmos operativos estén implementados.</p></div></Campo>
         <Campo titulo="Hora de revelación"><input type="time" value={revelacion} onChange={(e) => setRevelacion(e.target.value)} className="entrada" /></Campo>
       </section>
       <button onClick={crear} disabled={!nombre.trim() || !promotor.trim()} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">Crear y publicar experiencia</button>

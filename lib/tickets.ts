@@ -72,6 +72,15 @@ export function useEntradas() {
   return useMemo(() => parsear(raw), [raw]);
 }
 
+export function entradasDisponibles(eventoId: string, tipo: TipoEntrada, entradas = parsear(snapshot())) {
+  const emitidas = entradas.filter((entrada) =>
+    entrada.eventoId === eventoId
+    && entrada.tipoId === tipo.id
+    && entrada.estado !== "anulada",
+  ).length;
+  return Math.max(0, tipo.cupo - emitidas);
+}
+
 function codigoSeguro() {
   const bytes = new Uint8Array(10);
   crypto.getRandomValues(bytes);
@@ -86,13 +95,21 @@ export function comprarEntradas(datos: {
   email: string;
 }) {
   const actuales = parsear(snapshot());
+  const tipoCanonico = TIPOS_ENTRADA[datos.eventoId]?.find((tipo) => tipo.id === datos.tipo.id);
+  if (!tipoCanonico) throw new Error("Tipo de entrada no válido para este evento.");
+  if (!Number.isInteger(datos.cantidad) || datos.cantidad < 1 || datos.cantidad > 4) {
+    throw new Error("La cantidad debe estar entre 1 y 4 entradas.");
+  }
+  if (entradasDisponibles(datos.eventoId, tipoCanonico, actuales) < datos.cantidad) {
+    throw new Error("No quedan suficientes entradas de esta localidad.");
+  }
   const nuevas = Array.from({ length: datos.cantidad }, (_, indice): EntradaComprada => ({
     id: `ent-${Date.now()}-${indice}`,
     codigo: codigoSeguro(),
     eventoId: datos.eventoId,
     tipoId: datos.tipo.id,
-    tipoNombre: datos.tipo.nombre,
-    precio: datos.tipo.precio,
+    tipoNombre: tipoCanonico.nombre,
+    precio: tipoCanonico.precio,
     titular: datos.titular.trim(),
     email: datos.email.trim(),
     estado: "valida",
