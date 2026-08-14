@@ -109,12 +109,15 @@ export default function Descubrimiento() {
           </div>
           <div className="flex gap-4 overflow-x-auto pb-3 snap-x">
             {LUGARES.map((lugar) => (
-              <article key={lugar.id} className="card min-w-[260px] md:min-w-[300px] p-5 snap-start" style={{ borderTopColor: lugar.color }}>
+              <Link key={lugar.id} href={`/lugares/${lugar.id}`} className="card min-w-[260px] md:min-w-[300px] p-5 snap-start hover:border-neon1/60 transition" style={{ borderTopColor: lugar.color }}>
                 <div className="text-4xl mb-5">{lugar.icono}</div>
-                <h3 className="font-bold text-lg">{lugar.nombre}</h3>
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="font-bold text-lg">{lugar.nombre}</h3>
+                  <span className="text-neon3">→</span>
+                </div>
                 <p className="text-xs text-neon3 mt-1">{lugar.zona} · {lugar.rangoPrecio}</p>
                 <p className="text-sm text-muted mt-3">{lugar.descripcion}</p>
-              </article>
+              </Link>
             ))}
           </div>
         </section>

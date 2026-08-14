@@ -12,6 +12,7 @@ import {
 } from "@/lib/preorden";
 import { EscanerMesa } from "@/components/qr-mesa";
 import { MapaZonas } from "@/components/mapa-zonas";
+import { limpiarIntencionPedido, useIntencionPedido } from "@/lib/order-intent";
 
 const PROPINAS = [0, 5, 10];
 
@@ -33,7 +34,6 @@ export default function Checkout() {
   const [usarPropinaPersonalizada, setUsarPropinaPersonalizada] = useState(false);
   const [medio, setMedio] = useState<MedioPago>("digital");
   const [telefono, setTelefono] = useState("");
-  const [esPreorden, setEsPreorden] = useState(false);
   const [fechaLlegada, setFechaLlegada] = useState("");
   const [pagando, setPagando] = useState(false);
   const [politicasAbiertas, setPoliticasAbiertas] = useState(false);
@@ -43,6 +43,12 @@ export default function Checkout() {
   const [armandoVaquita, setArmandoVaquita] = useState(false);
   const [participantesVaquita, setParticipantesVaquita] = useState(4);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
+  const intencionPedido = useIntencionPedido();
+  const esPreorden = intencionPedido?.tipo === "preorden";
+  const eventoPreorden = intencionPedido?.eventoNombre ?? "";
+  const fechaLlegadaEfectiva = fechaLlegada || (intencionPedido
+    ? fechaInputLocal(new Date(intencionPedido.llegadaSugerida).getTime())
+    : "");
 
   const subtotal = totalCarrito(items);
   const descuentoPct = esPreorden ? porcentajeDescuentoVolumen(items) : 0;
@@ -87,7 +93,7 @@ export default function Checkout() {
 
   const necesitaZona = modoValido !== "barra";
   const superaTope = total > config.topeContraEntrega;
-  const programadoPara = fechaLlegada ? new Date(fechaLlegada).getTime() : 0;
+  const programadoPara = fechaLlegadaEfectiva ? new Date(fechaLlegadaEfectiva).getTime() : 0;
   const fechaValida = !esPreorden || (ahora > 0 && programadoPara >= ahora + 30 * 60_000);
   const fechaMaxima = !esPreorden || (ahora > 0 && programadoPara <= ahora + 30 * 24 * 60 * 60_000);
 
@@ -105,7 +111,7 @@ export default function Checkout() {
     if (!medioValido || items.length === 0) return;
     if (esPreorden && !config?.funciones.preorden) return;
     if (necesitaZona && !zonaId) return;
-    if (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) return;
+    if (esPreorden && (!fechaLlegadaEfectiva || !fechaValida || !fechaMaxima)) return;
     if (esPreorden && !politicasAceptadas) return;
     if (enviado.current) return;
     enviado.current = true;
@@ -127,6 +133,7 @@ export default function Checkout() {
       politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
       pagoAlFinal: !esPreorden && pagoAlFinal,
     });
+    limpiarIntencionPedido();
     vaciarCarrito();
     router.push(`/m/pedido/${pedido.id}`);
   }
@@ -160,28 +167,13 @@ export default function Checkout() {
     <main className="px-4 pt-5 space-y-6 pb-10">
       <h1 className="text-2xl font-bold">Tu pedido</h1>
 
-      <section className={`card p-1 grid ${config.funciones.preorden ? "grid-cols-2" : "grid-cols-1"}`}>
-        <button
-          onClick={() => setEsPreorden(false)}
-          className={`rounded-xl py-3 text-sm transition ${
-            !esPreorden ? "bg-neon2/15 text-neon2 font-semibold" : "text-muted"
-          }`}
-        >
-          ⚡ Pedir ahora
-        </button>
-        {config.funciones.preorden && (
-          <button
-            onClick={() => {
-              setPoliticasAceptadas(false);
-              setPoliticasAbiertas(true);
-            }}
-            className={`rounded-xl py-3 text-sm transition ${
-              esPreorden ? "bg-neon3/15 text-neon3 font-semibold" : "text-muted"
-            }`}
-          >
-            🗓️ Preordenar
-          </button>
-        )}
+      <section className={`card p-4 border ${esPreorden ? "border-neon3/40 bg-neon3/5" : "border-neon2/30"}`}>
+        <p className={`font-semibold ${esPreorden ? "text-neon3" : "text-neon2"}`}>
+          {esPreorden ? `🗓️ Preorden${eventoPreorden ? ` · ${eventoPreorden}` : ""}` : "⚡ Pedido para ahora"}
+        </p>
+        <p className="text-xs text-muted mt-1">
+          {esPreorden ? "Iniciaste esta compra desde la ficha del evento." : "Este pedido se prepara para consumo inmediato en el establecimiento."}
+        </p>
       </section>
 
       {esPreorden && (
@@ -196,14 +188,14 @@ export default function Checkout() {
             <span className="text-muted text-xs">Fecha y hora de llegada</span>
             <input
               type="datetime-local"
-              value={fechaLlegada}
+              value={fechaLlegadaEfectiva}
               min={ahora ? fechaInputLocal(ahora + 30 * 60_000) : undefined}
               max={ahora ? fechaInputLocal(ahora + 30 * 24 * 60 * 60_000) : undefined}
               onChange={(e) => setFechaLlegada(e.target.value)}
               className="card w-full mt-1 px-4 py-3 bg-transparent outline-none [color-scheme:dark]"
             />
           </label>
-          {fechaLlegada && (!fechaValida || !fechaMaxima) && (
+          {fechaLlegadaEfectiva && (!fechaValida || !fechaMaxima) && (
             <p className="text-xs text-danger">
               Elige una hora entre 30 minutos y 30 días desde ahora.
             </p>
@@ -613,7 +605,7 @@ export default function Checkout() {
         disabled={
           items.length === 0 ||
           (!esPreorden && necesitaZona && !zonaId) ||
-          (esPreorden && (!fechaLlegada || !fechaValida || !fechaMaxima)) ||
+          (esPreorden && (!fechaLlegadaEfectiva || !fechaValida || !fechaMaxima)) ||
           (esPreorden && !politicasAceptadas) ||
           !medioValido
         }
@@ -690,7 +682,6 @@ export default function Checkout() {
                 type="button"
                 disabled={!politicasAceptadas}
                 onClick={() => {
-                  setEsPreorden(true);
                   setModo("barra");
                   setZonaId("");
                   setMedio("digital");
