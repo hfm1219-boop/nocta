@@ -4,12 +4,14 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
 import { EVENTOS, formatearFecha, LUGARES } from "@/lib/discovery";
+import { useExperienciasSociales } from "@/lib/social-events";
 
 const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
 
 export default function Descubrimiento() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState("Todos");
+  const experiencias = useExperienciasSociales().filter((item) => item.estado === "open");
 
   const eventos = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -100,6 +102,25 @@ export default function Descubrimiento() {
             })}
           </div>
           {eventos.length === 0 && <div className="card p-10 text-center text-muted">No encontramos planes con esos filtros.</div>}
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-neon3">Conecta en persona</p>
+            <h2 className="text-2xl font-bold mt-1">Experiencias sociales</h2>
+            <p className="text-sm text-muted mt-1">Eventos guiados para conocer personas con intereses afines.</p>
+          </div>
+          <div className="grid md:grid-cols-2 gap-4">
+            {experiencias.map((experiencia) => (
+              <Link key={experiencia.id} href={`/experiencias/${experiencia.id}`} className="card p-5 hover:border-neon3/60 transition relative overflow-hidden">
+                <div className="absolute -right-4 -bottom-8 text-8xl opacity-10">✨</div>
+                <p className="text-xs uppercase tracking-wider text-neon3">{experiencia.tipo} · por {experiencia.promotor}</p>
+                <h3 className="text-xl font-bold mt-2">{experiencia.nombre}</h3>
+                <p className="text-sm text-muted mt-2">{experiencia.descripcion}</p>
+                <div className="flex justify-between gap-3 mt-5 text-xs"><span>{experiencia.lugarNombre}</span><span className="text-neon2">{experiencia.participantes.length}/{experiencia.capacidad} confirmados →</span></div>
+              </Link>
+            ))}
+          </div>
         </section>
 
         <section className="space-y-4">

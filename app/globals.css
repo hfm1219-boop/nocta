@@ -65,6 +65,19 @@ body {
   border-radius: 1rem;
 }
 
+.entrada {
+  display: block;
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background: var(--background);
+  color: var(--foreground);
+  outline: none;
+}
+.entrada:focus { border-color: var(--neon-2); }
+
 .chip-active {
   border-color: var(--neon-2) !important;
   box-shadow: 0 0 14px rgba(255, 45, 154, 0.25);
