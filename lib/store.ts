@@ -267,8 +267,37 @@ export function crearPedido(datos: {
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
+    if (!datos.items.length) throw new Error("El pedido debe contener al menos un producto.");
+    if (datos.items.some((item) => !Number.isInteger(item.cantidad) || item.cantidad <= 0 || !Number.isFinite(item.precioUnit) || item.precioUnit < 0)) {
+      throw new Error("El pedido contiene cantidades o precios no válidos.");
+    }
+    const productosValidos = new Set(db.productos.filter((producto) => producto.disponible).map((producto) => producto.id));
+    if (datos.items.some((item) => !productosValidos.has(item.productoId))) {
+      throw new Error("Uno o más productos ya no están disponibles.");
+    }
+    if (!Number.isFinite(datos.propina) || datos.propina < 0) throw new Error("La propina no es válida.");
+    const funcionModo = datos.modo === "barra" ? "recepcionBarra" : datos.modo === "zona" ? "recepcionZona" : "recepcionMesa";
+    if (!db.config.funciones[funcionModo]) throw new Error("El modo de recepción seleccionado no está habilitado.");
+    if (datos.modo !== "barra" && !db.zonas.some((zona) => zona.id === datos.zonaId && zona.entregable)) {
+      throw new Error("Selecciona una zona o mesa válida.");
+    }
+    if (!db.config.mediosHabilitados[datos.medioPago]) throw new Error("El medio de pago no está habilitado.");
+    if (datos.medioPago === "digital" && !db.config.recaudoActivo) {
+      throw new Error("El recaudo digital está temporalmente deshabilitado.");
+    }
+    if (datos.tipo === "preorden") {
+      if (!db.config.funciones.preorden || !datos.programadoPara || datos.programadoPara < Date.now() + 30 * 60_000) {
+        throw new Error("La fecha de la preorden debe estar al menos 30 minutos en el futuro.");
+      }
+      if (datos.medioPago !== "digital" || !db.config.recaudoActivo) {
+        throw new Error("Las preórdenes requieren pago digital activo.");
+      }
+    }
     const subtotal = datos.items.reduce((s, i) => s + i.precioUnit * i.cantidad, 0);
     const descuento = datos.descuento ?? 0;
+    if (!Number.isFinite(descuento) || descuento < 0 || descuento > subtotal) {
+      throw new Error("El descuento del pedido no es válido.");
+    }
     const total = subtotal - descuento + datos.propina;
     const vaquitaPago = datos.vaquitaId
       ? db.vaquitas.find((vaquita) => vaquita.id === datos.vaquitaId)
@@ -449,6 +478,14 @@ export function avanzarPedido(id: string, nuevoEstado: Pedido["estado"]) {
   guardarDB((db) => {
     const p = db.pedidos.find((x) => x.id === id);
     if (!p) return;
+    const transiciones: Record<Pedido["estado"], Pedido["estado"][]> = {
+      nuevo: ["preparando", "listo", "anulado", "vencido"],
+      preparando: ["listo", "anulado", "vencido"],
+      listo: ["en_camino", "entregado", "anulado", "vencido"],
+      en_camino: ["listo", "entregado", "anulado"],
+      entregado: [], vencido: [], anulado: [],
+    };
+    if (p.estado === nuevoEstado || !transiciones[p.estado].includes(nuevoEstado)) return;
     p.estado = nuevoEstado;
     p.timestamps[nuevoEstado] = Date.now();
     if (nuevoEstado === "en_camino") {
@@ -481,7 +518,8 @@ export function registrarCobro(
 ) {
   guardarDB((db) => {
     const p = db.pedidos.find((x) => x.id === id);
-    if (!p) return;
+    if (!p || p.estadoPago === "pagado" || ["anulado", "vencido"].includes(p.estado)) return;
+    if (!db.config.mediosHabilitados[medio]) return;
     p.estadoPago = "pagado";
     p.cobro = { medio, monto: p.total, referencia, cobradoPor, ts: Date.now() };
   });
@@ -541,6 +579,7 @@ export function solicitarCancion(datos: {
   artista?: string;
   solicitadoPor?: string;
 }): SolicitudCancion {
+  if (!datos.titulo.trim()) throw new Error("Escribe el título de la canción.");
   let creada!: SolicitudCancion;
   guardarDB((db) => {
     const ahora = Date.now();

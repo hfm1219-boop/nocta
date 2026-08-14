@@ -5,8 +5,26 @@ import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
 import { EVENTOS, formatearFecha, LUGARES } from "@/lib/discovery";
 import { useExperienciasSociales } from "@/lib/social-events";
+import { RestablecerDemo } from "@/components/restablecer-demo";
 
 const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
+
+function mismoDia(a: Date, b: Date) {
+  return a.getFullYear() === b.getFullYear()
+    && a.getMonth() === b.getMonth()
+    && a.getDate() === b.getDate();
+}
+
+function esEsteFinDeSemana(fecha: Date, ahora: Date) {
+  const dia = ahora.getDay();
+  const diasHastaViernes = (5 - dia + 7) % 7;
+  const viernes = new Date(ahora);
+  viernes.setHours(0, 0, 0, 0);
+  viernes.setDate(viernes.getDate() + diasHastaViernes);
+  const lunes = new Date(viernes);
+  lunes.setDate(lunes.getDate() + 3);
+  return fecha >= viernes && fecha < lunes;
+}
 
 export default function Descubrimiento() {
   const [busqueda, setBusqueda] = useState("");
@@ -15,14 +33,16 @@ export default function Descubrimiento() {
 
   const eventos = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
+    const ahora = new Date();
     return EVENTOS.filter((evento) => {
+      const fechaEvento = new Date(evento.fechaISO);
       const lugar = LUGARES.find((item) => item.id === evento.lugarId);
       const coincideTexto = !texto || [evento.nombre, evento.resumen, lugar?.nombre, ...evento.generos]
         .some((valor) => valor?.toLowerCase().includes(texto));
       const coincideFiltro = filtro === "Todos"
         || (filtro === "Gratis" && evento.precioDesde === 0)
-        || (filtro === "Hoy" && evento.id === "ritual-caribe")
-        || (filtro === "Este fin de semana" && ["ritual-caribe", "jugada-live", "luna-afro"].includes(evento.id));
+        || (filtro === "Hoy" && mismoDia(fechaEvento, ahora))
+        || (filtro === "Este fin de semana" && esEsteFinDeSemana(fechaEvento, ahora));
       return coincideTexto && coincideFiltro;
     });
   }, [busqueda, filtro]);
@@ -39,7 +59,7 @@ export default function Descubrimiento() {
       <div className="max-w-5xl mx-auto px-5 space-y-9">
         <section className="pt-10 md:pt-16 space-y-5">
           <div className="max-w-2xl">
-            <p className="text-sm font-semibold text-neon3 mb-2">Cartagena · Esta noche</p>
+            <p className="text-sm font-semibold text-neon3 mb-2">Cartagena · Próximos planes</p>
             <h1 className="text-4xl md:text-6xl font-bold tracking-tight">Tu noche empieza aquí.</h1>
             <p className="text-muted mt-3 md:text-lg">Descubre lugares, eventos y experiencias para salir en Cartagena.</p>
           </div>
@@ -142,6 +162,8 @@ export default function Descubrimiento() {
             ))}
           </div>
         </section>
+
+        <RestablecerDemo />
       </div>
     </main>
   );

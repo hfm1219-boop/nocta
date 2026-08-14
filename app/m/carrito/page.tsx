@@ -36,6 +36,7 @@ export default function Checkout() {
   const [telefono, setTelefono] = useState("");
   const [fechaLlegada, setFechaLlegada] = useState("");
   const [pagando, setPagando] = useState(false);
+  const [errorConfirmacion, setErrorConfirmacion] = useState("");
   const [politicasAbiertas, setPoliticasAbiertas] = useState(false);
   const [politicasAceptadas, setPoliticasAceptadas] = useState(false);
   const [escaneandoMesa, setEscaneandoMesa] = useState(false);
@@ -71,7 +72,7 @@ export default function Checkout() {
   const modoValido = modosHabilitados.includes(modo) ? modo : (modosHabilitados[0] ?? "barra");
   const mediosDisponibles = useMemo(() => {
     if (!config) return [] as MedioPago[];
-    if (pagoAlFinal) return ["datafono"] as MedioPago[];
+    if (pagoAlFinal) return config.mediosHabilitados.datafono ? ["datafono"] as MedioPago[] : [];
     const lista: MedioPago[] = [];
     if (config.mediosHabilitados.digital && config.recaudoActivo) lista.push("digital");
     if (esPreorden) return lista;
@@ -115,27 +116,34 @@ export default function Checkout() {
     if (esPreorden && !politicasAceptadas) return;
     if (enviado.current) return;
     enviado.current = true;
+    setErrorConfirmacion("");
     setPoliticasAbiertas(false);
     setPagando(true);
     // Simula la confirmación del recaudo digital vía webhook (spec §8.1)
     await new Promise((r) => setTimeout(r, medioValido === "digital" ? 1600 : 400));
-    const pedido = crearPedido({
-      items,
-      modo: modoValido,
-      zonaId: necesitaZona ? zonaId : undefined,
-      medioPago: medioValido,
-      propina,
-      telefono: telefono || undefined,
-      tipo: esPreorden ? "preorden" : "inmediato",
-      programadoPara: esPreorden ? programadoPara : undefined,
-      descuento,
-      descuentoPct,
-      politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
-      pagoAlFinal: !esPreorden && pagoAlFinal,
-    });
-    limpiarIntencionPedido();
-    vaciarCarrito();
-    router.push(`/m/pedido/${pedido.id}`);
+    try {
+      const pedido = crearPedido({
+        items,
+        modo: modoValido,
+        zonaId: necesitaZona ? zonaId : undefined,
+        medioPago: medioValido,
+        propina,
+        telefono: telefono || undefined,
+        tipo: esPreorden ? "preorden" : "inmediato",
+        programadoPara: esPreorden ? programadoPara : undefined,
+        descuento,
+        descuentoPct,
+        politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
+        pagoAlFinal: !esPreorden && pagoAlFinal,
+      });
+      limpiarIntencionPedido();
+      vaciarCarrito();
+      router.push(`/m/pedido/${pedido.id}`);
+    } catch (errorPedido) {
+      enviado.current = false;
+      setPagando(false);
+      setErrorConfirmacion(errorPedido instanceof Error ? errorPedido.message : "No pudimos confirmar el pedido.");
+    }
   }
 
   if (items.length === 0 && !pagando) {
@@ -599,6 +607,10 @@ export default function Checkout() {
         entrega. Pedidos pagados no retirados vencen a los {config.minutosVencimiento}{" "}
         minutos según la política del local (visible aquí en el checkout).
       </p>
+
+      {errorConfirmacion && (
+        <p className="card p-3 text-sm text-danger border-danger/40" role="alert">{errorConfirmacion}</p>
+      )}
 
       <BotonPrimario
         onClick={() => void confirmar()}
