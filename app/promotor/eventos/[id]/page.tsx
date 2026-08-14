@@ -2,31 +2,31 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { actualizarExperiencia, ejecutarMatching, useExperienciasSociales } from "@/lib/social-events";
+import { QRExperiencia } from "@/components/qr-experiencia";
+import { actualizarExperiencia, actualizarReporte, ejecutarMatching, useExperienciasSociales } from "@/lib/social-events";
+
+const ETIQUETAS = { "one-to-one": "Uno a uno", groups: "Grupos", rounds: "Rondas" } as const;
 
 export default function GestionExperiencia() {
-  const { id } = useParams<{ id: string }>();
-  const evento = useExperienciasSociales().find((item) => item.id === id);
+  const { id } = useParams<{ id: string }>(); const evento = useExperienciasSociales().find((item) => item.id === id);
   if (!evento) return <main className="p-8 text-muted">Experiencia no encontrada.</main>;
-  const completos = evento.participantes.filter((p) => p.cuestionarioCompleto).length;
-  const checkins = evento.participantes.filter((p) => p.checkin).length;
-  const matches = Math.floor(evento.participantes.filter((p) => p.matchId).length / 2);
-  const ratings = evento.participantes.flatMap((p) => p.feedback ? [p.feedback.rating] : []);
-  const promedio = ratings.length ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : "—";
-  return (
-    <main className="flex-1 px-5 py-8 max-w-5xl mx-auto w-full space-y-6">
-      <header className="flex items-start justify-between gap-4"><div><Link href="/promotor" className="text-sm text-muted">← Promotor</Link><h1 className="text-3xl font-bold mt-3">{evento.nombre}</h1><p className="text-sm text-muted mt-1">{evento.lugarNombre} · {new Date(evento.fechaISO).toLocaleString("es-CO")}</p></div><span className="rounded-full bg-neon3/10 text-neon3 px-4 py-2 text-xs font-bold uppercase">{evento.estado}</span></header>
-      <section className="grid grid-cols-2 md:grid-cols-5 gap-3"><Kpi t="Registrados" v={evento.participantes.length} /><Kpi t="Cuestionarios" v={completos} /><Kpi t="Check-ins" v={checkins} /><Kpi t="Matches" v={matches} /><Kpi t="Feedback" v={promedio} /></section>
-      <section className="grid md:grid-cols-4 gap-3">
-        <button onClick={() => actualizarExperiencia(id, (e) => { e.estado = e.estado === "open" ? "closed" : "open"; })} className="card p-4 font-semibold">{evento.estado === "open" ? "🔒 Cerrar registro" : "🔓 Abrir registro"}</button>
-        <button onClick={() => ejecutarMatching(id)} className="btn-neon rounded-2xl p-4 font-semibold">⚡ Ejecutar matching</button>
-        <button disabled={!matches} onClick={() => actualizarExperiencia(id, (e) => { e.estado = "revealed"; })} className="card p-4 font-semibold disabled:opacity-40">👁 Revelar matches</button>
-        <Link href={`/experiencias/${id}`} className="card p-4 text-center font-semibold">↗ Ver como asistente</Link>
-      </section>
-      <section className="card overflow-hidden"><div className="p-5 border-b border-line"><h2 className="font-bold">Participantes</h2><p className="text-xs text-muted">Solo se muestran datos necesarios para operar la experiencia.</p></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-muted"><tr>{["Nombre", "Edad", "Interés", "Cuestionario", "Check-in", "Match"].map((h) => <th key={h} className="text-left p-3 font-normal">{h}</th>)}</tr></thead><tbody>{evento.participantes.map((p) => <tr key={p.id} className="border-t border-line"><td className="p-3 font-semibold">{p.nombre}</td><td className="p-3 text-muted">{p.edad}</td><td className="p-3 text-muted">{p.intencion}</td><td className="p-3">{p.cuestionarioCompleto ? "✓" : "—"}</td><td className="p-3">{p.checkin ? "✓" : "—"}</td><td className="p-3">{p.matchId ? `${p.compatibilidad}%` : "—"}</td></tr>)}</tbody></table></div></section>
-      <section className="card p-5"><p className="text-xs text-muted">Link para compartir</p><p className="font-mono text-sm mt-1 break-all">{typeof window !== "undefined" ? `${window.location.origin}/experiencias/${id}` : `/experiencias/${id}`}</p></section>
-    </main>
-  );
+  const completos = evento.participantes.filter((p) => p.cuestionarioCompleto).length; const checkins = evento.participantes.filter((p) => p.checkin).length;
+  const asignados = new Set(evento.asignaciones.flatMap((a) => a.participantesIds)); const sinAsignar = evento.participantes.filter((p) => p.checkin && !asignados.has(p.id)).length;
+  const compatibilidad = evento.asignaciones.length ? Math.round(evento.asignaciones.reduce((s,a)=>s+a.compatibilidad,0)/evento.asignaciones.length) : 0;
+  const ratings = evento.participantes.flatMap((p) => p.feedback ? [p.feedback.rating] : []); const promedio = ratings.length ? (ratings.reduce((a,b)=>a+b,0)/ratings.length).toFixed(1) : "—";
+  const saludos = evento.interacciones.filter((i)=>i.tipo==="saludo").length; const contactos = evento.interacciones.filter((i)=>i.tipo==="contacto");
+  const conteo = (campo: "intencion"|"genero") => Object.entries(evento.participantes.filter(p=>p.checkin).reduce<Record<string,number>>((r,p)=>{ const k=p[campo]||"Sin definir"; r[k]=(r[k]||0)+1; return r; },{})).sort((a,b)=>b[1]-a[1]);
+  const intenciones = conteo("intencion"); const generos = conteo("genero");
+  return <main className="flex-1 px-5 py-8 max-w-6xl mx-auto w-full space-y-6"><header className="flex items-start justify-between gap-4"><div><Link href="/promotor" className="text-sm text-muted">← Promotor</Link><h1 className="text-3xl font-bold mt-3">{evento.nombre}</h1><p className="text-sm text-muted mt-1">{evento.lugarNombre} · {new Date(evento.fechaISO).toLocaleString("es-CO")} · {ETIQUETAS[evento.modoMatching]}</p></div><span className="rounded-full bg-neon3/10 text-neon3 px-4 py-2 text-xs font-bold uppercase">{evento.estado}</span></header>
+    <section className="grid grid-cols-2 md:grid-cols-6 gap-3"><Kpi t="Registrados" v={evento.participantes.length}/><Kpi t="Cuestionarios" v={completos}/><Kpi t="Check-ins" v={checkins}/><Kpi t="Asignaciones" v={evento.asignaciones.length}/><Kpi t="Compatibilidad" v={compatibilidad ? `${compatibilidad}%` : "—"}/><Kpi t="Feedback" v={promedio}/></section>
+    <section className="grid md:grid-cols-4 gap-3"><button disabled={!(["open","closed"] as string[]).includes(evento.estado)} onClick={()=>actualizarExperiencia(id,e=>{e.estado=e.estado==="open"?"closed":"open";})} className="card p-4 font-semibold disabled:opacity-40">{evento.estado==="open"?"🔒 Cerrar registro":evento.estado==="closed"?"🔓 Abrir registro":"🔒 Registro cerrado"}</button><button disabled={checkins < (evento.modoMatching === "groups" ? 3 : 2)} onClick={()=>ejecutarMatching(id)} className="btn-neon rounded-2xl p-4 font-semibold disabled:opacity-40">⚡ Ejecutar matching</button><button disabled={!evento.asignaciones.length} onClick={()=>actualizarExperiencia(id,e=>{e.estado="revealed";})} className="card p-4 font-semibold disabled:opacity-40">👁 Revelar ahora</button><Link href={`/experiencias/${id}`} className="card p-4 text-center font-semibold">↗ Ver como asistente</Link></section>
+    {sinAsignar > 0 && evento.asignaciones.length > 0 && <p className="rounded-xl border border-amber/40 bg-amber/10 p-4 text-sm text-amber">⚠ {sinAsignar} asistente{sinAsignar===1?"":"s"} con check-in quedó sin asignación. Revisa el aforo o ejecuta una nueva ronda.</p>}
+    <section className="grid md:grid-cols-2 gap-4"><div className="card p-5"><h2 className="font-bold">Balance operativo</h2><p className="text-xs text-muted mt-1">Distribución agregada de quienes hicieron check-in.</p><h3 className="text-xs uppercase text-muted mt-4">Intenciones</h3>{intenciones.map(([k,v])=><Barra key={k} label={k} valor={v} total={checkins}/>)}<h3 className="text-xs uppercase text-muted mt-4">Género declarado</h3>{generos.map(([k,v])=><Barra key={k} label={k} valor={v} total={checkins}/>)}</div><div className="card p-5"><h2 className="font-bold">Interacciones</h2><div className="grid grid-cols-2 gap-3 mt-4"><Kpi t="Saludos" v={saludos}/><Kpi t="Contactos aceptados" v={contactos.filter(i=>i.estado==="aceptado").length}/><Kpi t="Solicitudes pendientes" v={contactos.filter(i=>i.estado==="enviado").length}/><Kpi t="Reportes abiertos" v={evento.reportes.filter(r=>r.estado==="abierto").length}/></div></div></section>
+    <QRExperiencia eventoId={id} nombre={evento.nombre}/>
+    <section className="card overflow-hidden"><div className="p-5 border-b border-line"><h2 className="font-bold">Participantes</h2><p className="text-xs text-muted">Datos necesarios para operar la experiencia. El contacto no se expone aquí.</p></div><div className="overflow-x-auto"><table className="w-full text-sm"><thead className="text-muted"><tr>{["Nombre","Edad","Intención","Cuestionario","Check-in","Asignaciones"].map(h=><th key={h} className="text-left p-3 font-normal">{h}</th>)}</tr></thead><tbody>{evento.participantes.map(p=><tr key={p.id} className="border-t border-line"><td className="p-3 font-semibold">{p.nombre}</td><td className="p-3 text-muted">{p.edad}</td><td className="p-3 text-muted">{p.intencion}</td><td className="p-3">{p.cuestionarioCompleto?"✓":"—"}</td><td className="p-3">{p.checkin?"✓":"—"}</td><td className="p-3">{evento.asignaciones.filter(a=>a.participantesIds.includes(p.id)).length||"—"}</td></tr>)}</tbody></table></div></section>
+    {evento.reportes.length > 0 && <section className="card p-5"><h2 className="font-bold">Centro de seguridad</h2><p className="text-xs text-muted mt-1">Los reportes requieren revisión humana; cambiar el estado no elimina el registro.</p>{evento.reportes.map(r=><div key={r.id} className="border-t border-line mt-4 pt-4"><div className="flex justify-between gap-3"><div><b>{r.motivo}</b><p className="text-sm text-muted">{r.detalle||"Sin detalle"}</p></div><span className="text-xs uppercase">{r.estado}</span></div><div className="flex gap-2 mt-3"><button onClick={()=>actualizarReporte(id,r.id,"revisado")} className="rounded-lg border border-line px-3 py-2 text-sm">Marcar revisado</button><button onClick={()=>actualizarReporte(id,r.id,"resuelto")} className="btn-neon rounded-lg px-3 py-2 text-sm">Resolver</button></div></div>)}</section>}
+  </main>;
 }
 
-function Kpi({ t, v }: { t: string; v: string | number }) { return <div className="card p-4"><p className="text-xs text-muted">{t}</p><p className="text-2xl font-bold mt-1">{v}</p></div>; }
+function Kpi({t,v}:{t:string;v:string|number}) { return <div className="card p-4"><p className="text-xs text-muted">{t}</p><p className="text-2xl font-bold mt-1">{v}</p></div>; }
+function Barra({label,valor,total}:{label:string;valor:number;total:number}) { return <div className="mt-2"><div className="flex justify-between text-xs"><span>{label}</span><span>{valor}</span></div><div className="h-1.5 bg-surface2 rounded-full mt-1"><div className="h-full bg-neon2 rounded-full" style={{width:`${total?valor/total*100:0}%`}}/></div></div>; }

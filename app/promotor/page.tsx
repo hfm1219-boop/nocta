@@ -13,7 +13,7 @@ export default function PanelPromotor() {
         <Kpi titulo="Experiencias" valor={experiencias.length} />
         <Kpi titulo="Registrados" valor={experiencias.reduce((s, e) => s + e.participantes.length, 0)} />
         <Kpi titulo="Check-ins" valor={experiencias.reduce((s, e) => s + e.participantes.filter((p) => p.checkin).length, 0)} />
-        <Kpi titulo="Matches" valor={Math.floor(experiencias.reduce((s, e) => s + e.participantes.filter((p) => p.matchId).length, 0) / 2)} />
+        <Kpi titulo="Asignaciones" valor={experiencias.reduce((s, e) => s + e.asignaciones.length, 0)} />
       </section>
       <section className="space-y-3">
         <h1 className="text-2xl font-bold">Tus experiencias sociales</h1>
