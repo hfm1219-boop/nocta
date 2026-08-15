@@ -9,6 +9,7 @@ import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 const ROLES = [
   { href: "/promotor", nombre: "Promotor", icono: "✨" },
   { href: "/acceso", nombre: "Puerta / Acceso", icono: "🎟️" },
+  { href: "/reservas", nombre: "Reservas", icono: "🛋️" },
   { href: "/barra", nombre: "Preparación", icono: "👨‍🍳" },
   { href: "/mesero", nombre: "Mesero", icono: "🛎️" },
   { href: "/dj", nombre: "DJ", icono: "🎧" },

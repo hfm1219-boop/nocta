@@ -12,6 +12,7 @@ export interface TipoEntrada {
 
 export interface EntradaComprada {
   id: string;
+  compraId: string;
   codigo: string;
   eventoId: string;
   tipoId: string;
@@ -22,6 +23,13 @@ export interface EntradaComprada {
   estado: "valida" | "usada" | "anulada";
   compradaEn: number;
   usadaEn?: number;
+  transferidaEn?: number;
+  anuladaEn?: number;
+}
+
+export interface CompraEntradas {
+  id: string; eventoId: string; tipoNombre: string; cantidad: number;
+  total: number; titular: string; email: string; creadaEn: number;
 }
 
 const KEY = "nocta-tickets-v1";
@@ -50,7 +58,7 @@ function snapshot() {
 }
 
 function parsear(raw: string): EntradaComprada[] {
-  try { return JSON.parse(raw) as EntradaComprada[]; } catch { return []; }
+  try { return (JSON.parse(raw) as EntradaComprada[]).map((entrada) => ({ ...entrada, compraId: entrada.compraId ?? `compra-${entrada.id}` })); } catch { return []; }
 }
 
 function guardar(entradas: EntradaComprada[]) {
@@ -103,8 +111,11 @@ export function comprarEntradas(datos: {
   if (entradasDisponibles(datos.eventoId, tipoCanonico, actuales) < datos.cantidad) {
     throw new Error("No quedan suficientes entradas de esta localidad.");
   }
+  if (!datos.titular.trim() || !/^\S+@\S+\.\S+$/.test(datos.email.trim())) throw new Error("Completa un nombre y correo válidos.");
+  const compraId = `compra-${Date.now()}-${codigoSeguro().slice(0, 6)}`;
   const nuevas = Array.from({ length: datos.cantidad }, (_, indice): EntradaComprada => ({
     id: `ent-${Date.now()}-${indice}`,
+    compraId,
     codigo: codigoSeguro(),
     eventoId: datos.eventoId,
     tipoId: datos.tipo.id,
@@ -117,6 +128,29 @@ export function comprarEntradas(datos: {
   }));
   guardar([...actuales, ...nuevas]);
   return nuevas;
+}
+
+export function compraPorId(compraId: string, entradas = parsear(snapshot())): CompraEntradas | undefined {
+  const grupo = entradas.filter((entrada) => entrada.compraId === compraId);
+  if (!grupo.length) return undefined;
+  return { id: compraId, eventoId: grupo[0].eventoId, tipoNombre: grupo[0].tipoNombre, cantidad: grupo.length,
+    total: grupo.reduce((suma, entrada) => suma + entrada.precio, 0), titular: grupo[0].titular,
+    email: grupo[0].email, creadaEn: Math.min(...grupo.map((entrada) => entrada.compradaEn)) };
+}
+
+export function transferirEntrada(id: string, titular: string, email: string) {
+  const entradas = parsear(snapshot()); const indice = entradas.findIndex((entrada) => entrada.id === id);
+  if (indice < 0 || entradas[indice].estado !== "valida") return false;
+  if (!titular.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) return false;
+  entradas[indice] = { ...entradas[indice], titular: titular.trim(), email: email.trim(), transferidaEn: Date.now() };
+  guardar(entradas); return true;
+}
+
+export function anularEntrada(id: string) {
+  const entradas = parsear(snapshot()); const indice = entradas.findIndex((entrada) => entrada.id === id);
+  if (indice < 0 || entradas[indice].estado !== "valida") return false;
+  entradas[indice] = { ...entradas[indice], estado: "anulada", anuladaEn: Date.now() };
+  guardar(entradas); return true;
 }
 
 export function contenidoEntradaQR(codigo: string) {

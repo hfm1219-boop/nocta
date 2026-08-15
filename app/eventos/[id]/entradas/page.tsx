@@ -31,7 +31,7 @@ export default function ComprarEntradas() {
     await new Promise((resolve) => setTimeout(resolve, 900));
     try {
       const [entrada] = comprarEntradas({ eventoId: id, tipo, cantidad, titular, email });
-      router.push(`/mis-entradas/${entrada.id}`);
+      router.push(`/mis-entradas/compra/${entrada.compraId}`);
     } catch (compraError) {
       setError(compraError instanceof Error ? compraError.message : "No pudimos completar la compra.");
       setProcesando(false);

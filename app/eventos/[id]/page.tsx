@@ -80,6 +80,7 @@ export default async function EventoPage({ params }: PageProps<"/eventos/[id]">)
               </Link>
               <p className="text-[11px] text-center text-muted">Recibirás un QR único para validar en puerta.</p>
             </div>
+            <div className="card p-5 space-y-3"><div><p className="text-xs uppercase tracking-wider text-neon2">Mesas y VIP</p><h2 className="font-bold text-lg mt-1">Reserva tu espacio</h2><p className="text-xs text-muted mt-2">Selecciona capacidad, consumo mínimo y envía tu solicitud al establecimiento.</p></div><Link href={`/eventos/${evento.id}/reservar`} className="block text-center rounded-2xl border border-neon1/60 px-5 py-4 font-bold text-neon1">Ver opciones de reserva</Link></div>
             <EntrarLugar lugarId={lugar.id} nombre={lugar.nombre} />
           </aside>
         </div>
