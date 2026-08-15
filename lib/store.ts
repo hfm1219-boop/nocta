@@ -14,6 +14,8 @@ const CHANNEL = "nocta-sync";
 let cache: DB | null = null;
 let canal: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
+const hidratadosRemotos = new Set<string>();
+let guardadoRemotoPendiente: ReturnType<typeof setTimeout> | null = null;
 
 export function idLocalActivo(): string {
   if (typeof window === "undefined") return "la-movida";
@@ -177,6 +179,19 @@ export function guardarDB(mutar: (db: DB) => void) {
   localStorage.setItem(claveDB(), JSON.stringify(db));
   getCanal()?.postMessage("sync");
   emitir();
+  programarGuardadoRemoto(db);
+}
+
+function programarGuardadoRemoto(db: DB) {
+  if (typeof window === "undefined") return;
+  if (guardadoRemotoPendiente) clearTimeout(guardadoRemotoPendiente);
+  const venueKey=idLocalActivo(); const estado=structuredClone(db);
+  guardadoRemotoPendiente=setTimeout(()=>{guardadoRemotoPendiente=null;void fetch(`/api/venue-state/${encodeURIComponent(venueKey)}`,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({state:estado})}).catch(()=>undefined);},350);
+}
+
+async function hidratarDesdeRemoto(forzar=false) {
+  if(typeof window==="undefined")return false;const venueKey=idLocalActivo();if(!forzar&&hidratadosRemotos.has(venueKey))return false;
+  try{const respuesta=await fetch(`/api/venue-state/${encodeURIComponent(venueKey)}`,{cache:"no-store"});if(!respuesta.ok)return false;const datos=await respuesta.json() as {state?:DB|null};hidratadosRemotos.add(venueKey);if(!datos.state)return false;cache=normalizarDB(datos.state);localStorage.setItem(claveDB(),JSON.stringify(cache));emitir();return true;}catch{return false;}
 }
 
 export function resetDemo() {
@@ -205,6 +220,7 @@ export function useDB(): DB | null {
   useEffect(() => {
     const refrescar = () => setDb({ ...leerDB() });
     refrescar();
+    void hidratarDesdeRemoto();
     listeners.add(refrescar);
     getCanal();
     const onStorage = (e: StorageEvent) => {
@@ -214,9 +230,11 @@ export function useDB(): DB | null {
       }
     };
     window.addEventListener("storage", onStorage);
+    const sondeo=setInterval(()=>{void hidratarDesdeRemoto(true);},5000);
     return () => {
       listeners.delete(refrescar);
       window.removeEventListener("storage", onStorage);
+      clearInterval(sondeo);
     };
   }, []);
   return db;

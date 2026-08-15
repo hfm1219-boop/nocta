@@ -20,11 +20,17 @@ export default function NuevaExperiencia() {
   const [revelacion, setRevelacion] = useState("21:30");
   const [promotor, setPromotor] = useState("");
   const [modoMatching, setModoMatching] = useState<ModoMatching>("one-to-one");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
   const lugar = LUGARES.find((item) => item.id === lugarId)!;
 
-  function crear() {
+  async function crear() {
     if (!nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())) return;
-    const evento = crearExperiencia({ nombre, descripcion, tipo, lugarId: lugarExterno ? `externo-${Date.now()}` : lugarId, lugarNombre: lugarExterno ? lugarNombre : lugar.nombre, direccion: lugarExterno ? direccion : undefined, ciudad: lugarExterno ? ciudad : undefined, fechaISO: new Date(fecha).toISOString(), capacidad, modoMatching, horaRevelacion: revelacion, promotor });
+    setGuardando(true); setError("");
+    const respuesta = await fetch("/api/conecta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nombre, description: descripcion, type: tipo, matchingMode: modoMatching, capacity: capacidad, startsAt: new Date(fecha).toISOString(), revealAt: revelacion, venueExternalKey: lugarExterno ? undefined : lugarId }) });
+    const remoto = await respuesta.json(); setGuardando(false);
+    if (!respuesta.ok) return setError(remoto.error ?? "No fue posible crear Conecta.");
+    const evento = crearExperiencia({ nombre, descripcion, tipo, lugarId: lugarExterno ? `externo-${Date.now()}` : lugarId, lugarNombre: lugarExterno ? lugarNombre : lugar.nombre, direccion: lugarExterno ? direccion : undefined, ciudad: lugarExterno ? ciudad : undefined, fechaISO: new Date(fecha).toISOString(), capacidad, modoMatching, horaRevelacion: revelacion, promotor }, remoto.externalKey);
     router.push(`/promotor/eventos/${evento.id}`);
   }
 
@@ -42,7 +48,7 @@ export default function NuevaExperiencia() {
         <Campo titulo="Modo de matching"><select value={modoMatching} onChange={(e) => setModoMatching(e.target.value as ModoMatching)} className="entrada"><option value="one-to-one">Uno a uno · una conexión principal</option><option value="groups">Grupos · mesas de 3 a 4 personas</option><option value="rounds">Rondas · hasta 3 conversaciones rotativas</option></select></Campo>
         <Campo titulo="Hora de revelación"><input type="time" value={revelacion} onChange={(e) => setRevelacion(e.target.value)} className="entrada" /></Campo>
       </section>
-      <button onClick={crear} disabled={!nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">Crear y publicar experiencia</button>
+      {error&&<p className="text-sm text-danger">{error}</p>}<button onClick={crear} disabled={guardando || !nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">{guardando ? "Creando…" : "Crear y publicar experiencia"}</button>
     </main>
   );
 }

@@ -16,6 +16,8 @@ function FormularioLogin() {
   const [password, setPassword] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [registro, setRegistro] = useState(false);
+  const [tipoCuenta, setTipoCuenta] = useState<"customer"|"promoter">("customer");
 
   async function ingresar(event: FormEvent) {
     event.preventDefault();
@@ -25,22 +27,39 @@ function FormularioLogin() {
       return;
     }
     setCargando(true);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = registro
+      ? await supabase.auth.signUp({ email, password, options: { data: { account_type: tipoCuenta } } })
+      : await supabase.auth.signInWithPassword({ email, password });
     setCargando(false);
-    if (error) return setMensaje("No fue posible iniciar sesión. Revisa tus credenciales.");
+    if (error) return setMensaje(registro ? "No fue posible crear la cuenta." : "No fue posible iniciar sesión. Revisa tus credenciales.");
+    if (registro && !data.session) return setMensaje("Cuenta creada. Revisa tu correo y confirma el acceso.");
+    if (data.user?.user_metadata?.account_type === "promoter") {
+      await supabase.from("promoter_profiles").upsert({ user_id: data.user.id, public_name: data.user.email?.split("@")[0] ?? "Promotor NOCTA" });
+    }
     const next = params.get("next");
     router.replace(next?.startsWith("/") ? next : "/accesos");
     router.refresh();
   }
 
+  async function recuperar() {
+    if (!email) return setMensaje("Escribe tu correo primero.");
+    const supabase = crearClienteSupabase();
+    if (!supabase) return setMensaje("Supabase aún no está configurado.");
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/update-password` });
+    setMensaje(error ? "No fue posible enviar la recuperación." : "Revisa tu correo para crear una nueva contraseña.");
+  }
+
   return <main className="flex-1 px-5 py-12 max-w-md mx-auto w-full">
     <section className="card p-6 space-y-6">
-      <header><Logo size="text-3xl" /><p className="text-xs uppercase tracking-wider text-neon2 mt-2">Acceso de operación</p><h1 className="text-2xl font-bold mt-1">Ingresa a tu cuenta</h1></header>
+      <header><Logo size="text-3xl" /><p className="text-xs uppercase tracking-wider text-neon2 mt-2">Identidad NOCTA</p><h1 className="text-2xl font-bold mt-1">{registro ? "Crea tu cuenta" : "Ingresa a tu cuenta"}</h1></header>
       <form onSubmit={ingresar} className="space-y-4">
+        {registro&&<label className="block text-sm"><span className="text-muted text-xs">Tipo de cuenta</span><select value={tipoCuenta} onChange={e=>setTipoCuenta(e.target.value as "customer"|"promoter")} className="entrada"><option value="customer">Asistente / consumidor</option><option value="promoter">Promotor independiente</option></select></label>}
         <label className="block text-sm"><span className="text-muted text-xs">Correo</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="entrada" autoComplete="email" /></label>
         <label className="block text-sm"><span className="text-muted text-xs">Contraseña</span><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="entrada" autoComplete="current-password" /></label>
         {mensaje && <p className="text-sm text-neon3" role="alert">{mensaje}</p>}
-        <button disabled={cargando} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-50">{cargando ? "Ingresando…" : "Ingresar"}</button>
+        <button disabled={cargando} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-50">{cargando ? "Procesando…" : registro ? "Crear cuenta" : "Ingresar"}</button>
+        {!registro&&<button type="button" onClick={recuperar} className="w-full text-sm text-muted">Olvidé mi contraseña</button>}
+        <button type="button" onClick={()=>{setRegistro(!registro);setMensaje("")}} className="w-full text-sm text-neon2">{registro ? "Ya tengo cuenta" : "Crear una cuenta nueva"}</button>
       </form>
     </section>
   </main>;

@@ -1,0 +1,14 @@
+import { NextRequest, NextResponse } from "next/server";
+import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+
+export async function GET(request: NextRequest) {
+  const code = request.nextUrl.searchParams.get("code");
+  const next = request.nextUrl.searchParams.get("next") ?? "/accesos";
+  if (code) {
+    const supabase = await crearClienteSupabaseServidor();
+    const { error } = supabase ? await supabase.auth.exchangeCodeForSession(code) : { error: new Error("Supabase no configurado") };
+    if (!error) return NextResponse.redirect(new URL(next.startsWith("/") ? next : "/accesos", request.url));
+  }
+  return NextResponse.redirect(new URL("/login?error=callback", request.url));
+}
+

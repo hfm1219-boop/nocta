@@ -3,10 +3,11 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
-import { EVENTOS, formatearFecha, LUGARES } from "@/lib/discovery";
+import { formatearFecha } from "@/lib/discovery";
 import { useExperienciasSociales } from "@/lib/social-events";
 import { RestablecerDemo } from "@/components/restablecer-demo";
 import { useEventosPromotor } from "@/lib/promoter-events";
+import { useCatalogoNocta } from "@/lib/cloud-catalog";
 
 const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
 
@@ -30,15 +31,16 @@ function esEsteFinDeSemana(fecha: Date, ahora: Date) {
 export default function Descubrimiento() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState("Todos");
+  const catalogo = useCatalogoNocta();
   const experiencias = useExperienciasSociales().filter((item) => item.estado === "open");
   const planesPromotor = useEventosPromotor().filter((item) => item.estado === "publicado");
 
   const eventos = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
     const ahora = new Date();
-    return EVENTOS.filter((evento) => {
+    return catalogo.eventos.filter((evento) => {
       const fechaEvento = new Date(evento.fechaISO);
-      const lugar = LUGARES.find((item) => item.id === evento.lugarId);
+      const lugar = catalogo.lugares.find((item) => item.id === evento.lugarId);
       const coincideTexto = !texto || [evento.nombre, evento.resumen, lugar?.nombre, ...evento.generos]
         .some((valor) => valor?.toLowerCase().includes(texto));
       const coincideFiltro = filtro === "Todos"
@@ -47,7 +49,7 @@ export default function Descubrimiento() {
         || (filtro === "Este fin de semana" && esEsteFinDeSemana(fechaEvento, ahora));
       return coincideTexto && coincideFiltro;
     });
-  }, [busqueda, filtro]);
+  }, [busqueda, filtro, catalogo]);
 
   return (
     <main className="flex-1 pb-12">
@@ -98,7 +100,7 @@ export default function Descubrimiento() {
           </div>
           <div className="grid md:grid-cols-2 gap-4">
             {eventos.map((evento) => {
-              const lugar = LUGARES.find((item) => item.id === evento.lugarId)!;
+              const lugar = catalogo.lugares.find((item) => item.id === evento.lugarId)!;
               return (
                 <Link key={evento.id} href={`/eventos/${evento.id}`} className="card overflow-hidden group hover:border-neon1/60 transition">
                   <div className="h-36 p-5 flex flex-col justify-between relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${evento.color}55, #100e1c 75%)` }}>
@@ -153,7 +155,7 @@ export default function Descubrimiento() {
             <h2 className="text-2xl font-bold mt-1">Lugares para tu noche</h2>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-3 snap-x">
-            {LUGARES.map((lugar) => (
+            {catalogo.lugares.map((lugar) => (
               <Link key={lugar.id} href={`/lugares/${lugar.id}`} className="card min-w-[260px] md:min-w-[300px] p-5 snap-start hover:border-neon1/60 transition" style={{ borderTopColor: lugar.color }}>
                 <div className="text-4xl mb-5">{lugar.icono}</div>
                 <div className="flex items-center justify-between gap-3">

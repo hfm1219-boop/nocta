@@ -29,7 +29,24 @@ export const ROUTE_ROLES: ReadonlyArray<{ prefix: string; roles: readonly AppRol
   { prefix: "/dj", roles: ["dj", "venue_owner", "venue_admin"] },
 ];
 
-export function rolesParaRuta(pathname: string) {
-  return ROUTE_ROLES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.roles;
-}
+export const ROLE_LABELS: Record<AppRole, string> = {
+  platform_owner: "Propietario NOCTA",
+  platform_support: "Soporte NOCTA",
+  venue_owner: "Propietario de establecimiento",
+  venue_admin: "Administrador de establecimiento",
+  organizer: "Organizador",
+  promoter: "Promotor independiente",
+  door_staff: "Puerta / acceso",
+  reservation_host: "Reservas",
+  cashier: "Cajero",
+  bartender: "Barra",
+  waiter: "Mesero",
+  dj: "DJ",
+  analyst: "Analista",
+  customer: "Cliente",
+};
 
+export function rolesParaRuta(pathname: string) {
+  const roles = ROUTE_ROLES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.roles;
+  return roles && !roles.includes("platform_owner") ? ["platform_owner" as const, ...roles] : roles;
+}

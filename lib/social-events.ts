@@ -132,8 +132,8 @@ export function useExperienciasSociales() {
   return useMemo(() => parsear(raw), [raw]);
 }
 
-export function crearExperiencia(datos: Omit<ExperienciaSocial, "id" | "estado" | "participantes" | "asignaciones" | "interacciones" | "reportes" | "creadaEn">) {
-  const experiencia: ExperienciaSocial = { ...datos, id: `social-${Date.now()}`, estado: "open", participantes: [], asignaciones: [], interacciones: [], reportes: [], creadaEn: Date.now() };
+export function crearExperiencia(datos: Omit<ExperienciaSocial, "id" | "estado" | "participantes" | "asignaciones" | "interacciones" | "reportes" | "creadaEn">, idExterno?: string) {
+  const experiencia: ExperienciaSocial = { ...datos, id: idExterno ?? `social-${Date.now()}`, estado: "open", participantes: [], asignaciones: [], interacciones: [], reportes: [], creadaEn: Date.now() };
   guardar([...parsear(snapshot()), experiencia]);
   return experiencia;
 }

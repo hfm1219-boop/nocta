@@ -28,8 +28,9 @@ export default function ComprarEntradas() {
     if (!titular.trim() || !email.includes("@") || procesando || !tipo) return;
     setError("");
     setProcesando(true);
-    await new Promise((resolve) => setTimeout(resolve, 900));
     try {
+      const respuesta=await fetch("/api/tickets",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({eventKey:id,typeName:tipo.nombre,quantity:cantidad,holderName:titular,holderEmail:email})});
+      const remoto=await respuesta.json();if(!respuesta.ok)throw new Error(remoto.error??"No pudimos registrar las entradas.");
       const [entrada] = comprarEntradas({ eventoId: id, tipo, cantidad, titular, email });
       router.push(`/mis-entradas/compra/${entrada.compraId}`);
     } catch (compraError) {
@@ -72,7 +73,7 @@ export default function ComprarEntradas() {
       <button onClick={confirmar} disabled={!titular.trim() || !email.includes("@") || procesando || disponibles < cantidad} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">
         {procesando ? "Confirmando…" : total ? "Pagar y obtener entradas" : "Confirmar asistencia"}
       </button>
-      <p className="text-[11px] text-center text-muted">Pago simulado para el MVP. Cada entrada genera un QR único.</p>
+      <p className="text-[11px] text-center text-muted">La identidad y las entradas quedan registradas en NOCTA. El cobro continúa simulado en este MVP.</p>
     </main>
   );
 }
