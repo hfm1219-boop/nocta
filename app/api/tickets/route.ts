@@ -1,6 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
 
+export async function GET(){
+  const supabase=await crearClienteSupabaseServidor();if(!supabase)return NextResponse.json({error:"Supabase no configurado"},{status:503});
+  const {data:claims}=await supabase.auth.getClaims();if(!claims?.claims?.sub)return NextResponse.json({error:"No autenticado"},{status:401});
+  const {data,error}=await supabase.from("tickets").select("id,qr_token,status,holder_name,holder_email,amount_cop,purchased_at,used_at,ticket_types(id,name),events(external_key)").eq("holder_user_id",claims.claims.sub).order("created_at",{ascending:false});
+  if(error)return NextResponse.json({error:error.message},{status:403});return NextResponse.json({tickets:data??[]});
+}
+
 export async function POST(request: NextRequest) {
   const supabase=await crearClienteSupabaseServidor(); if(!supabase)return NextResponse.json({error:"Supabase no configurado"},{status:503});
   const {data:claims}=await supabase.auth.getClaims(); const userId=claims?.claims?.sub;if(!userId)return NextResponse.json({error:"Inicia sesión para comprar entradas."},{status:401});

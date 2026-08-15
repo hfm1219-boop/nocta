@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { eventoPromotorPorId } from "@/lib/promoter-events";
 
 export interface TipoEntrada {
@@ -78,7 +78,10 @@ function suscribir(listener: () => void) {
 
 export function useEntradas() {
   const raw = useSyncExternalStore(suscribir, snapshot, () => "[]");
-  return useMemo(() => parsear(raw), [raw]);
+  const [autorizadas,setAutorizadas]=useState(false);
+  useEffect(()=>{void fetch("/api/tickets",{cache:"no-store"}).then(async respuesta=>{if(respuesta.status===401){guardar([]);return;}if(!respuesta.ok)return;const datos=await respuesta.json() as {tickets?:Array<Record<string,unknown>>};const anteriores=new Map(parsear(snapshot()).map(item=>[item.id,item]));const remotas:EntradaComprada[]=[];for(const fila of datos.tickets??[]){const previa=anteriores.get(String(fila.id));const tipo=Array.isArray(fila.ticket_types)?fila.ticket_types[0]:fila.ticket_types;const evento=Array.isArray(fila.events)?fila.events[0]:fila.events;const codigo=String(fila.qr_token??previa?.codigo??"");if(!codigo)continue;const estado={paid:"valida",reserved:"valida",used:"usada",cancelled:"anulada",refunded:"anulada"}[String(fila.status)] as EntradaComprada["estado"];remotas.push({id:String(fila.id),compraId:previa?.compraId??`compra-${fila.id}`,codigo,eventoId:String((evento as {external_key?:string}|null)?.external_key??previa?.eventoId??""),tipoId:String((tipo as {id?:string}|null)?.id??previa?.tipoId??""),tipoNombre:String((tipo as {name?:string}|null)?.name??previa?.tipoNombre??"Entrada"),precio:Number(fila.amount_cop),titular:String(fila.holder_name),email:String(fila.holder_email??""),estado,compradaEn:new Date(String(fila.purchased_at)).getTime(),usadaEn:fila.used_at?new Date(String(fila.used_at)).getTime():undefined});}guardar(remotas);}).catch(()=>undefined).finally(()=>setAutorizadas(true));},[]);
+  const entradas=useMemo(() => parsear(raw), [raw]);
+  return autorizadas?entradas:[];
 }
 
 export function entradasDisponibles(eventoId: string, tipo: TipoEntrada, entradas = parsear(snapshot())) {
