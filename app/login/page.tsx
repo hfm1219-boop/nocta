@@ -56,7 +56,8 @@ function FormularioLogin() {
     const supabase = crearClienteSupabase();
     if (!supabase) return setMensaje("Supabase aún no está configurado.");
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/update-password` });
-    setMensaje(error ? "No fue posible enviar la recuperación." : "Revisa tu correo para crear una nueva contraseña.");
+    if (error?.code === "over_email_send_rate_limit") return setMensaje("Supabase alcanzó temporalmente el límite de correos. Espera unos minutos antes de volver a solicitar la recuperación.");
+    setMensaje(error ? `No fue posible enviar la recuperación: ${error.message}` : "Revisa tu correo para crear una nueva contraseña.");
   }
 
   return <main className="flex-1 px-5 py-12 max-w-md mx-auto w-full">
