@@ -14,6 +14,7 @@ const ROLES = [
   { href: "/mesero", nombre: "Mesero", icono: "🛎️", permiso: "waiter" },
   { href: "/dj", nombre: "DJ", icono: "🎧", permiso: "dj" },
   { href: "/admin", nombre: "Administrador", icono: "📊", permiso: "admin" },
+  { href: "/admin/eventos", nombre: "Solicitudes de eventos", icono: "📅", permiso: "admin" },
 ];
 
 export default function Accesos() {
