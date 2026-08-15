@@ -226,15 +226,19 @@ export function actualizarExperiencia(id: string, mutar: (experiencia: Experienc
   return true;
 }
 
-export function registrarParticipante(eventoId: string, datos: Pick<ParticipanteSocial, "nombre" | "telefono" | "edad" | "genero" | "intencion" | "consentimiento">) {
+export async function registrarParticipante(eventoId: string, datos: Pick<ParticipanteSocial, "nombre" | "telefono" | "edad" | "genero" | "intencion" | "consentimiento">) {
   const lista = parsear(snapshot());
   const evento = lista.find((item) => item.id === eventoId);
   if (!evento || evento.estado !== "open" || evento.participantes.length >= evento.capacidad) return null;
   if (!datos.nombre.trim() || !datos.telefono.trim() || datos.edad < 18 || !datos.consentimiento) return null;
+  if (!evento.demo) {
+    await accionRemota(eventoId, { action: "register", name: datos.nombre, phone: datos.telefono, age: datos.edad, gender: datos.genero, intention: datos.intencion, consent: datos.consentimiento });
+    return parsear(snapshot()).find((item) => item.id === eventoId)?.participantes.find((item) => item.id === idParticipanteActual(eventoId)) ?? null;
+  }
   const participante: ParticipanteSocial = { ...datos, id: `part-${Date.now()}`, respuestas: {}, cuestionarioCompleto: false, checkin: false, creadoEn: Date.now() };
   evento.participantes.push(participante);
   localStorage.setItem(`${SESSION_KEY}:${eventoId}`, participante.id);
-  guardar(lista); ejecutarRemoto(eventoId, { action: "register", name: datos.nombre, phone: datos.telefono, age: datos.edad, gender: datos.genero, intention: datos.intencion, consent: datos.consentimiento }); return participante;
+  guardar(lista); return participante;
 }
 
 export function idParticipanteActual(eventoId: string) {

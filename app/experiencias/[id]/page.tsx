@@ -24,14 +24,26 @@ export default function ExperienciaAsistente() {
 function Registro({ eventoId, evento }: { eventoId: string; evento: ExperienciaSocial }) {
   const [form, setForm] = useState({ nombre: "", telefono: "", edad: "", genero: "", intencion: "" });
   const [consentimiento, setConsentimiento] = useState(false);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
   const abierto = evento.estado === "open" && evento.participantes.length < evento.capacidad;
   const valido = form.nombre.trim() && form.telefono.trim() && Number(form.edad) >= 18 && form.intencion && consentimiento;
   const set = (campo: keyof typeof form, valor: string) => setForm((prev) => ({ ...prev, [campo]: valor }));
+  async function continuar() {
+    if (!valido || guardando) return;
+    setGuardando(true); setError("");
+    try { await registrarParticipante(eventoId, { ...form, edad: Number(form.edad), consentimiento }); }
+    catch (cause) {
+      const mensaje = cause instanceof Error ? cause.message : "No fue posible completar el registro.";
+      setError(mensaje.includes("Inicia sesión") ? "Inicia sesión para registrarte en esta experiencia." : mensaje);
+    } finally { setGuardando(false); }
+  }
   return <main className="flex-1 px-5 py-8 max-w-lg mx-auto w-full space-y-7">
     <Link href="/" className="text-sm text-muted">← Explorar</Link>
     <header className="text-center"><p className="text-xs uppercase tracking-[0.2em] text-neon3">{evento.promotor}</p><h1 className="text-4xl font-bold mt-3">{evento.nombre}</h1><p className="text-muted mt-3">{evento.descripcion}</p><div className="card p-4 mt-5 text-sm"><p>{new Date(evento.fechaISO).toLocaleString("es-CO", { dateStyle: "full", timeStyle: "short" })}</p><p className="text-muted mt-1">{evento.lugarNombre}{evento.direccion ? ` · ${evento.direccion}` : ""}</p></div></header>
     <section className="card p-5 space-y-4"><h2 className="text-xl font-bold">Tu perfil del evento</h2><input value={form.nombre} onChange={(e) => set("nombre", e.target.value)} className="entrada" placeholder="Nombre completo" /><input value={form.telefono} onChange={(e) => set("telefono", e.target.value)} className="entrada" placeholder="WhatsApp" /><div className="grid grid-cols-2 gap-3"><input type="number" min={18} value={form.edad} onChange={(e) => set("edad", e.target.value)} className="entrada" placeholder="Edad" /><select value={form.genero} onChange={(e) => set("genero", e.target.value)} className="entrada"><option value="">Género</option><option>Mujer</option><option>Hombre</option><option>No binario</option><option>Prefiero no decir</option></select></div><div><p className="text-xs text-muted mb-2">¿Qué buscas?</p><div className="grid grid-cols-2 gap-2">{["Conocer pareja", "Networking profesional", "Nuevas amistades", "Ampliar mi comunidad"].map((item) => <button key={item} onClick={() => set("intencion", item)} className={`rounded-xl border p-3 text-sm ${form.intencion === item ? "chip-active bg-neon2/10" : "border-line text-muted"}`}>{item}</button>)}</div></div><label className="flex items-start gap-3 text-sm text-muted"><input type="checkbox" checked={consentimiento} onChange={(e) => setConsentimiento(e.target.checked)} className="mt-1" /><span>Acepto el uso de mis respuestas para el matching y la operación segura de esta experiencia.</span></label></section>
-    <button onClick={() => valido && registrarParticipante(eventoId, { ...form, edad: Number(form.edad), consentimiento })} disabled={!abierto || !valido} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">Continuar al cuestionario</button>
+    {error && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-sm text-danger">{error}{error.includes("Inicia sesión") && <> <Link href={`/login?next=/experiencias/${eventoId}`} className="underline font-semibold">Ingresar</Link></>}</p>}
+    <button onClick={continuar} disabled={!abierto || !valido || guardando} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">{guardando ? "Confirmando registro…" : "Continuar al cuestionario"}</button>
     {!abierto && <p className="text-center text-amber text-sm">El registro está cerrado o alcanzó su capacidad.</p>}
   </main>;
 }
