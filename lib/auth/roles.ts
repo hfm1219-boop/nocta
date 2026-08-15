@@ -18,7 +18,7 @@ export const APP_ROLES = [
 export type AppRole = (typeof APP_ROLES)[number];
 
 export const ROUTE_ROLES: ReadonlyArray<{ prefix: string; roles: readonly AppRole[] }> = [
-  { prefix: "/super", roles: ["platform_owner", "platform_support"] },
+  { prefix: "/super", roles: ["platform_owner"] },
   { prefix: "/admin", roles: ["venue_owner", "venue_admin"] },
   { prefix: "/promotor", roles: ["promoter", "organizer", "platform_owner"] },
   { prefix: "/acceso", roles: ["door_staff", "venue_owner", "venue_admin", "organizer"] },
