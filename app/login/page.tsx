@@ -16,6 +16,7 @@ function FormularioLogin() {
   const [password, setPassword] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [recuperando, setRecuperando] = useState(false);
   const [registro, setRegistro] = useState(false);
   const [tipoCuenta, setTipoCuenta] = useState<"customer"|"promoter">("customer");
 
@@ -52,10 +53,13 @@ function FormularioLogin() {
   }
 
   async function recuperar() {
-    if (!email) return setMensaje("Escribe tu correo primero.");
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) return setMensaje("Escribe un correo válido en el campo de arriba.");
     const supabase = crearClienteSupabase();
     if (!supabase) return setMensaje("Supabase aún no está configurado.");
-    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${window.location.origin}/auth/update-password` });
+    setRecuperando(true);
+    setMensaje("Solicitando enlace seguro…");
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/auth/update-password` });
+    setRecuperando(false);
     if (error?.code === "over_email_send_rate_limit") return setMensaje("Supabase alcanzó temporalmente el límite de correos. Espera unos minutos antes de volver a solicitar la recuperación.");
     setMensaje(error ? `No fue posible enviar la recuperación: ${error.message}` : "Revisa tu correo para crear una nueva contraseña.");
   }
@@ -69,7 +73,7 @@ function FormularioLogin() {
         <label className="block text-sm"><span className="text-muted text-xs">Contraseña {registro && "(mínimo 6 caracteres)"}</span><input type="password" required minLength={registro ? 6 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} className="entrada" autoComplete={registro ? "new-password" : "current-password"} /></label>
         {mensaje && <p className="text-sm text-neon3" role="alert">{mensaje}</p>}
         <button disabled={cargando} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-50">{cargando ? "Procesando…" : registro ? "Crear cuenta" : "Ingresar"}</button>
-        {!registro&&<button type="button" onClick={recuperar} className="w-full text-sm text-muted">Olvidé mi contraseña</button>}
+        {!registro&&<div className="space-y-2"><button type="button" disabled={recuperando} onClick={recuperar} className="w-full rounded-xl border border-line p-3 text-sm text-muted hover:border-neon2/50 hover:text-neon2 disabled:opacity-50">{recuperando ? "Enviando enlace…" : "Recuperar contraseña"}</button><p className="text-center text-[11px] text-muted">Escribe primero tu correo arriba. Enviaremos un enlace para crear una contraseña nueva.</p></div>}
         <button type="button" onClick={()=>{setRegistro(!registro);setMensaje("")}} className="w-full text-sm text-neon2">{registro ? "Ya tengo cuenta" : "Crear una cuenta nueva"}</button>
       </form>
     </section>
