@@ -195,7 +195,10 @@ async function accionRemota(eventoId: string, body: Record<string, unknown>) {
 }
 
 function ejecutarRemoto(eventoId: string, body: Record<string, unknown>) {
-  void accionRemota(eventoId, body).catch((error) => window.alert(error instanceof Error ? error.message : "No fue posible actualizar Conecta"));
+  void accionRemota(eventoId, body).catch(async (error) => {
+    window.alert(error instanceof Error ? error.message : "No fue posible actualizar Conecta");
+    await sincronizarDetalle(eventoId);
+  });
 }
 
 function suscribir(listener: () => void) {
@@ -205,8 +208,19 @@ function suscribir(listener: () => void) {
 
 export function useExperienciasSociales(detalleId?: string) {
   const raw = useSyncExternalStore(suscribir, snapshot, () => "[]");
-  useEffect(() => { void sincronizarCatalogo(); }, []);
-  useEffect(() => { if (detalleId) void sincronizarDetalle(detalleId); }, [detalleId]);
+  useEffect(() => {
+    void sincronizarCatalogo();
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void sincronizarCatalogo(); }, 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!detalleId) return;
+    void sincronizarDetalle(detalleId);
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void sincronizarDetalle(detalleId); }, 8_000);
+    const actualizarAlVolver = () => { if (document.visibilityState === "visible") void sincronizarDetalle(detalleId); };
+    document.addEventListener("visibilitychange", actualizarAlVolver);
+    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", actualizarAlVolver); };
+  }, [detalleId]);
   return useMemo(() => parsear(raw), [raw]);
 }
 

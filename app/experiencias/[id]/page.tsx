@@ -15,7 +15,7 @@ export default function ExperienciaAsistente() {
   const evento = useExperienciasSociales(id).find((item) => item.id === id);
   const participanteId = useIdParticipanteActual(id);
   const participante = evento?.participantes.find((item) => item.id === participanteId);
-  if (!evento) return <main className="p-8 text-muted">Experiencia no encontrada.</main>;
+  if (!evento) return <main className="p-8 text-muted">Cargando experiencia…</main>;
   if (!participante) return <Registro eventoId={id} evento={evento} />;
   if (!participante.cuestionarioCompleto) return <Cuestionario eventoId={id} participanteId={participante.id} />;
   return <Estado evento={evento} participante={participante} />;

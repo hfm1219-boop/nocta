@@ -9,7 +9,7 @@ const ETIQUETAS = { "one-to-one": "Uno a uno", groups: "Grupos", rounds: "Rondas
 
 export default function GestionExperiencia() {
   const { id } = useParams<{ id: string }>(); const evento = useExperienciasSociales(id).find((item) => item.id === id);
-  if (!evento) return <main className="p-8 text-muted">Experiencia no encontrada.</main>;
+  if (!evento) return <main className="p-8 text-muted">Cargando experiencia…</main>;
   const completos = evento.participantes.filter((p) => p.cuestionarioCompleto).length; const checkins = evento.participantes.filter((p) => p.checkin).length;
   const asignados = new Set(evento.asignaciones.flatMap((a) => a.participantesIds)); const sinAsignar = evento.participantes.filter((p) => p.checkin && !asignados.has(p.id)).length;
   const compatibilidad = evento.asignaciones.length ? Math.round(evento.asignaciones.reduce((s,a)=>s+a.compatibilidad,0)/evento.asignaciones.length) : 0;
