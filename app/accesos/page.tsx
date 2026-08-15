@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Logo } from "@/components/ui";
+import { CerrarSesion } from "@/components/cerrar-sesion";
 import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 
 const ROLES = [
@@ -31,6 +32,7 @@ export default function Accesos() {
   return (
     <main className="flex-1 px-5 py-8 max-w-md mx-auto w-full space-y-6">
       <header className="text-center space-y-2">
+        <div className="flex justify-end"><CerrarSesion /></div>
         <Logo size="text-4xl" />
         <h1 className="text-2xl font-bold">Accesos operativos</h1>
         <p className="text-sm text-muted">Entra como promotor independiente o selecciona un establecimiento.</p>

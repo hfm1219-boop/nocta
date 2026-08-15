@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { afiliarLocal, cop, idLocalActivo, seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
 import Link from "next/link";
+import { CerrarSesion } from "@/components/cerrar-sesion";
 
 const ESTADO_RECAUDO = {
   activo: { texto: "Recaudo activo", clase: "text-lime border-lime/40" },
@@ -48,6 +49,7 @@ export default function Superadmin() {
       <EncabezadoStaff
         titulo="Superadmin — operador"
         subtitulo="Multi-tenant: un despliegue, N locales, datos aislados"
+        extra={<CerrarSesion />}
       />
       <main className="flex-1 p-4 max-w-5xl w-full mx-auto space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
