@@ -19,6 +19,14 @@ function FormularioLogin() {
   const [registro, setRegistro] = useState(false);
   const [tipoCuenta, setTipoCuenta] = useState<"customer"|"promoter">("customer");
 
+  function mensajeRegistro(codigo?: string, detalle?: string) {
+    if (codigo === "user_already_exists" || detalle?.toLowerCase().includes("already registered")) return "Este correo ya tiene una cuenta. Pulsa ‘Ya tengo cuenta’ o recupera la contraseña.";
+    if (codigo === "weak_password" || detalle?.toLowerCase().includes("password")) return "La contraseña no cumple los requisitos. Usa mínimo 6 caracteres.";
+    if (codigo === "over_email_send_rate_limit" || detalle?.toLowerCase().includes("rate limit")) return "Se alcanzó temporalmente el límite de correos. Espera unos minutos e inténtalo nuevamente.";
+    if (codigo === "email_address_invalid") return "El correo ingresado no es válido.";
+    return detalle ? `No fue posible crear la cuenta: ${detalle}` : "No fue posible crear la cuenta.";
+  }
+
   async function ingresar(event: FormEvent) {
     event.preventDefault();
     const supabase = crearClienteSupabase();
@@ -31,8 +39,9 @@ function FormularioLogin() {
       ? await supabase.auth.signUp({ email, password, options: { data: { account_type: tipoCuenta } } })
       : await supabase.auth.signInWithPassword({ email, password });
     setCargando(false);
-    if (error) return setMensaje(registro ? "No fue posible crear la cuenta." : "No fue posible iniciar sesión. Revisa tus credenciales.");
-    if (registro && !data.session) return setMensaje("Cuenta creada. Revisa tu correo y confirma el acceso.");
+    if (error) return setMensaje(registro ? mensajeRegistro(error.code, error.message) : "No fue posible iniciar sesión. Revisa tus credenciales.");
+    if (registro && data.user?.identities?.length === 0) return setMensaje("Este correo ya tiene una cuenta. Pulsa ‘Ya tengo cuenta’ o recupera la contraseña.");
+    if (registro && !data.session) return setMensaje("Cuenta creada. Abre el correo de confirmación enviado por NOCTA antes de iniciar sesión. Revisa también spam.");
     if (data.user?.user_metadata?.account_type === "promoter") {
       await supabase.from("promoter_profiles").upsert({ user_id: data.user.id, public_name: data.user.email?.split("@")[0] ?? "Promotor NOCTA" });
     }
@@ -55,7 +64,7 @@ function FormularioLogin() {
       <form onSubmit={ingresar} className="space-y-4">
         {registro&&<label className="block text-sm"><span className="text-muted text-xs">Tipo de cuenta</span><select value={tipoCuenta} onChange={e=>setTipoCuenta(e.target.value as "customer"|"promoter")} className="entrada"><option value="customer">Asistente / consumidor</option><option value="promoter">Promotor independiente</option></select></label>}
         <label className="block text-sm"><span className="text-muted text-xs">Correo</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="entrada" autoComplete="email" /></label>
-        <label className="block text-sm"><span className="text-muted text-xs">Contraseña</span><input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="entrada" autoComplete="current-password" /></label>
+        <label className="block text-sm"><span className="text-muted text-xs">Contraseña {registro && "(mínimo 6 caracteres)"}</span><input type="password" required minLength={registro ? 6 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} className="entrada" autoComplete={registro ? "new-password" : "current-password"} /></label>
         {mensaje && <p className="text-sm text-neon3" role="alert">{mensaje}</p>}
         <button disabled={cargando} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-50">{cargando ? "Procesando…" : registro ? "Crear cuenta" : "Ingresar"}</button>
         {!registro&&<button type="button" onClick={recuperar} className="w-full text-sm text-muted">Olvidé mi contraseña</button>}
