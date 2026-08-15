@@ -102,6 +102,7 @@ export function comprarEntradas(datos: {
   cantidad: number;
   titular: string;
   email: string;
+  emitidas?: Array<{ id: string; token: string }>;
 }) {
   const actuales = parsear(snapshot());
   const tipoCanonico = TIPOS_ENTRADA[datos.eventoId]?.find((tipo) => tipo.id === datos.tipo.id)
@@ -115,10 +116,11 @@ export function comprarEntradas(datos: {
   }
   if (!datos.titular.trim() || !/^\S+@\S+\.\S+$/.test(datos.email.trim())) throw new Error("Completa un nombre y correo válidos.");
   const compraId = `compra-${Date.now()}-${codigoSeguro().slice(0, 6)}`;
+  if (datos.emitidas && datos.emitidas.length !== datos.cantidad) throw new Error("La emisión remota quedó incompleta.");
   const nuevas = Array.from({ length: datos.cantidad }, (_, indice): EntradaComprada => ({
-    id: `ent-${Date.now()}-${indice}`,
+    id: datos.emitidas?.[indice].id ?? `ent-${Date.now()}-${indice}`,
     compraId,
-    codigo: codigoSeguro(),
+    codigo: datos.emitidas?.[indice].token ?? codigoSeguro(),
     eventoId: datos.eventoId,
     tipoId: datos.tipo.id,
     tipoNombre: tipoCanonico.nombre,

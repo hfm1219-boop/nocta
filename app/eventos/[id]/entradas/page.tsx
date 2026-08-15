@@ -30,8 +30,8 @@ export default function ComprarEntradas() {
     setProcesando(true);
     try {
       const respuesta=await fetch("/api/tickets",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({eventKey:id,typeName:tipo.nombre,quantity:cantidad,holderName:titular,holderEmail:email})});
-      const remoto=await respuesta.json();if(!respuesta.ok)throw new Error(remoto.error??"No pudimos registrar las entradas.");
-      const [entrada] = comprarEntradas({ eventoId: id, tipo, cantidad, titular, email });
+      const remoto=await respuesta.json() as {error?:string;tickets?:Array<{id:string;token:string}>};if(!respuesta.ok)throw new Error(remoto.error??"No pudimos registrar las entradas.");
+      const [entrada] = comprarEntradas({ eventoId: id, tipo, cantidad, titular, email, emitidas: remoto.tickets });
       router.push(`/mis-entradas/compra/${entrada.compraId}`);
     } catch (compraError) {
       setError(compraError instanceof Error ? compraError.message : "No pudimos completar la compra.");

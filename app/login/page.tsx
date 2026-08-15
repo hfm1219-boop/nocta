@@ -46,7 +46,8 @@ function FormularioLogin() {
       await supabase.from("promoter_profiles").upsert({ user_id: data.user.id, public_name: data.user.email?.split("@")[0] ?? "Promotor NOCTA" });
     }
     const next = params.get("next");
-    router.replace(next?.startsWith("/") ? next : "/accesos");
+    const destinoCuenta = data.user?.user_metadata?.account_type === "promoter" ? "/promotor" : "/";
+    router.replace(next?.startsWith("/") ? next : destinoCuenta);
     router.refresh();
   }
 
