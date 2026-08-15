@@ -7,7 +7,6 @@ import { Logo } from "@/components/ui";
 import { seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 
 const ROLES = [
-  { href: "/promotor", nombre: "Promotor", icono: "✨" },
   { href: "/acceso", nombre: "Puerta / Acceso", icono: "🎟️" },
   { href: "/reservas", nombre: "Reservas", icono: "🛋️" },
   { href: "/barra", nombre: "Preparación", icono: "👨‍🍳" },
@@ -33,13 +32,19 @@ export default function Accesos() {
     <main className="flex-1 px-5 py-8 max-w-md mx-auto w-full space-y-6">
       <header className="text-center space-y-2">
         <Logo size="text-4xl" />
-        <h1 className="text-2xl font-bold">Accesos del establecimiento</h1>
-        <p className="text-sm text-muted">Selecciona el lugar y el perfil operativo.</p>
+        <h1 className="text-2xl font-bold">Accesos operativos</h1>
+        <p className="text-sm text-muted">Entra como promotor independiente o selecciona un establecimiento.</p>
       </header>
+      <Link href="/promotor" className="card p-5 flex items-center justify-between gap-4 border-neon3/40 hover:border-neon3 transition">
+        <span><span className="text-2xl">✨</span><b className="block mt-2">Panel del promotor</b><span className="text-xs text-muted">Crea eventos y módulos Conecta sin pertenecer a un establecimiento.</span></span><span className="text-neon3 text-xl">→</span>
+      </Link>
+      <div className="space-y-2">
+        <p className="text-xs uppercase tracking-wider text-muted">Personal del establecimiento</p>
       <select value={localId} onChange={(evento) => seleccionar(evento.target.value)} className="card w-full px-4 py-3.5 bg-background">
         <option value="">Selecciona un establecimiento</option>
         {locales.map((item) => <option key={item.id} value={item.id}>{item.nombre} · {item.ciudad}</option>)}
       </select>
+      </div>
       {local && (
         <section className="space-y-3">
           <button onClick={() => router.push("/m")} className="btn-neon w-full rounded-2xl p-4 font-bold">🍸 Entrar como cliente</button>

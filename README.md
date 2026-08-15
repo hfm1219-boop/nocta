@@ -34,3 +34,14 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+# NOCTA
+
+## Base de datos y roles
+
+La aplicación conserva el modo demo local cuando no hay variables de Supabase. Para activar autenticación y PostgreSQL:
+
+1. Crea un proyecto en Supabase y ejecuta `supabase/migrations/202608150001_identity_rbac.sql`.
+2. Copia `.env.example` a `.env.local` y agrega la URL y la llave publicable del proyecto.
+3. Crea los usuarios en Supabase Auth y asigna sus perfiles en las tablas de membresías correspondientes.
+
+Los promotores son independientes de los establecimientos. Su identidad vive en `promoter_profiles`; crean eventos y módulos `conecta_modules` propios. La relación con una sede se concede por evento mediante `event_venue_collaborations`, con aprobación del establecimiento.
