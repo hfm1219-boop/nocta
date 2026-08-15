@@ -27,7 +27,7 @@ export default function NuevaExperiencia() {
   async function crear() {
     if (!nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())) return;
     setGuardando(true); setError("");
-    const respuesta = await fetch("/api/conecta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nombre, description: descripcion, type: tipo, matchingMode: modoMatching, capacity: capacidad, startsAt: new Date(fecha).toISOString(), revealAt: revelacion, venueExternalKey: lugarExterno ? undefined : lugarId }) });
+    const respuesta = await fetch("/api/conecta", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: nombre, description: descripcion, type: tipo, matchingMode: modoMatching, capacity: capacidad, startsAt: new Date(fecha).toISOString(), revealAt: revelacion, venueExternalKey: lugarExterno ? undefined : lugarId, locationName: lugarExterno ? lugarNombre : undefined, locationAddress: lugarExterno ? direccion : undefined, locationCity: lugarExterno ? ciudad : undefined }) });
     const remoto = await respuesta.json(); setGuardando(false);
     if (!respuesta.ok) return setError(remoto.error ?? "No fue posible crear Conecta.");
     const evento = crearExperiencia({ nombre, descripcion, tipo, lugarId: lugarExterno ? `externo-${Date.now()}` : lugarId, lugarNombre: lugarExterno ? lugarNombre : lugar.nombre, direccion: lugarExterno ? direccion : undefined, ciudad: lugarExterno ? ciudad : undefined, fechaISO: new Date(fecha).toISOString(), capacidad, modoMatching, horaRevelacion: revelacion, promotor }, remoto.externalKey);
@@ -48,7 +48,8 @@ export default function NuevaExperiencia() {
         <Campo titulo="Modo de matching"><select value={modoMatching} onChange={(e) => setModoMatching(e.target.value as ModoMatching)} className="entrada"><option value="one-to-one">Uno a uno · una conexión principal</option><option value="groups">Grupos · mesas de 3 a 4 personas</option><option value="rounds">Rondas · hasta 3 conversaciones rotativas</option></select></Campo>
         <Campo titulo="Hora de revelación"><input type="time" value={revelacion} onChange={(e) => setRevelacion(e.target.value)} className="entrada" /></Campo>
       </section>
-      {error&&<p className="text-sm text-danger">{error}</p>}<button onClick={crear} disabled={guardando || !nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">{guardando ? "Creando…" : "Crear y publicar experiencia"}</button>
+      {!lugarExterno&&<p className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-sm text-amber">El establecimiento deberá aprobar la experiencia antes de que aparezca publicada.</p>}
+      {error&&<p className="text-sm text-danger">{error}</p>}<button onClick={crear} disabled={guardando || !nombre.trim() || !promotor.trim() || (lugarExterno && !lugarNombre.trim())} className="btn-neon w-full rounded-2xl p-4 font-bold disabled:opacity-40">{guardando ? "Creando…" : lugarExterno ? "Crear y publicar experiencia" : "Crear y solicitar aprobación"}</button>
     </main>
   );
 }

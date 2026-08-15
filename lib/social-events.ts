@@ -126,6 +126,7 @@ type RemoteCatalog = {
   external_key: string; name: string; description: string; experience_type: TipoExperiencia;
   matching_mode: ModoMatching; capacity: number; reveal_at: string | null;
   status: EstadoExperiencia; created_at: string; starts_at?: string | null;
+  location_name?: string | null; location_address?: string | null; location_city?: string | null;
 };
 type RemoteParticipant = { id: string; display_name: string; phone?: string | null; age?: number | null; gender?: string | null; intention?: string | null; consented_at?: string | null; questionnaire?: RespuestasAfinidad; questionnaire_completed_at?: string | null; checked_in_at?: string | null; feedback?: ParticipanteSocial["feedback"] | null; created_at?: string };
 type RemoteAssignment = { id: string; mode: ModoMatching; round_number: number; participant_ids: string[]; compatibility: number };
@@ -138,8 +139,8 @@ function baseRemota(item: RemoteCatalog, anterior?: ExperienciaSocial): Experien
   return normalizar({
     id: item.external_key, nombre: item.name, descripcion: item.description,
     tipo: item.experience_type, lugarId: anterior?.lugarId ?? "por-confirmar",
-    lugarNombre: anterior?.lugarNombre ?? "Lugar por confirmar", direccion: anterior?.direccion,
-    ciudad: anterior?.ciudad, fechaISO: item.starts_at ?? anterior?.fechaISO ?? new Date().toISOString(),
+    lugarNombre: item.location_name ?? anterior?.lugarNombre ?? "Lugar por confirmar", direccion: item.location_address ?? anterior?.direccion,
+    ciudad: item.location_city ?? anterior?.ciudad, fechaISO: item.starts_at ?? anterior?.fechaISO ?? new Date().toISOString(),
     capacidad: item.capacity, modoMatching: item.matching_mode,
     horaRevelacion: reveal ? `${String(reveal.getHours()).padStart(2, "0")}:${String(reveal.getMinutes()).padStart(2, "0")}` : anterior?.horaRevelacion ?? "21:30",
     estado: item.status, promotor: anterior?.promotor ?? "Promotor NOCTA",

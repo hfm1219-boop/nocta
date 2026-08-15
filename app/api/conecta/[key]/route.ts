@@ -56,7 +56,7 @@ function buildAssignments(mode: string, people: Participant[]) {
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ key: string }> }) {
   const { key } = await params; const supabase = await crearClienteSupabaseServidor();
   if (!supabase) return NextResponse.json({ error: "Supabase no configurado" }, { status: 503 });
-  const { data: module, error } = await supabase.from("conecta_modules").select("id,external_key,event_id,name,description,experience_type,matching_mode,capacity,reveal_at,status,owner_promoter_id,created_at").eq("external_key", key).maybeSingle();
+  const { data: module, error } = await supabase.from("conecta_modules").select("id,external_key,event_id,name,description,experience_type,matching_mode,capacity,reveal_at,status,owner_promoter_id,location_name,location_address,location_city,created_at").eq("external_key", key).maybeSingle();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!module) return NextResponse.json({ error: "Experiencia no encontrada" }, { status: 404 });
   const { data: claims } = await supabase.auth.getClaims(); const userId = claims?.claims?.sub;
