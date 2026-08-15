@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useSyncExternalStore } from "react";
+import { eventoPromotorPorId } from "@/lib/promoter-events";
 
 export interface TipoEntrada {
   id: string;
@@ -103,7 +104,8 @@ export function comprarEntradas(datos: {
   email: string;
 }) {
   const actuales = parsear(snapshot());
-  const tipoCanonico = TIPOS_ENTRADA[datos.eventoId]?.find((tipo) => tipo.id === datos.tipo.id);
+  const tipoCanonico = TIPOS_ENTRADA[datos.eventoId]?.find((tipo) => tipo.id === datos.tipo.id)
+    ?? eventoPromotorPorId(datos.eventoId)?.tiposEntrada.find((tipo) => tipo.id === datos.tipo.id);
   if (!tipoCanonico) throw new Error("Tipo de entrada no válido para este evento.");
   if (!Number.isInteger(datos.cantidad) || datos.cantidad < 1 || datos.cantidad > 4) {
     throw new Error("La cantidad debe estar entre 1 y 4 entradas.");

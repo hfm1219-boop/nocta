@@ -6,19 +6,22 @@ import { QREntrada } from "@/components/qr-entrada";
 import { eventoPorId, formatearFecha, lugarPorId } from "@/lib/discovery";
 import { anularEntrada, transferirEntrada, useEntradas } from "@/lib/tickets";
 import { useState } from "react";
+import { useEventosPromotor } from "@/lib/promoter-events";
 
 export default function DetalleEntrada() {
   const { id } = useParams<{ id: string }>();
   const entrada = useEntradas().find((item) => item.id === id);
+  const planes = useEventosPromotor();
   const [transferir, setTransferir] = useState(false); const [titular, setTitular] = useState(""); const [email, setEmail] = useState(""); const [confirmarAnulacion, setConfirmarAnulacion] = useState(false);
   if (!entrada) return <main className="p-8 text-muted">Entrada no encontrada.</main>;
   const evento = eventoPorId(entrada.eventoId);
+  const plan = planes.find((item) => item.id === entrada.eventoId);
   const lugar = evento ? lugarPorId(evento.lugarId) : undefined;
   return (
     <main className="flex-1 px-5 py-8 max-w-md mx-auto w-full space-y-6">
       <Link href="/mis-entradas" className="text-sm text-muted">← Mis entradas</Link>
       <section className="card p-6 text-center space-y-5">
-        <div><p className="text-neon3 text-sm">{lugar?.nombre}</p><h1 className="text-3xl font-bold mt-1">{evento?.nombre}</h1>{evento && <p className="text-sm text-muted capitalize mt-2">{formatearFecha(evento.fechaISO, true)}</p>}</div>
+        <div><p className="text-neon3 text-sm">{lugar?.nombre ?? plan?.lugarNombre}</p><h1 className="text-3xl font-bold mt-1">{evento?.nombre ?? plan?.nombre}</h1>{(evento || plan) && <p className="text-sm text-muted capitalize mt-2">{formatearFecha((evento ?? plan)!.fechaISO, true)}</p>}</div>
         {entrada.estado === "valida" && <QREntrada codigo={entrada.codigo} />}
         <div><p className="text-xs text-muted">Código de acceso</p><p className="font-mono font-bold tracking-wider mt-1 break-all">{entrada.codigo}</p></div>
         <div className={`rounded-xl p-3 font-bold ${entrada.estado === "valida" ? "bg-lime/15 text-lime" : entrada.estado === "anulada" ? "bg-danger/15 text-danger" : "bg-muted/15 text-muted"}`}>{entrada.estado === "valida" ? "Entrada válida · Presenta este QR" : entrada.estado === "anulada" ? "Entrada anulada" : "Entrada ya utilizada"}</div>

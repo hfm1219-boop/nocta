@@ -2,6 +2,7 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 import { eventoPorId } from "@/lib/discovery";
+import { eventoPromotorPorId } from "@/lib/promoter-events";
 
 export type EstadoReserva = "pendiente" | "confirmada" | "rechazada" | "cancelada" | "usada";
 export type TipoReserva = "mesa" | "mesa-premium" | "vip";
@@ -39,13 +40,13 @@ export function reservasDisponibles(eventoId: string, tipo: OpcionReserva, reser
 function codigoSeguro() { const bytes = new Uint8Array(6); crypto.getRandomValues(bytes); return `RSV-${Array.from(bytes, b => b.toString(36).padStart(2, "0")).join("").toUpperCase()}`; }
 
 export function crearReserva(datos: { eventoId: string; tipoId: TipoReserva; personas: number; titular: string; telefono: string; email: string; ocasion: string; notas: string }) {
-  const evento = eventoPorId(datos.eventoId); const tipo = OPCIONES_RESERVA.find((o) => o.id === datos.tipoId); const actuales = parsear(snapshot());
-  if (!evento || !tipo) throw new Error("Evento o tipo de reserva no válido.");
+  const evento = eventoPorId(datos.eventoId); const plan=eventoPromotorPorId(datos.eventoId); const tipo = OPCIONES_RESERVA.find((o) => o.id === datos.tipoId); const actuales = parsear(snapshot());
+  if ((!evento&&!plan) || !tipo) throw new Error("Evento o tipo de reserva no válido.");
   if (!datos.titular.trim() || !datos.telefono.trim() || !/^\S+@\S+\.\S+$/.test(datos.email.trim())) throw new Error("Completa los datos de contacto.");
   if (!Number.isInteger(datos.personas) || datos.personas < 1 || datos.personas > tipo.capacidad) throw new Error(`Esta opción admite máximo ${tipo.capacidad} personas.`);
   if (!reservasDisponibles(datos.eventoId, tipo, actuales)) throw new Error("Esta opción ya no tiene disponibilidad.");
-  const reserva: ReservaNocta = { id: `res-${Date.now()}`, codigo: codigoSeguro(), eventoId: evento.id, lugarId: evento.lugarId,
-    tipoId: tipo.id, tipoNombre: tipo.nombre, fechaISO: evento.fechaISO, personas: datos.personas, titular: datos.titular.trim(),
+  const reserva: ReservaNocta = { id: `res-${Date.now()}`, codigo: codigoSeguro(), eventoId: evento?.id??plan!.id, lugarId: evento?.lugarId??plan!.id,
+    tipoId: tipo.id, tipoNombre: tipo.nombre, fechaISO: evento?.fechaISO??plan!.fechaISO, personas: datos.personas, titular: datos.titular.trim(),
     telefono: datos.telefono.trim(), email: datos.email.trim(), ocasion: datos.ocasion.trim(), notas: datos.notas.trim(),
     consumoMinimo: tipo.consumoMinimo, anticipo: tipo.anticipo, estado: "pendiente", creadaEn: Date.now() };
   guardar([...actuales, reserva]); return reserva;
@@ -58,4 +59,11 @@ export function actualizarEstadoReserva(id: string, estado: EstadoReserva) {
   };
   if (!transiciones[actual.estado].includes(estado)) return false;
   reservas[indice] = { ...actual, estado, actualizadaEn: Date.now() }; guardar(reservas); return true;
+}
+
+export function contenidoReservaQR(codigo: string) { return `nocta:reserva:${codigo}`; }
+export function validarReserva(valor: string): { estado: "aceptada"|"usada"|"invalida"; reserva?: ReservaNocta } {
+  const codigo = valor.trim().replace(/^nocta:reserva:/, ""); const reservas = parsear(snapshot()); const indice = reservas.findIndex(r => r.codigo === codigo);
+  if (indice < 0 || reservas[indice].estado !== "confirmada") return reservas[indice]?.estado === "usada" ? { estado: "usada", reserva: reservas[indice] } : { estado: "invalida" };
+  reservas[indice] = { ...reservas[indice], estado: "usada", actualizadaEn: Date.now() }; guardar(reservas); return { estado: "aceptada", reserva: reservas[indice] };
 }

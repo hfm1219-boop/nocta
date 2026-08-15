@@ -6,6 +6,7 @@ import { Logo } from "@/components/ui";
 import { EVENTOS, formatearFecha, LUGARES } from "@/lib/discovery";
 import { useExperienciasSociales } from "@/lib/social-events";
 import { RestablecerDemo } from "@/components/restablecer-demo";
+import { useEventosPromotor } from "@/lib/promoter-events";
 
 const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
 
@@ -30,6 +31,7 @@ export default function Descubrimiento() {
   const [busqueda, setBusqueda] = useState("");
   const [filtro, setFiltro] = useState("Todos");
   const experiencias = useExperienciasSociales().filter((item) => item.estado === "open");
+  const planesPromotor = useEventosPromotor().filter((item) => item.estado === "publicado");
 
   const eventos = useMemo(() => {
     const texto = busqueda.trim().toLowerCase();
@@ -123,6 +125,8 @@ export default function Descubrimiento() {
           </div>
           {eventos.length === 0 && <div className="card p-10 text-center text-muted">No encontramos planes con esos filtros.</div>}
         </section>
+
+        {planesPromotor.length > 0 && <section className="space-y-4"><div><p className="text-xs uppercase tracking-[0.2em] text-neon1">Por promotores NOCTA</p><h2 className="text-2xl font-bold mt-1">Nuevos eventos publicados</h2></div><div className="grid md:grid-cols-2 gap-4">{planesPromotor.map(evento=><Link key={evento.id} href={`/planes/${evento.id}`} className="card p-5 hover:border-neon1/60"><p className="text-xs text-neon3">{evento.promotor} · {evento.lugarNombre}</p><h3 className="text-2xl font-bold mt-1">{evento.nombre}</h3><p className="text-sm text-muted mt-2">{evento.resumen}</p><div className="flex justify-between mt-4 text-sm"><span>{new Date(evento.fechaISO).toLocaleString("es-CO",{dateStyle:"medium",timeStyle:"short"})}</span><b>{evento.tiposEntrada[0]?.precio?`Desde $${Math.min(...evento.tiposEntrada.map(t=>t.precio)).toLocaleString("es-CO")}`:"Gratis"}</b></div></Link>)}</div></section>}
 
         <section className="space-y-4">
           <div>

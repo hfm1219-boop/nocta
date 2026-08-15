@@ -1,79 +1,36 @@
 "use client";
 
-import { FormEvent, useEffect, useId, useRef, useState } from "react";
+import { FormEvent, useEffect, useEffectEvent, useId, useRef, useState } from "react";
 import Link from "next/link";
-import { eventoPorId } from "@/lib/discovery";
-import { validarEntrada, type EntradaComprada } from "@/lib/tickets";
+import { EVENTOS, eventoPorId } from "@/lib/discovery";
+import { validarEntrada, useEntradas } from "@/lib/tickets";
+import { validarReserva, useReservas } from "@/lib/reservations";
+import { validarInvitado, useListasPromotor } from "@/lib/guest-lists";
 import { Logo } from "@/components/ui";
+import { useEventosPromotor } from "@/lib/promoter-events";
 
-type Resultado = { estado: "aceptada" | "usada" | "invalida"; entrada?: EntradaComprada };
+type Resultado = { estado:"aceptada"|"usada"|"invalida"; titulo:string; nombre?:string; detalle?:string };
+type Hallazgo = { id:string; tipo:"entrada"|"reserva"|"lista"; codigo:string; nombre:string; detalle:string; eventoId:string; habilitado:boolean };
 
-export default function ControlAcceso() {
-  const reactId = useId();
-  const elementId = `lector-entrada-${reactId.replace(/:/g, "")}`;
-  const [codigo, setCodigo] = useState("");
-  const [resultado, setResultado] = useState<Resultado | null>(null);
-  const [errorCamara, setErrorCamara] = useState("");
-  const bloqueado = useRef(false);
-
-  function comprobar(valor: string) {
-    if (bloqueado.current) return;
-    bloqueado.current = true;
-    setResultado(validarEntrada(valor));
-    window.setTimeout(() => { bloqueado.current = false; }, 1400);
+export default function ControlAcceso(){
+  const reactId=useId();const elementId=`lector-entrada-${reactId.replace(/:/g,"")}`;const entradas=useEntradas();const reservas=useReservas();const listas=useListasPromotor();const planes=useEventosPromotor().filter(e=>e.estado!=="borrador");
+  const [codigo,setCodigo]=useState("");const [busqueda,setBusqueda]=useState("");const [eventoId,setEventoId]=useState("");const [resultado,setResultado]=useState<Resultado|null>(null);const [errorCamara,setErrorCamara]=useState("");const bloqueado=useRef(false);
+  const eventoNombre=(id:string)=>eventoPorId(id)?.nombre??planes.find(e=>e.id===id)?.nombre??listas.find(l=>l.eventoId===id)?.eventoNombre??"Evento";
+  function comprobar(valor:string){
+    if(bloqueado.current)return;bloqueado.current=true;const limpio=valor.trim();const codigoBase=limpio.replace(/^nocta:(entrada|reserva|lista):/,"");const entrada=entradas.find(e=>e.codigo===codigoBase);const reserva=reservas.find(r=>r.codigo===codigoBase);const lista=listas.find(l=>l.invitados.some(i=>i.codigo===codigoBase));const invitado=lista?.invitados.find(i=>i.codigo===codigoBase);const objetivo=entrada?.eventoId??reserva?.eventoId??lista?.eventoId;
+    if(eventoId&&objetivo&&objetivo!==eventoId){setResultado({estado:"invalida",titulo:"EVENTO INCORRECTO",nombre:entrada?.titular??reserva?.titular??invitado?.nombre,detalle:`Esta credencial pertenece a ${eventoNombre(objetivo)}.`});window.setTimeout(()=>{bloqueado.current=false;},1200);return;}
+    if(entrada){const r=validarEntrada(limpio);setResultado({estado:r.estado==="aceptada"?"aceptada":r.estado==="usada"?"usada":"invalida",titulo:r.estado==="aceptada"?"ACCESO PERMITIDO":r.estado==="usada"?"ENTRADA YA USADA":"ENTRADA INVÁLIDA",nombre:r.entrada?.titular,detalle:`Entrada · ${r.entrada?.tipoNombre??""}`});}
+    else if(reserva){const r=validarReserva(limpio);setResultado({estado:r.estado,titulo:r.estado==="aceptada"?"RESERVA RECIBIDA":r.estado==="usada"?"RESERVA YA UTILIZADA":"RESERVA NO CONFIRMADA",nombre:r.reserva?.titular,detalle:r.reserva?`${r.reserva.tipoNombre} · ${r.reserva.personas} personas`:undefined});}
+    else if(lista&&invitado){const r=validarInvitado(limpio);setResultado({estado:r.estado==="aceptado"||r.estado==="parcial"?"aceptada":r.estado==="usado"?"usada":"invalida",titulo:r.estado==="aceptado"?"GRUPO EN LISTA INGRESADO":r.estado==="parcial"?"INGRESO PARCIAL":r.estado==="usado"?"INVITACIÓN YA UTILIZADA":"INVITACIÓN INVÁLIDA",nombre:r.invitado?.nombre,detalle:r.invitado?`Lista ${r.lista?.nombre} · ${r.ingresados??0} ingresados`:undefined});}
+    else setResultado({estado:"invalida",titulo:"CÓDIGO NO RECONOCIDO"});window.setTimeout(()=>{bloqueado.current=false;},1200);
   }
-
-  useEffect(() => {
-    let lector: import("html5-qrcode").Html5Qrcode | null = null;
-    let cancelado = false;
-    void import("html5-qrcode").then(async ({ Html5Qrcode }) => {
-      if (cancelado) return;
-      lector = new Html5Qrcode(elementId);
-      try {
-        await lector.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 240, height: 240 }, aspectRatio: 1 },
-          (texto) => comprobar(texto),
-          () => undefined,
-        );
-      } catch {
-        setErrorCamara("No pudimos abrir la cámara. Usa el código manual.");
-      }
-    });
-    return () => {
-      cancelado = true;
-      if (lector?.isScanning) void lector.stop().then(() => lector?.clear()).catch(() => undefined);
-      else lector?.clear();
-    };
-  }, [elementId]);
-
-  function validarManual(evento: FormEvent) {
-    evento.preventDefault();
-    if (codigo.trim()) comprobar(codigo);
-  }
-
-  const evento = resultado?.entrada ? eventoPorId(resultado.entrada.eventoId) : undefined;
-  const estilo = resultado?.estado === "aceptada" ? "border-lime bg-lime/10 text-lime"
-    : resultado?.estado === "usada" ? "border-amber bg-amber/10 text-amber"
-      : "border-danger bg-danger/10 text-danger";
-
-  return (
-    <main className="flex-1 px-4 py-5 max-w-md mx-auto w-full space-y-5">
-      <header className="flex items-center justify-between"><div><Logo size="text-2xl" /><h1 className="font-bold text-lg mt-1">Control de acceso</h1></div><Link href="/accesos" className="text-sm text-muted">← Roles</Link></header>
-      <div id={elementId} className="rounded-2xl overflow-hidden bg-black min-h-72 border border-line" />
-      {errorCamara && <p className="text-xs text-amber text-center">{errorCamara}</p>}
-      <form onSubmit={validarManual} className="flex gap-2">
-        <input value={codigo} onChange={(e) => setCodigo(e.target.value)} placeholder="Código manual" className="card flex-1 min-w-0 px-4 py-3 bg-transparent outline-none font-mono text-sm" />
-        <button className="rounded-xl px-4 border border-neon3/50 text-neon3 font-semibold">Validar</button>
-      </form>
-      {resultado && (
-        <section className={`rounded-2xl border-2 p-6 text-center space-y-2 ${estilo}`}>
-          <p className="text-5xl">{resultado.estado === "aceptada" ? "✓" : resultado.estado === "usada" ? "!" : "×"}</p>
-          <h2 className="text-2xl font-black">{resultado.estado === "aceptada" ? "ACCESO PERMITIDO" : resultado.estado === "usada" ? "ENTRADA YA USADA" : "ENTRADA INVÁLIDA"}</h2>
-          {resultado.entrada && <><p className="font-semibold">{resultado.entrada.titular}</p><p className="text-sm opacity-80">{evento?.nombre} · {resultado.entrada.tipoNombre}</p></>}
-        </section>
-      )}
-      <p className="text-xs text-muted text-center">Cada QR válido se marca como utilizado inmediatamente.</p>
-    </main>
-  );
+  const comprobarDesdeCamara=useEffectEvent(comprobar);
+  useEffect(()=>{let lector:import("html5-qrcode").Html5Qrcode|null=null;let cancelado=false;void import("html5-qrcode").then(async({Html5Qrcode})=>{if(cancelado)return;lector=new Html5Qrcode(elementId);try{await lector.start({facingMode:"environment"},{fps:10,qrbox:{width:240,height:240},aspectRatio:1},texto=>comprobarDesdeCamara(texto),()=>undefined);}catch{setErrorCamara("No pudimos abrir la cámara. Usa el código o la búsqueda manual.");}});return()=>{cancelado=true;if(lector?.isScanning)void lector.stop().then(()=>lector?.clear()).catch(()=>undefined);else lector?.clear();};},[elementId]);
+  function validarManual(e:FormEvent){e.preventDefault();if(codigo.trim())comprobar(codigo);}
+  const texto=busqueda.trim().toLowerCase();
+  const hallazgos:Hallazgo[]=texto?[...entradas.filter(e=>(!eventoId||e.eventoId===eventoId)&&[e.titular,e.codigo,e.email].some(x=>x.toLowerCase().includes(texto))).map(e=>({id:e.id,tipo:"entrada" as const,codigo:e.codigo,nombre:e.titular,detalle:`Entrada ${e.tipoNombre} · ${e.estado}`,eventoId:e.eventoId,habilitado:e.estado==="valida"})),...reservas.filter(r=>(!eventoId||r.eventoId===eventoId)&&[r.titular,r.codigo,r.telefono,r.email].some(x=>x.toLowerCase().includes(texto))).map(r=>({id:r.id,tipo:"reserva" as const,codigo:r.codigo,nombre:r.titular,detalle:`${r.tipoNombre} · ${r.estado}`,eventoId:r.eventoId,habilitado:r.estado==="confirmada"})),...listas.flatMap(l=>l.invitados.filter(i=>(!eventoId||l.eventoId===eventoId)&&[i.nombre,i.codigo,i.telefono,i.email].some(x=>x.toLowerCase().includes(texto))).map(i=>({id:i.id,tipo:"lista" as const,codigo:i.codigo,nombre:i.nombre,detalle:`Lista ${l.nombre} · grupo de ${1+i.acompanantes} · ${i.estado}`,eventoId:l.eventoId,habilitado:i.estado==="confirmado"})))].slice(0,20):[];
+  const filtro=(id:string)=>!eventoId||id===eventoId;const entradasDentro=entradas.filter(e=>filtro(e.eventoId)&&e.estado==="usada").length;const reservasDentro=reservas.filter(r=>filtro(r.eventoId)&&r.estado==="usada").reduce((s,r)=>s+r.personas,0);const listasDentro=listas.filter(l=>filtro(l.eventoId)).flatMap(l=>l.invitados).reduce((s,i)=>s+i.ingresados,0);const aforo=entradasDentro+reservasDentro+listasDentro;
+  const estilo=resultado?.estado==="aceptada"?"border-lime bg-lime/10 text-lime":resultado?.estado==="usada"?"border-amber bg-amber/10 text-amber":"border-danger bg-danger/10 text-danger";
+  return <main className="flex-1 px-4 py-5 max-w-3xl mx-auto w-full space-y-5"><header className="flex justify-between gap-4"><div><Logo size="text-2xl"/><h1 className="font-bold text-lg mt-1">Acceso unificado</h1></div><Link href="/accesos" className="text-sm text-muted">← Roles</Link></header><section className="grid grid-cols-[1fr_120px] gap-3"><select value={eventoId} onChange={e=>setEventoId(e.target.value)} className="card px-4 py-3 bg-background"><option value="">Todos los eventos</option>{EVENTOS.map(e=><option key={e.id} value={e.id}>{e.nombre}</option>)}</select><div className="card p-3 text-center"><p className="text-xs text-muted">Aforo actual</p><p className="text-2xl font-bold text-neon3">{aforo}</p></div></section><div className="grid md:grid-cols-2 gap-5"><section className="space-y-3"><div id={elementId} className="rounded-2xl overflow-hidden bg-black min-h-72 border border-line"/>{errorCamara&&<p className="text-xs text-amber text-center">{errorCamara}</p>}<form onSubmit={validarManual} className="flex gap-2"><input value={codigo} onChange={e=>setCodigo(e.target.value)} placeholder="Código de entrada, reserva o lista" className="card flex-1 min-w-0 px-4 py-3 bg-transparent outline-none font-mono text-sm"/><button className="rounded-xl px-4 border border-neon3/50 text-neon3 font-semibold">Validar</button></form>{resultado&&<section className={`rounded-2xl border-2 p-5 text-center ${estilo}`}><p className="text-4xl">{resultado.estado==="aceptada"?"✓":resultado.estado==="usada"?"!":"×"}</p><h2 className="text-xl font-black mt-2">{resultado.titulo}</h2>{resultado.nombre&&<p className="font-semibold mt-2">{resultado.nombre}</p>}{resultado.detalle&&<p className="text-sm opacity-80">{resultado.detalle}</p>}</section>}</section><section className="space-y-3"><div><h2 className="font-bold">Búsqueda manual</h2><p className="text-xs text-muted">Nombre, teléfono, correo o código.</p></div><input value={busqueda} onChange={e=>setBusqueda(e.target.value)} className="entrada" placeholder="Buscar persona"/>{hallazgos.map(h=><article key={`${h.tipo}-${h.id}`} className="card p-4"><div className="flex justify-between gap-3"><span><span className="text-[10px] uppercase text-neon3">{h.tipo} · {eventoNombre(h.eventoId)}</span><b className="block">{h.nombre}</b><span className="text-xs text-muted">{h.detalle}</span></span><button disabled={!h.habilitado} onClick={()=>comprobar(h.codigo)} className="btn-neon rounded-xl px-3 text-sm disabled:opacity-40">Ingresar</button></div></article>)}{texto&&!hallazgos.length&&<div className="card p-6 text-center text-muted">Sin resultados.</div>}<section className="card p-4 grid grid-cols-3 gap-2 text-center"><Dato t="Entradas" v={entradasDentro}/><Dato t="Reservas" v={reservasDentro}/><Dato t="Listas" v={listasDentro}/></section></section></div><p className="text-xs text-muted text-center">Los códigos usados generan alerta y no suman nuevamente al aforo.</p></main>;
 }
+function Dato({t,v}:{t:string;v:number}){return <div><p className="text-[10px] text-muted">{t}</p><p className="font-bold">{v}</p></div>}

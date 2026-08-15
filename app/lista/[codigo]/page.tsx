@@ -1,0 +1,8 @@
+"use client";
+
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { QRAcceso } from "@/components/qr-acceso";
+import { contenidoInvitadoQR, useListasPromotor } from "@/lib/guest-lists";
+
+export default function CredencialInvitado(){const {codigo}=useParams<{codigo:string}>();const listas=useListasPromotor();const lista=listas.find(l=>l.invitados.some(i=>i.codigo===codigo));const invitado=lista?.invitados.find(i=>i.codigo===codigo);if(!lista||!invitado)return <main className="p-8 text-muted">Invitación no encontrada.</main>;return <main className="flex-1 px-5 py-10 max-w-md mx-auto w-full space-y-6"><Link href="/" className="text-sm text-muted">← NOCTA</Link><section className="card p-6 text-center space-y-5"><div><p className="text-xs uppercase tracking-[.2em] text-neon3">Lista de {lista.promotor}</p><h1 className="text-3xl font-bold mt-2">{invitado.nombre}</h1><p className="text-muted mt-1">{lista.eventoNombre} · {lista.lugarNombre}</p></div>{invitado.estado==="confirmado"&&<QRAcceso contenido={contenidoInvitadoQR(invitado.codigo)} alt="QR de invitado"/>}<div className="rounded-xl bg-surface2 p-4"><p className="text-xs text-muted">Acceso para</p><p className="font-bold mt-1">{1+invitado.acompanantes} persona{invitado.acompanantes?"s":""}</p><p className="font-mono text-sm mt-2">{invitado.codigo}</p></div><p className={`rounded-xl p-3 font-bold ${invitado.estado==="confirmado"?"bg-lime/15 text-lime":"bg-muted/15 text-muted"}`}>{invitado.estado==="confirmado"?`Confirmado · llega antes de ${lista.horaLimite}`:`Invitación ${invitado.estado}`}</p><p className="text-xs text-muted">{lista.condiciones}</p></section></main>}
