@@ -8,6 +8,7 @@ import { useExperienciasSociales } from "@/lib/social-events";
 import { RestablecerDemo } from "@/components/restablecer-demo";
 import { useEventosPromotor } from "@/lib/promoter-events";
 import { useCatalogoNocta } from "@/lib/cloud-catalog";
+import { CerrarSesionCliente } from "@/components/cerrar-sesion";
 
 const CATEGORIAS = ["Todos", "Hoy", "Este fin de semana", "Gratis"];
 
@@ -56,7 +57,7 @@ export default function Descubrimiento() {
       <header className="sticky top-0 z-20 border-b border-line bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <Logo size="text-3xl" />
-          <div className="flex items-center gap-4"><Link href="/mis-entradas" className="text-xs text-neon3">Entradas y reservas</Link><Link href="/accesos" className="text-xs text-muted hover:text-foreground">Operación →</Link></div>
+          <div className="flex items-center gap-3"><Link href="/mis-entradas" className="text-xs text-neon3">Entradas y reservas</Link><Link href="/accesos" className="hidden sm:inline text-xs text-muted hover:text-foreground">Operación →</Link><CerrarSesionCliente /></div>
         </div>
       </header>
 

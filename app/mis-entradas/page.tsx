@@ -5,13 +5,14 @@ import { eventoPorId, lugarPorId } from "@/lib/discovery";
 import { useEntradas } from "@/lib/tickets";
 import { Logo } from "@/components/ui";
 import { useEventosPromotor } from "@/lib/promoter-events";
+import { CerrarSesion } from "@/components/cerrar-sesion";
 
 export default function MisEntradas() {
   const entradas = useEntradas();
   const planes = useEventosPromotor();
   return (
     <main className="flex-1 px-5 py-8 max-w-lg mx-auto w-full space-y-6">
-      <header className="flex items-center justify-between"><Logo size="text-3xl" /><Link href="/" className="text-sm text-muted">← Explorar</Link></header>
+      <header className="flex items-center justify-between gap-3"><Logo size="text-3xl" /><div className="flex items-center gap-3"><Link href="/" className="text-sm text-muted">← Explorar</Link><CerrarSesion /></div></header>
       <nav className="grid grid-cols-2 gap-2"><span className="chip-active rounded-xl border p-3 text-center font-semibold">Entradas</span><Link href="/mis-reservas" className="card p-3 text-center text-muted">Reservas</Link></nav>
       <div><h1 className="text-3xl font-bold">Mis entradas</h1><p className="text-muted mt-1">Tus accesos disponibles y utilizados.</p></div>
       <section className="space-y-3">
