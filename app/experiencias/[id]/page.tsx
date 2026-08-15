@@ -12,7 +12,7 @@ import {
 
 export default function ExperienciaAsistente() {
   const { id } = useParams<{ id: string }>();
-  const evento = useExperienciasSociales().find((item) => item.id === id);
+  const evento = useExperienciasSociales(id).find((item) => item.id === id);
   const participanteId = useIdParticipanteActual(id);
   const participante = evento?.participantes.find((item) => item.id === participanteId);
   if (!evento) return <main className="p-8 text-muted">Experiencia no encontrada.</main>;

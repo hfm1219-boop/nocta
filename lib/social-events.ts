@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useSyncExternalStore } from "react";
 
 export type TipoExperiencia = "dating" | "networking" | "social" | "community";
 export type ModoMatching = "one-to-one" | "groups" | "rounds";
@@ -122,13 +122,91 @@ function guardar(lista: ExperienciaSocial[]) {
   window.dispatchEvent(new Event(EVENT));
 }
 
+type RemoteCatalog = {
+  external_key: string; name: string; description: string; experience_type: TipoExperiencia;
+  matching_mode: ModoMatching; capacity: number; reveal_at: string | null;
+  status: EstadoExperiencia; created_at: string; starts_at?: string | null;
+};
+type RemoteParticipant = { id: string; display_name: string; phone?: string | null; age?: number | null; gender?: string | null; intention?: string | null; consented_at?: string | null; questionnaire?: RespuestasAfinidad; questionnaire_completed_at?: string | null; checked_in_at?: string | null; feedback?: ParticipanteSocial["feedback"] | null; created_at?: string };
+type RemoteAssignment = { id: string; mode: ModoMatching; round_number: number; participant_ids: string[]; compatibility: number };
+type RemoteInteraction = { id: string; kind: "greeting" | "contact"; from_participant_id: string; to_participant_id: string; status: "sent" | "accepted" | "rejected"; created_at: string; updated_at?: string | null };
+type RemoteReport = { id: string; reporter_participant_id: string; reported_participant_id?: string; reason: string; detail: string; status: "open" | "reviewed" | "resolved"; created_at: string };
+type RemoteDetail = { module: RemoteCatalog; owner: boolean; participants?: RemoteParticipant[]; peers?: RemoteParticipant[]; assignments?: RemoteAssignment[]; interactions?: RemoteInteraction[]; reports?: RemoteReport[] };
+
+function baseRemota(item: RemoteCatalog, anterior?: ExperienciaSocial): ExperienciaSocial {
+  const reveal = item.reveal_at ? new Date(item.reveal_at) : null;
+  return normalizar({
+    id: item.external_key, nombre: item.name, descripcion: item.description,
+    tipo: item.experience_type, lugarId: anterior?.lugarId ?? "por-confirmar",
+    lugarNombre: anterior?.lugarNombre ?? "Lugar por confirmar", direccion: anterior?.direccion,
+    ciudad: anterior?.ciudad, fechaISO: item.starts_at ?? anterior?.fechaISO ?? new Date().toISOString(),
+    capacidad: item.capacity, modoMatching: item.matching_mode,
+    horaRevelacion: reveal ? `${String(reveal.getHours()).padStart(2, "0")}:${String(reveal.getMinutes()).padStart(2, "0")}` : anterior?.horaRevelacion ?? "21:30",
+    estado: item.status, promotor: anterior?.promotor ?? "Promotor NOCTA",
+    participantes: anterior?.participantes ?? [], asignaciones: anterior?.asignaciones ?? [],
+    interacciones: anterior?.interacciones ?? [], reportes: anterior?.reportes ?? [],
+    creadaEn: new Date(item.created_at).getTime(),
+  });
+}
+
+async function sincronizarCatalogo() {
+  const response = await fetch("/api/conecta", { cache: "no-store" });
+  if (!response.ok) return;
+  const payload = await response.json() as { experiences?: RemoteCatalog[] };
+  const actuales = parsear(snapshot());
+  const porId = new Map(actuales.map((item) => [item.id, item]));
+  for (const remote of payload.experiences ?? []) porId.set(remote.external_key, baseRemota(remote, porId.get(remote.external_key)));
+  guardar([...porId.values()]);
+}
+
+async function sincronizarDetalle(eventoId: string) {
+  if (eventoId === EXPERIENCIA_DEMO.id) return;
+  const response = await fetch(`/api/conecta/${encodeURIComponent(eventoId)}`, { cache: "no-store" });
+  if (!response.ok) return;
+  const data = await response.json() as RemoteDetail;
+  const modulo = data.module;
+  const participante = (row: RemoteParticipant): ParticipanteSocial => ({
+    id: row.id, nombre: row.display_name, telefono: row.phone ?? "", edad: row.age ?? 18,
+    genero: row.gender ?? "", intencion: row.intention ?? "", consentimiento: Boolean(row.consented_at ?? true),
+    respuestas: row.questionnaire ?? {}, cuestionarioCompleto: Boolean(row.questionnaire_completed_at),
+    checkin: Boolean(row.checked_in_at), feedback: row.feedback ?? undefined,
+    creadoEn: new Date(row.created_at ?? Date.now()).getTime(),
+  });
+  const propios = (data.participants ?? []).map(participante);
+  const ids = new Set(propios.map((item: ParticipanteSocial) => item.id));
+  const participantes = [...propios, ...(data.peers ?? []).filter((row) => !ids.has(row.id)).map(participante)];
+  const lista = parsear(snapshot()); const anterior = lista.find((item) => item.id === eventoId);
+  const evento = baseRemota(modulo, anterior);
+  evento.participantes = participantes;
+  evento.asignaciones = (data.assignments ?? []).map((row) => ({ id: row.id, tipo: row.mode, ronda: row.round_number, participantesIds: row.participant_ids, compatibilidad: row.compatibility }));
+  evento.interacciones = (data.interactions ?? []).map((row) => ({ id: row.id, tipo: row.kind === "greeting" ? "saludo" : "contacto", deId: row.from_participant_id, paraId: row.to_participant_id, estado: row.status === "sent" ? "enviado" : row.status === "accepted" ? "aceptado" : "rechazado", creadaEn: new Date(row.created_at).getTime(), actualizadaEn: row.updated_at ? new Date(row.updated_at).getTime() : undefined }));
+  evento.reportes = (data.reports ?? []).map((row) => ({ id: row.id, reportanteId: row.reporter_participant_id, reportadoId: row.reported_participant_id, motivo: row.reason, detalle: row.detail, estado: row.status === "open" ? "abierto" : row.status === "reviewed" ? "revisado" : "resuelto", creadoEn: new Date(row.created_at).getTime() }));
+  const index = lista.findIndex((item) => item.id === eventoId); if (index >= 0) lista[index] = evento; else lista.push(evento);
+  if (!data.owner && propios[0]) localStorage.setItem(`${SESSION_KEY}:${eventoId}`, propios[0].id);
+  guardar(lista);
+}
+
+async function accionRemota(eventoId: string, body: Record<string, unknown>) {
+  if (eventoId === EXPERIENCIA_DEMO.id) return;
+  const response = await fetch(`/api/conecta/${encodeURIComponent(eventoId)}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const payload = await response.json().catch(() => ({})) as { error?: string };
+  if (!response.ok) throw new Error(payload.error ?? "No fue posible actualizar Conecta");
+  await sincronizarDetalle(eventoId);
+}
+
+function ejecutarRemoto(eventoId: string, body: Record<string, unknown>) {
+  void accionRemota(eventoId, body).catch((error) => window.alert(error instanceof Error ? error.message : "No fue posible actualizar Conecta"));
+}
+
 function suscribir(listener: () => void) {
   window.addEventListener(EVENT, listener); window.addEventListener("storage", listener);
   return () => { window.removeEventListener(EVENT, listener); window.removeEventListener("storage", listener); };
 }
 
-export function useExperienciasSociales() {
+export function useExperienciasSociales(detalleId?: string) {
   const raw = useSyncExternalStore(suscribir, snapshot, () => "[]");
+  useEffect(() => { void sincronizarCatalogo(); }, []);
+  useEffect(() => { if (detalleId) void sincronizarDetalle(detalleId); }, [detalleId]);
   return useMemo(() => parsear(raw), [raw]);
 }
 
@@ -138,11 +216,14 @@ export function crearExperiencia(datos: Omit<ExperienciaSocial, "id" | "estado" 
   return experiencia;
 }
 
-export function actualizarExperiencia(id: string, mutar: (experiencia: ExperienciaSocial) => void) {
+export function actualizarExperiencia(id: string, mutar: (experiencia: ExperienciaSocial) => void, sincronizarEstado = true) {
   const lista = parsear(snapshot());
   const experiencia = lista.find((item) => item.id === id);
   if (!experiencia) return false;
-  mutar(experiencia); guardar(lista); return true;
+  const estadoAnterior = experiencia.estado;
+  mutar(experiencia); guardar(lista);
+  if (sincronizarEstado && experiencia.estado !== estadoAnterior) ejecutarRemoto(id, { action: "state", status: experiencia.estado });
+  return true;
 }
 
 export function registrarParticipante(eventoId: string, datos: Pick<ParticipanteSocial, "nombre" | "telefono" | "edad" | "genero" | "intencion" | "consentimiento">) {
@@ -153,7 +234,7 @@ export function registrarParticipante(eventoId: string, datos: Pick<Participante
   const participante: ParticipanteSocial = { ...datos, id: `part-${Date.now()}`, respuestas: {}, cuestionarioCompleto: false, checkin: false, creadoEn: Date.now() };
   evento.participantes.push(participante);
   localStorage.setItem(`${SESSION_KEY}:${eventoId}`, participante.id);
-  guardar(lista); return participante;
+  guardar(lista); ejecutarRemoto(eventoId, { action: "register", name: datos.nombre, phone: datos.telefono, age: datos.edad, gender: datos.genero, intention: datos.intencion, consent: datos.consentimiento }); return participante;
 }
 
 export function idParticipanteActual(eventoId: string) {
@@ -165,17 +246,19 @@ export function useIdParticipanteActual(eventoId: string) {
 }
 
 export function guardarCuestionario(eventoId: string, participanteId: string, respuestas: RespuestasAfinidad) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     const participante = evento.participantes.find((item) => item.id === participanteId);
     if (participante) { participante.respuestas = respuestas; participante.cuestionarioCompleto = true; }
   });
+  ejecutarRemoto(eventoId, { action: "questionnaire", payload: respuestas }); return actualizado;
 }
 
 export function confirmarCheckin(eventoId: string, participanteId: string) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     const participante = evento.participantes.find((item) => item.id === participanteId);
     if (participante?.cuestionarioCompleto) participante.checkin = true;
   });
+  ejecutarRemoto(eventoId, { action: "checkin" }); return actualizado;
 }
 
 export function compatibilidadEntre(a: ParticipanteSocial, b: ParticipanteSocial) {
@@ -256,7 +339,8 @@ export function ejecutarMatching(eventoId: string) {
       if (px && py) { px.matchId = y; py.matchId = x; px.compatibilidad = a.compatibilidad; py.compatibilidad = a.compatibilidad; }
     });
     generadas = evento.asignaciones.length; evento.estado = "matching";
-  });
+  }, false);
+  ejecutarRemoto(eventoId, { action: "matching" });
   return generadas;
 }
 
@@ -275,38 +359,43 @@ function puedenInteractuar(evento: ExperienciaSocial, a: string, b: string) {
 }
 
 export function enviarSaludo(eventoId: string, deId: string, paraId: string) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     if (puedenInteractuar(evento, deId, paraId) && !evento.interacciones.some((i) => i.tipo === "saludo" && i.deId === deId && i.paraId === paraId)) {
       evento.interacciones.push({ id: `saludo-${Date.now()}`, tipo: "saludo", deId, paraId, estado: "enviado", creadaEn: Date.now() });
     }
   });
+  ejecutarRemoto(eventoId, { action: "interaction", kind: "greeting", toId: paraId }); return actualizado;
 }
 
 export function solicitarContacto(eventoId: string, deId: string, paraId: string) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     if (puedenInteractuar(evento, deId, paraId) && !evento.interacciones.some((i) => i.tipo === "contacto" && ((i.deId === deId && i.paraId === paraId) || (i.deId === paraId && i.paraId === deId)))) {
       evento.interacciones.push({ id: `contacto-${Date.now()}`, tipo: "contacto", deId, paraId, estado: "enviado", creadaEn: Date.now() });
     }
   });
+  ejecutarRemoto(eventoId, { action: "interaction", kind: "contact", toId: paraId }); return actualizado;
 }
 
 export function responderContacto(eventoId: string, interaccionId: string, participanteId: string, aceptar: boolean) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     const solicitud = evento.interacciones.find((i) => i.id === interaccionId && i.tipo === "contacto" && i.paraId === participanteId && i.estado === "enviado");
     if (solicitud) { solicitud.estado = aceptar ? "aceptado" : "rechazado"; solicitud.actualizadaEn = Date.now(); }
   });
+  ejecutarRemoto(eventoId, { action: "interaction-response", interactionId: interaccionId, participantId: participanteId, accept: aceptar }); return actualizado;
 }
 
 export function crearReporte(eventoId: string, reportanteId: string, reportadoId: string | undefined, motivo: string, detalle: string) {
-  return actualizarExperiencia(eventoId, (evento) => {
+  const actualizado = actualizarExperiencia(eventoId, (evento) => {
     const reportanteExiste = evento.participantes.some((p) => p.id === reportanteId);
     const reportadoValido = !reportadoId || puedenInteractuar(evento, reportanteId, reportadoId);
     if (reportanteExiste && reportadoValido && motivo.trim()) evento.reportes.push({ id: `reporte-${Date.now()}`, reportanteId, reportadoId, motivo: motivo.trim(), detalle: detalle.trim(), estado: "abierto", creadoEn: Date.now() });
   });
+  ejecutarRemoto(eventoId, { action: "report", reporterId: reportanteId, reportedId: reportadoId, reason: motivo, detail: detalle }); return actualizado;
 }
 
 export function actualizarReporte(eventoId: string, reporteId: string, estado: ReporteSocial["estado"]) {
-  return actualizarExperiencia(eventoId, (evento) => { const reporte = evento.reportes.find((r) => r.id === reporteId); if (reporte) reporte.estado = estado; });
+  const actualizado = actualizarExperiencia(eventoId, (evento) => { const reporte = evento.reportes.find((r) => r.id === reporteId); if (reporte) reporte.estado = estado; });
+  ejecutarRemoto(eventoId, { action: "report-state", reportId: reporteId, status: estado === "revisado" ? "reviewed" : estado === "resuelto" ? "resolved" : "open" }); return actualizado;
 }
 
 export function razonesCompatibilidad(a: ParticipanteSocial, b: ParticipanteSocial) {
@@ -323,4 +412,5 @@ export function razonesCompatibilidad(a: ParticipanteSocial, b: ParticipanteSoci
 
 export function enviarFeedback(eventoId: string, participanteId: string, feedback: NonNullable<ParticipanteSocial["feedback"]>) {
   actualizarExperiencia(eventoId, (evento) => { const participante = evento.participantes.find((p) => p.id === participanteId); if (participante) participante.feedback = feedback; });
+  ejecutarRemoto(eventoId, { action: "feedback", payload: feedback });
 }
