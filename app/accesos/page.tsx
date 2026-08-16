@@ -56,7 +56,7 @@ export default function Accesos() {
       </div>}
       {local && (
         <section className="space-y-3">
-          <button onClick={() => router.push("/m")} className="btn-neon w-full rounded-2xl p-4 font-bold">🍸 Entrar como cliente</button>
+          <button onClick={() => router.push("/m")} className="btn-neon w-full rounded-2xl p-4 font-bold">🍸 Ver menú de {local.name}</button>
           <div className="grid grid-cols-2 gap-3">
             {ROLES.filter((rol) => permisos[rol.permiso] && (rol.href !== "/dj" || db?.config.funciones.rockola)).map((rol) => (
               <Link key={rol.href} href={rol.href} className="card p-4 hover:border-neon1/60 transition">
