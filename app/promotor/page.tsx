@@ -1,34 +1,6 @@
 "use client";
-
 import Link from "next/link";
-import { useExperienciasSociales } from "@/lib/social-events";
-import { useEventosPromotor } from "@/lib/promoter-events";
-
-export default function PanelPromotor() {
-  const experiencias = useExperienciasSociales();
-  const planes = useEventosPromotor();
-  return (
-    <main className="flex-1 px-5 py-8 max-w-4xl mx-auto w-full space-y-7">
-      <header className="flex items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon2">Promotor</p><h1 className="text-3xl font-bold mt-1">Inicio</h1><p className="text-sm text-muted">Resumen de eventos y experiencias.</p></div><Link href="/promotor/eventos" className="btn-neon rounded-xl px-4 py-3 font-semibold">Gestionar eventos</Link></header>
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <Kpi titulo="Experiencias" valor={experiencias.length} />
-        <Kpi titulo="Registrados" valor={experiencias.reduce((s, e) => s + e.participantes.length, 0)} />
-        <Kpi titulo="Check-ins" valor={experiencias.reduce((s, e) => s + e.participantes.filter((p) => p.checkin).length, 0)} />
-        <Kpi titulo="Asignaciones" valor={experiencias.reduce((s, e) => s + e.asignaciones.length, 0)} />
-      </section>
-      <section className="space-y-3">
-        <h1 className="text-2xl font-bold">Eventos comerciales</h1>{planes.map(evento=><Link key={evento.id} href={`/promotor/planes/${evento.id}`} className="card p-5 flex justify-between"><span><span className="text-xs uppercase text-neon2">{evento.estado} · {evento.promotor}</span><b className="block text-xl mt-1">{evento.nombre}</b><span className="text-sm text-muted">{evento.lugarNombre} · {evento.tiposEntrada.length} localidades</span></span><span className="text-neon2">→</span></Link>)}{!planes.length&&<p className="card p-5 text-muted">Crea tu primer evento comercial con entradas, reservas y listas.</p>}
-        <h1 className="text-2xl font-bold">Tus experiencias sociales</h1>
-        {experiencias.map((evento) => (
-          <Link key={evento.id} href={`/promotor/eventos/${evento.id}`} className="card p-5 flex items-center justify-between gap-5 hover:border-neon1/60 transition">
-            <span><span className="text-xs text-neon3 uppercase">{evento.tipo} · {evento.estado}</span><b className="block text-xl mt-1">{evento.nombre}</b><span className="text-sm text-muted">{evento.lugarNombre} · {evento.participantes.length}/{evento.capacidad} registrados</span></span><span className="text-neon2 text-xl">→</span>
-          </Link>
-        ))}
-      </section>
-    </main>
-  );
-}
-
-function Kpi({ titulo, valor }: { titulo: string; valor: number }) {
-  return <div className="card p-4"><p className="text-xs text-muted">{titulo}</p><p className="text-2xl font-bold mt-1">{valor}</p></div>;
-}
+import { useEffect, useState } from "react";
+type Dashboard={analytics:{events:number;published:number;tickets:number;checkedIn:number;grossCop:number;audience:number};events:Array<{id:string;external_key:string;name:string;starts_at:string;status:string;event_venue_collaborations?:Array<{venues?:{name:string}}>}>};
+export default function PanelPromotor(){const [data,setData]=useState<Dashboard|null>(null);const [error,setError]=useState("");useEffect(()=>{void fetch("/api/promoter",{cache:"no-store"}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.error);setData(d)}).catch(e=>setError(e.message))},[]);const a=data?.analytics;return <main className="flex-1 px-5 py-8 max-w-6xl mx-auto w-full space-y-7"><header className="flex items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon2">Promotor</p><h1 className="text-3xl font-bold mt-1">Tu operación de eventos</h1><p className="text-sm text-muted">Ventas, audiencia, alianzas y liquidaciones en un solo contexto.</p></div><Link href="/promotor/planes/nuevo" className="btn-neon rounded-xl px-4 py-3 font-semibold">+ Crear evento</Link></header>{error&&<p className="card border-danger/40 p-4 text-danger">{error}</p>}<section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3"><Kpi t="Eventos" v={a?.events??"—"}/><Kpi t="Publicados" v={a?.published??"—"}/><Kpi t="Entradas" v={a?.tickets??"—"}/><Kpi t="Check-ins" v={a?.checkedIn??"—"}/><Kpi t="Audiencia" v={a?.audience??"—"}/><Kpi t="Ventas" v={a?`$${a.grossCop.toLocaleString("es-CO")}`:"—"}/></section><section className="grid lg:grid-cols-[1.5fr_1fr] gap-5"><div className="space-y-3"><div className="flex justify-between"><h2 className="text-xl font-bold">Próximos eventos</h2><Link href="/promotor/eventos" className="text-sm text-neon2">Ver todos →</Link></div>{data?.events.slice(0,5).map(e=><Link key={e.id} href={`/promotor/planes/${e.external_key}`} className="card p-5 flex justify-between gap-4"><span><b className="block text-lg">{e.name}</b><span className="text-sm text-muted">{new Date(e.starts_at).toLocaleDateString("es-CO",{dateStyle:"medium"})} · {e.event_venue_collaborations?.[0]?.venues?.name??"Lugar por confirmar"}</span></span><span className="text-xs uppercase text-neon3">{e.status}</span></Link>)}{data&&!data.events.length&&<div className="card p-6 text-muted">Aún no hay eventos. Crea el primero y solicita colaboración a un establecimiento.</div>}</div><div className="card p-5"><h2 className="font-bold">Flujo recomendado</h2><ol className="mt-4 space-y-4 text-sm text-muted"><li>1. Crea el evento y sus localidades.</li><li>2. Envía la propuesta al establecimiento.</li><li>3. Configura listas, cortesías y patrocinadores.</li><li>4. Publica, vende y controla el acceso.</li><li>5. Revisa la liquidación y analítica.</li></ol></div></section></main>}
+function Kpi({t,v}:{t:string;v:string|number}){return <div className="card p-4"><p className="text-xs text-muted">{t}</p><p className="text-xl font-bold mt-1">{v}</p></div>}
