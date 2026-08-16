@@ -13,7 +13,7 @@ export function useCatalogoNocta(): CatalogoNocta {
     if (!supabase) return;
     let activo = true;
     Promise.all([
-      supabase.from("venues").select("external_key,name,city,address,active").eq("active", true),
+      supabase.from("venues").select("external_key,name,city,address,zone,description,category,price_range,active").eq("active", true),
       supabase.from("events").select("id,external_key,name,starts_at,ends_at,status").eq("status", "published"),
       supabase.from("ticket_types").select("event_id,price_cop,active").eq("active", true),
     ]).then(([lugaresRespuesta, eventosRespuesta, entradasRespuesta]) => {
@@ -26,7 +26,7 @@ export function useCatalogoNocta(): CatalogoNocta {
         remoto: true,
         lugares: LUGARES.filter((base) => lugaresRemotos.has(base.id)).map((base) => {
           const remoto = lugaresRemotos.get(base.id)!;
-          return { ...base, nombre: remoto.name, ciudad: remoto.city, zona: remoto.address || base.zona };
+          return { ...base, nombre: remoto.name, ciudad: remoto.city, zona: remoto.zone || remoto.address || base.zona, descripcion: remoto.description || base.descripcion, categoria: (["club","bar","rooftop","restaurante"].includes(remoto.category ?? "") ? remoto.category : base.categoria) as LugarNocta["categoria"], rangoPrecio: (["$$","$$$","$$$$"].includes(remoto.price_range ?? "") ? remoto.price_range : base.rangoPrecio) as LugarNocta["rangoPrecio"] };
         }),
         eventos: EVENTOS.filter((base) => eventosRemotos.has(base.id)).map((base) => {
           const remoto = eventosRemotos.get(base.id)!;
@@ -38,4 +38,3 @@ export function useCatalogoNocta(): CatalogoNocta {
   }, []);
   return catalogo;
 }
-
