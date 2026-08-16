@@ -1,8 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Logo } from "@/components/ui";
-import { CerrarSesion } from "@/components/cerrar-sesion";
 import { useExperienciasSociales } from "@/lib/social-events";
 import { useEventosPromotor } from "@/lib/promoter-events";
 
@@ -11,7 +9,7 @@ export default function PanelPromotor() {
   const planes = useEventosPromotor();
   return (
     <main className="flex-1 px-5 py-8 max-w-4xl mx-auto w-full space-y-7">
-      <header className="flex items-center justify-between gap-4"><div><Logo size="text-3xl" /><p className="text-xs uppercase tracking-wider text-muted mt-1">Panel del promotor</p></div><div className="flex flex-wrap justify-end gap-2"><Link href="/promotor/listas" className="card rounded-full px-4 py-3 font-semibold">Listas</Link><Link href="/promotor/planes/nuevo" className="btn-neon rounded-full px-4 py-3 font-semibold">+ Evento</Link><Link href="/promotor/eventos/nuevo" className="card rounded-full px-4 py-3 font-semibold">+ Conecta</Link><CerrarSesion /></div></header>
+      <header className="flex items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon2">Promotor</p><h1 className="text-3xl font-bold mt-1">Inicio</h1><p className="text-sm text-muted">Resumen de eventos y experiencias.</p></div><Link href="/promotor/eventos" className="btn-neon rounded-xl px-4 py-3 font-semibold">Gestionar eventos</Link></header>
       <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Kpi titulo="Experiencias" valor={experiencias.length} />
         <Kpi titulo="Registrados" valor={experiencias.reduce((s, e) => s + e.participantes.length, 0)} />
@@ -27,7 +25,6 @@ export default function PanelPromotor() {
           </Link>
         ))}
       </section>
-      <Link href="/accesos" className="block text-center text-sm text-muted">← Accesos operativos</Link>
     </main>
   );
 }

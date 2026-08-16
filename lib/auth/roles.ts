@@ -42,10 +42,12 @@ export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
   cashier: "Caja",
 };
 
-export const ROUTE_ROLES: ReadonlyArray<{ prefix: string; roles: readonly AppRole[] }> = [
+type RouteRole = AppRole | PrincipalRole;
+export const ROUTE_ROLES: ReadonlyArray<{ prefix: string; roles: readonly RouteRole[] }> = [
   { prefix: "/super", roles: ["platform_owner"] },
   { prefix: "/admin", roles: ["venue_owner", "venue_admin"] },
   { prefix: "/promotor", roles: ["promoter", "organizer", "platform_owner"] },
+  { prefix: "/marca", roles: ["brand_distributor", "platform_owner"] },
   { prefix: "/acceso", roles: ["door_staff", "venue_owner", "venue_admin", "organizer"] },
   { prefix: "/accesos", roles: ["promoter", "organizer", "venue_owner", "venue_admin", "door_staff", "reservation_host", "cashier", "bartender", "waiter", "dj"] },
   { prefix: "/reservas", roles: ["reservation_host", "venue_owner", "venue_admin", "organizer"] },
@@ -73,5 +75,5 @@ export const ROLE_LABELS: Record<AppRole, string> = {
 
 export function rolesParaRuta(pathname: string) {
   const roles = ROUTE_ROLES.find(({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`))?.roles;
-  return roles && !roles.includes("platform_owner") ? ["platform_owner" as const, ...roles] : roles;
+  return roles && !roles.includes("platform_owner") ? ["platform_owner" as RouteRole, ...roles] : roles;
 }

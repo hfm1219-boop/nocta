@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { EVENTOS, lugarPorId } from "@/lib/discovery";
+export default function Eventos() { return <main className="flex-1 px-5 py-8 max-w-6xl mx-auto w-full"><p className="text-xs uppercase tracking-[.2em] text-neon2">Agenda</p><h1 className="text-3xl font-bold mt-2">Eventos</h1><div className="grid md:grid-cols-2 gap-4 mt-6">{EVENTOS.map((item) => <Link key={item.id} href={`/eventos/${item.id}`} className="card p-5"><p className="text-xs text-neon3">{lugarPorId(item.lugarId)?.nombre}</p><h2 className="text-xl font-bold mt-1">{item.nombre}</h2><p className="text-sm text-muted mt-2">{new Date(item.fechaISO).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</p></Link>)}</div></main>; }

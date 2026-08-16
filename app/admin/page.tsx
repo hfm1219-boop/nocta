@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 import {
   borrarDatosPrueba, cop, editarPrecio, guardarDB, registrarCobro, toggleDisponible, useDB, useReloj,
 } from "@/lib/store";
-import { EncabezadoStaff } from "@/components/ui";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
 import { cotizarProducto } from "@/lib/mercado";
 import {
@@ -43,7 +42,7 @@ export default function Admin() {
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <EncabezadoStaff titulo="Administración" subtitulo={db.config.nombre} />
+      <header className="px-4 pt-6 max-w-5xl w-full mx-auto"><p className="text-xs uppercase tracking-[.2em] text-neon2">Establecimiento</p><h1 className="text-3xl font-bold mt-1">{db.config.nombre}</h1><p className="text-sm text-muted">Resumen administrativo y configuración operativa.</p></header>
       <div className="px-4 pt-3 flex gap-2 overflow-x-auto">
         {TABS.map((t) => (
           <button
