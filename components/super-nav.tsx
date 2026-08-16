@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/super/usuarios", label: "Accesos", icon: "◎" },
   { href: "/super/fidelidad", label: "Fidelización", icon: "✦" },
   { href: "/super/integridad", label: "Integridad", icon: "✓" },
+  { href: "/super/transacciones", label: "Transacciones", icon: "$" },
 ];
 
 export function SuperNav() {
@@ -25,6 +26,6 @@ export function SuperNav() {
       <div className="mt-auto space-y-3"><Link href="/" className="block rounded-xl border border-line p-3 text-center text-sm text-muted hover:text-foreground">Ver aplicación</Link><CerrarSesion/></div>
     </aside>
     <header className="lg:hidden sticky top-0 z-40 border-b border-line bg-background/90 backdrop-blur px-4 py-3 flex items-center gap-3"><Link href="/super"><Logo size="text-xl"/></Link><div className="min-w-0 flex-1"><ContextSwitcher compact/></div><CerrarSesion/></header>
-    <nav aria-label="Navegación móvil del superadministrador" className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-line bg-background/95 backdrop-blur px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2"><div className="grid grid-cols-4 max-w-xl mx-auto">{ITEMS.map((item) => <Link key={item.href} href={item.href} aria-current={active(item.href, item.exact) ? "page" : undefined} className={`flex flex-col items-center rounded-xl py-2 text-[10px] ${active(item.href, item.exact) ? "text-neon2 bg-neon2/10 font-semibold" : "text-muted"}`}><span className="text-lg leading-none mb-1">{item.icon}</span>{item.label}</Link>)}</div></nav>
+    <nav aria-label="Navegación móvil del superadministrador" className="lg:hidden fixed bottom-0 inset-x-0 z-50 border-t border-line bg-background/95 backdrop-blur px-2 pb-[max(.5rem,env(safe-area-inset-bottom))] pt-2"><div className="grid grid-cols-5 max-w-xl mx-auto">{ITEMS.map((item) => <Link key={item.href} href={item.href} aria-current={active(item.href, item.exact) ? "page" : undefined} className={`flex flex-col items-center rounded-xl py-2 text-[10px] ${active(item.href, item.exact) ? "text-neon2 bg-neon2/10 font-semibold" : "text-muted"}`}><span className="text-lg leading-none mb-1">{item.icon}</span>{item.label}</Link>)}</div></nav>
   </>;
 }
