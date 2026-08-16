@@ -16,6 +16,16 @@ let canal: BroadcastChannel | null = null;
 const listeners = new Set<() => void>();
 const hidratadosRemotos = new Set<string>();
 let guardadoRemotoPendiente: ReturnType<typeof setTimeout> | null = null;
+const colaOperaciones = new Map<string, Promise<void>>();
+
+function encolarOperacion(orderKey: string, method: "POST" | "PATCH", body: Record<string, unknown>) {
+  const previous = colaOperaciones.get(orderKey) ?? Promise.resolve();
+  const next = previous.then(async () => {
+    const response = await fetch("/api/operations", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!response.ok) throw new Error(`No fue posible sincronizar ${orderKey}`);
+  }).catch(() => undefined).finally(() => { if (colaOperaciones.get(orderKey) === next) colaOperaciones.delete(orderKey); });
+  colaOperaciones.set(orderKey, next);
+}
 
 export function idLocalActivo(): string {
   if (typeof window === "undefined") return "la-movida";
@@ -374,6 +384,7 @@ export function crearPedido(datos: {
       }
     }
   });
+  encolarOperacion(creado.id,"POST",{venueKey:creado.localId,externalKey:creado.id,serviceMode:creado.modo==="zona"?"zone":creado.modo==="mesa"?"table":"bar",zoneName:creado.zonaId,items:creado.items,subtotalCop:creado.subtotal,tipCop:creado.propina,totalCop:creado.total,paymentMethod:creado.medioPago,paymentStatus:creado.estadoPago==="pagado"?"paid":"pending",preorderFor:creado.programadoPara?new Date(creado.programadoPara).toISOString():null,pickupPin:creado.pin});
   return creado;
 }
 
@@ -526,6 +537,8 @@ export function avanzarPedido(id: string, nuevoEstado: Pedido["estado"]) {
       }
     }
   });
+  const remoteStatus={nuevo:"new",preparando:"preparing",listo:"ready",en_camino:"on_the_way",entregado:"delivered",vencido:"expired",anulado:"cancelled"}[nuevoEstado];
+  encolarOperacion(id,"PATCH",{action:"transition",externalKey:id,status:remoteStatus});
 }
 
 export function registrarCobro(
@@ -541,6 +554,7 @@ export function registrarCobro(
     p.estadoPago = "pagado";
     p.cobro = { medio, monto: p.total, referencia, cobradoPor, ts: Date.now() };
   });
+  encolarOperacion(id,"PATCH",{action:"payment",externalKey:id,paymentMethod:medio,reference:referencia??""});
 }
 
 export function noEncontrado(id: string, barraId: string, barraNombre: string) {
@@ -555,6 +569,7 @@ export function noEncontrado(id: string, barraId: string, barraNombre: string) {
     p.barraRecogidaNombre = barraNombre;
     p.notas = `No logramos encontrarte. Tu pedido quedó en ${barraNombre}.`;
   });
+  encolarOperacion(id,"PATCH",{action:"transition",externalKey:id,status:"ready",notes:`No localizado; recoger en ${barraNombre}`,signal:{pickup_bar_id:barraId,pickup_bar_name:barraNombre}});
 }
 
 export function cambiarZonaPedidoCliente(id: string, zonaId: string): boolean {
@@ -589,6 +604,7 @@ export function anularPedido(id: string, motivo: string) {
     p.notas = motivo;
     if (p.estadoPago === "pendiente") p.estadoPago = "no_pagado";
   });
+  encolarOperacion(id,"PATCH",{action:"transition",externalKey:id,status:"cancelled",notes:motivo});
 }
 
 // ---------- Rockola ----------
