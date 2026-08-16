@@ -12,17 +12,27 @@ export default function FidelidadAdmin() {
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState("");
   const [form, setForm] = useState<FormKind>("campaign");
+  const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => { const response = await fetch("/api/admin/loyalty", { cache: "no-store" }); const body = await response.json(); if (!response.ok) throw new Error(body.error ?? "No fue posible cargar fidelización"); setData(body); }, []);
-  useEffect(() => {
-    let active = true;
-    void fetch("/api/admin/loyalty", { cache: "no-store" }).then(async (response) => {
-      const body = await response.json();
-      if (!response.ok) throw new Error(body.error ?? "No fue posible cargar fidelización");
-      if (active) setData(body);
-    }).catch((reason) => { if (active) setError(reason instanceof Error ? reason.message : "Error"); });
-    return () => { active = false; };
+  const load = useCallback(async () => {
+    setLoading(true); setError("");
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try {
+      const response = await fetch("/api/admin/loyalty", { cache: "no-store", signal: controller.signal });
+      const contentType = response.headers.get("content-type") ?? "";
+      const body = contentType.includes("application/json") ? await response.json() : {};
+      if (!response.ok) throw new Error(body.error ?? `No fue posible cargar fidelización (${response.status})`);
+      setData(body);
+    } catch (reason) {
+      setError(reason instanceof DOMException && reason.name === "AbortError" ? "La carga tardó demasiado. Revisa la conexión e inténtalo nuevamente." : reason instanceof Error ? reason.message : "No fue posible cargar fidelización");
+    } finally {
+      window.clearTimeout(timeout); setLoading(false);
+    }
   }, []);
+  useEffect(() => {
+    void Promise.resolve().then(load);
+  }, [load]);
 
   async function send(body: Record<string, unknown>, success: string) {
     setBusy(String(body.action)); setError(""); setNotice("");
@@ -33,10 +43,10 @@ export default function FidelidadAdmin() {
   }
 
   async function review(id: string, decision: string, notes = "") { await send({ action: "review", executionId: id, decision, notes }, "La revisión quedó registrada."); }
-  if (!data) return <main className="p-8 text-muted">Preparando el centro de fidelización…</main>;
+  if (!data) return <main className="flex-1 px-5 py-10 max-w-xl mx-auto w-full"><section className={`card p-6 ${error ? "border-danger/40" : ""}`}><h1 className="text-xl font-bold">Centro de fidelización</h1>{loading ? <p className="text-muted mt-3" role="status">Preparando campañas, misiones y beneficios…</p> : <><p className="text-danger mt-3" role="alert">{error || "No fue posible cargar la información."}</p><button type="button" onClick={() => void load()} className="btn-neon rounded-xl px-5 py-3 mt-5">Reintentar</button></>}</section></main>;
 
   return <main className="flex-1 px-5 py-8 max-w-7xl mx-auto space-y-7">
-    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon3">Centro operativo</p><h1 className="text-3xl font-bold mt-1">Fidelización</h1><p className="text-muted">Diseña campañas, activa misiones, publica beneficios y aprueba evidencias.</p></div><button onClick={() => void load()} className="rounded-xl border border-line px-4 py-3">Actualizar datos</button></header>
+    <header className="flex flex-wrap items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon3">Centro operativo</p><h1 className="text-3xl font-bold mt-1">Fidelización</h1><p className="text-muted">Diseña campañas, activa misiones, publica beneficios y aprueba evidencias.</p></div><button disabled={loading} onClick={() => void load()} className="rounded-xl border border-line px-4 py-3 disabled:opacity-50">{loading ? "Actualizando…" : "Actualizar datos"}</button></header>
     {error && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-danger">{error}</p>}{notice && <p role="status" className="rounded-xl border border-lime/40 bg-lime/10 p-3 text-lime">{notice}</p>}
     <section className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3"><Box t="Campañas" v={data.campaigns.length}/><Box t="Misiones" v={data.missions.length}/><Box t="Beneficios" v={data.rewards.length}/><Box t="Por revisar" v={data.executions.length} attention={data.executions.length > 0}/></section>
 

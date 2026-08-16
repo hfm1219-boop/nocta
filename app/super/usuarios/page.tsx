@@ -38,24 +38,15 @@ export default function UsuariosRoles() {
   },[]);
 
   const cargar = useCallback(async () => {
-    setCargando(true);
-    const respuesta = await fetch("/api/admin/access", { cache: "no-store" });
-    const datos = await respuesta.json();
-    setCargando(false);
-    if (!respuesta.ok) return setMensaje(datos.error ?? "No fue posible consultar usuarios.");
-    aplicarDirectorio(datos); setMensaje("");
+    setCargando(true); setMensaje("");
+    const controller = new AbortController(); const timeout = window.setTimeout(() => controller.abort(), 15000);
+    try { const respuesta = await fetch("/api/admin/access", { cache: "no-store", signal: controller.signal }); const datos = await respuesta.json(); if (!respuesta.ok) throw new Error(datos.error ?? "No fue posible consultar usuarios."); aplicarDirectorio(datos); }
+    catch (reason) { setMensaje(reason instanceof DOMException && reason.name === "AbortError" ? "La consulta de usuarios tardó demasiado. Inténtalo nuevamente." : reason instanceof Error ? reason.message : "No fue posible consultar usuarios."); }
+    finally { window.clearTimeout(timeout); setCargando(false); }
   }, [aplicarDirectorio]);
   useEffect(() => {
-    let activo = true;
-    fetch("/api/admin/access", { cache: "no-store" }).then(async (respuesta) => {
-      const datos = await respuesta.json();
-      if (!activo) return;
-      setCargando(false);
-      if (!respuesta.ok) setMensaje(datos.error ?? "No fue posible consultar usuarios.");
-      else aplicarDirectorio(datos);
-    });
-    return () => { activo = false; };
-  }, [aplicarDirectorio]);
+    void Promise.resolve().then(cargar);
+  }, [cargar]);
 
   function cambiarRol(nuevo: AppRole) {
     setRol(nuevo);
