@@ -57,7 +57,7 @@ export default function Descubrimiento() {
       <header className="sticky top-0 z-20 border-b border-line bg-background/85 backdrop-blur-xl">
         <div className="max-w-5xl mx-auto px-5 py-4 flex items-center justify-between">
           <Logo size="text-3xl" />
-          <div className="flex items-center gap-3"><Link href="/mi-nocta" className="text-xs text-neon2">Mi NOCTA</Link><Link href="/mis-entradas" className="text-xs text-neon3">Entradas y reservas</Link><Link href="/accesos" className="hidden sm:inline text-xs text-muted hover:text-foreground">Operación →</Link><CerrarSesionCliente /></div>
+          <div className="flex items-center gap-3"><Link href="/mi-nocta" className="text-xs text-neon2">Mi NOCTA</Link><Link href="/mis-planes" className="text-xs text-neon3">Mis planes</Link><CerrarSesionCliente /></div>
         </div>
       </header>
 
@@ -170,7 +170,7 @@ export default function Descubrimiento() {
           </div>
         </section>
 
-        <RestablecerDemo />
+        {process.env.NODE_ENV !== "production" && <RestablecerDemo />}
       </div>
     </main>
   );
