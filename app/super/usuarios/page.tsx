@@ -1,11 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { APP_ROLES, ROLE_LABELS, type AppRole } from "@/lib/auth/roles";
+import { APP_ROLES, ORGANIZATION_ROLE_LABELS, PRINCIPAL_ROLE_LABELS, ROLE_LABELS, type AppRole, type OrganizationRole, type PrincipalRole } from "@/lib/auth/roles";
 
 type RolAsignado = { role: AppRole; scope_type: string; scope_id?: string | null; scope_name?: string | null };
 type UsuarioAcceso = { user_id: string; email: string; full_name: string; status: string; roles: RolAsignado[] };
 type Alcance = { id: string; name: string; detail?: string };
+type OrganizationItem={id:string;name:string;contexts:PrincipalRole[];venues:Array<{id:string;name:string}>};
+type OrganizationAssignment={id:string;userId:string;organizationId:string;organizationName:string;context:PrincipalRole;role:OrganizationRole;venueId?:string|null;venueName?:string|null};
 
 export default function UsuariosRoles() {
   const [usuarios, setUsuarios] = useState<UsuarioAcceso[]>([]);
@@ -19,12 +21,21 @@ export default function UsuariosRoles() {
   const [eventos, setEventos] = useState<Alcance[]>([]);
   const [confirmarQuitar, setConfirmarQuitar] = useState<{ userId:string; userName:string; role:RolAsignado }>();
   const [quitando, setQuitando] = useState(false);
+  const [organizaciones,setOrganizaciones]=useState<OrganizationItem[]>([]);
+  const [asignacionesOrganizacion,setAsignacionesOrganizacion]=useState<OrganizationAssignment[]>([]);
+  const [organizacionId,setOrganizacionId]=useState("");
+  const [contextoOrganizacion,setContextoOrganizacion]=useState<PrincipalRole>("establishment");
+  const [rolOrganizacion,setRolOrganizacion]=useState<OrganizationRole>("member");
+  const [sedeId,setSedeId]=useState("");
+  const [confirmarQuitarOrganizacion,setConfirmarQuitarOrganizacion]=useState<OrganizationAssignment>();
 
-  function aplicarDirectorio(datos: { users?: UsuarioAcceso[]; venues?: Array<{id:string;name:string;city:string}>; events?: Array<{id:string;name:string;status:string}> }) {
+  const aplicarDirectorio=useCallback((datos: { users?: UsuarioAcceso[]; organizationAccess?:{organizations?:OrganizationItem[];assignments?:OrganizationAssignment[]}; venues?: Array<{id:string;name:string;city:string}>; events?: Array<{id:string;name:string;status:string}> })=>{
     setUsuarios(datos.users ?? []);
     setEstablecimientos((datos.venues ?? []).map((item) => ({ id: item.id, name: item.name, detail: item.city })));
     setEventos((datos.events ?? []).map((item) => ({ id: item.id, name: item.name, detail: item.status })));
-  }
+    setOrganizaciones(datos.organizationAccess?.organizations??[]);setAsignacionesOrganizacion(datos.organizationAccess?.assignments??[]);
+    if(datos.organizationAccess?.organizations?.[0])setOrganizacionId(current=>current||datos.organizationAccess!.organizations![0].id);
+  },[]);
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -33,7 +44,7 @@ export default function UsuariosRoles() {
     setCargando(false);
     if (!respuesta.ok) return setMensaje(datos.error ?? "No fue posible consultar usuarios.");
     aplicarDirectorio(datos); setMensaje("");
-  }, []);
+  }, [aplicarDirectorio]);
   useEffect(() => {
     let activo = true;
     fetch("/api/admin/access", { cache: "no-store" }).then(async (respuesta) => {
@@ -44,7 +55,7 @@ export default function UsuariosRoles() {
       else aplicarDirectorio(datos);
     });
     return () => { activo = false; };
-  }, []);
+  }, [aplicarDirectorio]);
 
   function cambiarRol(nuevo: AppRole) {
     setRol(nuevo);
@@ -70,6 +81,11 @@ export default function UsuariosRoles() {
     setConfirmarQuitar(undefined); setMensaje("Rol retirado correctamente."); await cargar();
   }
 
+  async function asignarOrganizacion(){if(!seleccionado||!organizacionId)return;setMensaje("Guardando acceso empresarial…");const response=await fetch("/api/organizations",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"set_member",organizationId:organizacionId,userId:seleccionado,context:contextoOrganizacion,role:rolOrganizacion,venueId:sedeId||undefined})});const body=await response.json();if(!response.ok)return setMensaje(body.error??"No fue posible asignar el acceso empresarial.");setMensaje("Acceso empresarial asignado.");await cargar()}
+  async function quitarOrganizacion(){if(!confirmarQuitarOrganizacion)return;setQuitando(true);setMensaje("Retirando acceso empresarial…");const response=await fetch("/api/organizations",{method:"DELETE",headers:{"Content-Type":"application/json"},body:JSON.stringify({organizationId:confirmarQuitarOrganizacion.organizationId,userId:confirmarQuitarOrganizacion.userId,context:confirmarQuitarOrganizacion.context,role:confirmarQuitarOrganizacion.role,venueId:confirmarQuitarOrganizacion.venueId})});const body=await response.json();setQuitando(false);if(!response.ok)return setMensaje(body.error==="LAST_OWNER_REQUIRED"?"No se puede retirar al último propietario de la organización.":body.error??"No fue posible retirar el acceso empresarial.");setConfirmarQuitarOrganizacion(undefined);setMensaje("Acceso empresarial retirado.");await cargar()}
+
+  const organizacion=organizaciones.find(item=>item.id===organizacionId);const contextos=(organizacion?.contexts??[]).filter(role=>["establishment","promoter","brand_distributor"].includes(role));const rolesDisponibles:OrganizationRole[]=contextoOrganizacion==="establishment"?["owner","admin","member","establishment_admin","bar","waiter","cashier"]:["owner","admin","member"];
+
   return <main className="flex-1 px-5 py-8 max-w-5xl mx-auto w-full space-y-6">
     <header><p className="text-xs uppercase tracking-wider text-neon2">Gobierno de acceso</p><h1 className="text-3xl font-bold">Usuarios y roles</h1><p className="text-sm text-muted mt-1">Administra responsabilidades y alcances sin salir del panel.</p></header>
     <section className="card p-5 space-y-4"><h2 className="font-bold">Asignar acceso</h2><div className="grid md:grid-cols-2 gap-3">
@@ -78,6 +94,7 @@ export default function UsuariosRoles() {
       <label className="text-xs text-muted">Alcance<input className="entrada" value={alcance} readOnly /></label>
       {!['platform','promoter','customer'].includes(alcance)&&<label className="text-xs text-muted">{alcance === 'venue' ? 'Establecimiento' : 'Evento'}<select className="entrada" value={scopeId} onChange={(e)=>setScopeId(e.target.value)}><option value="">Selecciona {alcance === 'venue' ? 'un establecimiento' : 'un evento'}</option>{(alcance === 'venue' ? establecimientos : eventos).map(item=><option key={item.id} value={item.id}>{item.name}{item.detail ? ` · ${item.detail}` : ''}</option>)}</select></label>}
     </div><button onClick={asignar} className="btn-neon rounded-full px-5 py-3 font-semibold">Asignar rol</button>{mensaje&&<p className="text-sm text-neon3">{mensaje}</p>}</section>
-    <section className="space-y-3"><h2 className="font-bold">Directorio</h2>{cargando?<p className="text-muted" role="status">Cargando…</p>:usuarios.map(u=><article key={u.user_id} className="card p-4"><div className="flex justify-between gap-3"><span><b>{u.full_name || "Sin nombre"}</b><span className="block text-xs text-muted">{u.email}</span></span><span className="text-xs text-muted">{u.status}</span></div><div className="flex flex-wrap gap-2 mt-3">{u.roles.map((r,i)=><button type="button" key={`${r.role}-${r.scope_id}-${i}`} onClick={()=>setConfirmarQuitar({userId:u.user_id,userName:u.full_name||u.email,role:r})} className="rounded-full border border-neon2/40 px-3 py-1 text-xs text-neon2 hover:border-danger/60 hover:text-danger" aria-label={`Quitar ${ROLE_LABELS[r.role]} a ${u.full_name||u.email}`}>{ROLE_LABELS[r.role]} · {r.scope_name || r.scope_type} <span aria-hidden="true">×</span></button>)}{!u.roles.length&&<span className="text-xs text-muted">Sin acceso asignado</span>}</div>{confirmarQuitar?.userId===u.user_id&&<div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-4"><p className="text-sm font-semibold">¿Retirar {ROLE_LABELS[confirmarQuitar.role.role]} de {confirmarQuitar.userName}?</p><p className="text-xs text-muted mt-1">Perderá el acceso a {confirmarQuitar.role.scope_name||confirmarQuitar.role.scope_type}. La acción quedará registrada en auditoría.</p><div className="flex gap-2 mt-3"><button type="button" disabled={quitando} onClick={()=>setConfirmarQuitar(undefined)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar</button><button type="button" disabled={quitando} onClick={()=>void quitar()} className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{quitando?"Retirando…":"Confirmar retiro"}</button></div></div>}</article>)}</section>
+    <section className="card p-5 space-y-4"><div><h2 className="font-bold">Asignar acceso empresarial</h2><p className="text-sm text-muted">Roles canónicos dentro de una organización y contexto.</p></div><div className="grid md:grid-cols-2 gap-3"><label className="text-xs text-muted">Organización<select className="entrada" value={organizacionId} onChange={e=>{const id=e.target.value;setOrganizacionId(id);const first=organizaciones.find(item=>item.id===id)?.contexts.find(role=>["establishment","promoter","brand_distributor"].includes(role));if(first)setContextoOrganizacion(first)}}>{organizaciones.map(item=><option key={item.id} value={item.id}>{item.name}</option>)}</select></label><label className="text-xs text-muted">Contexto<select className="entrada" value={contextoOrganizacion} onChange={e=>{setContextoOrganizacion(e.target.value as PrincipalRole);setRolOrganizacion("member");setSedeId("")}}>{contextos.map(role=><option key={role} value={role}>{PRINCIPAL_ROLE_LABELS[role]}</option>)}</select></label><label className="text-xs text-muted">Responsabilidad<select className="entrada" value={rolOrganizacion} onChange={e=>setRolOrganizacion(e.target.value as OrganizationRole)}>{rolesDisponibles.map(role=><option key={role} value={role}>{ORGANIZATION_ROLE_LABELS[role]}</option>)}</select></label>{contextoOrganizacion==="establishment"&&<label className="text-xs text-muted">Sede opcional<select className="entrada" value={sedeId} onChange={e=>setSedeId(e.target.value)}><option value="">Toda la organización</option>{organizacion?.venues.map(venue=><option key={venue.id} value={venue.id}>{venue.name}</option>)}</select></label>}</div><button type="button" disabled={!seleccionado||!organizacionId} onClick={()=>void asignarOrganizacion()} className="rounded-full border border-neon3/40 px-5 py-3 font-semibold text-neon3 disabled:opacity-40">Asignar acceso empresarial</button></section>
+    <section className="space-y-3"><h2 className="font-bold">Directorio</h2>{cargando?<p className="text-muted" role="status">Cargando…</p>:usuarios.map(u=>{const canonical=asignacionesOrganizacion.filter(item=>item.userId===u.user_id);return <article key={u.user_id} className="card p-4"><div className="flex justify-between gap-3"><span><b>{u.full_name || "Sin nombre"}</b><span className="block text-xs text-muted">{u.email}</span></span><span className="text-xs text-muted">{u.status}</span></div><div className="flex flex-wrap gap-2 mt-3">{u.roles.map((r,i)=><button type="button" key={`${r.role}-${r.scope_id}-${i}`} onClick={()=>setConfirmarQuitar({userId:u.user_id,userName:u.full_name||u.email,role:r})} className="rounded-full border border-neon2/40 px-3 py-1 text-xs text-neon2 hover:border-danger/60 hover:text-danger" aria-label={`Quitar ${ROLE_LABELS[r.role]} a ${u.full_name||u.email}`}>{ROLE_LABELS[r.role]} · {r.scope_name || r.scope_type} <span aria-hidden="true">×</span></button>)}{canonical.map(r=><button type="button" key={r.id} onClick={()=>setConfirmarQuitarOrganizacion(r)} className="rounded-full border border-neon3/40 px-3 py-1 text-xs text-neon3 hover:border-danger/60 hover:text-danger">{ORGANIZATION_ROLE_LABELS[r.role]} · {r.organizationName}{r.venueName?` / ${r.venueName}`:""} <span aria-hidden="true">×</span></button>)}{!u.roles.length&&!canonical.length&&<span className="text-xs text-muted">Sin acceso asignado</span>}</div>{confirmarQuitar?.userId===u.user_id&&<div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-4"><p className="text-sm font-semibold">¿Retirar {ROLE_LABELS[confirmarQuitar.role.role]} de {confirmarQuitar.userName}?</p><p className="text-xs text-muted mt-1">Perderá el acceso a {confirmarQuitar.role.scope_name||confirmarQuitar.role.scope_type}. La acción quedará registrada en auditoría.</p><div className="flex gap-2 mt-3"><button type="button" disabled={quitando} onClick={()=>setConfirmarQuitar(undefined)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar</button><button type="button" disabled={quitando} onClick={()=>void quitar()} className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{quitando?"Retirando…":"Confirmar retiro"}</button></div></div>}{confirmarQuitarOrganizacion?.userId===u.user_id&&<div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-4"><p className="text-sm font-semibold">¿Retirar {ORGANIZATION_ROLE_LABELS[confirmarQuitarOrganizacion.role]} de {u.full_name||u.email}?</p><p className="text-xs text-muted mt-1">Organización: {confirmarQuitarOrganizacion.organizationName}. Si era su último rol, la membresía quedará suspendida.</p><div className="flex gap-2 mt-3"><button type="button" disabled={quitando} onClick={()=>setConfirmarQuitarOrganizacion(undefined)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar</button><button type="button" disabled={quitando} onClick={()=>void quitarOrganizacion()} className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{quitando?"Retirando…":"Confirmar retiro"}</button></div></div>}</article>})}</section>
   </main>;
 }

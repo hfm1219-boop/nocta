@@ -28,3 +28,11 @@ export async function POST(request: NextRequest) {
   else return NextResponse.json({ error: "Operación inválida" }, { status: 400 });
   return result.error ? NextResponse.json({ error: result.error.message }, { status: 403 }) : NextResponse.json({ data: result.data }, { status: 201 });
 }
+
+export async function DELETE(request:NextRequest){
+  const context=await client();if(context.error)return context.error;
+  const body=await request.json() as{organizationId?:string;userId?:string;context?:string;role?:string;venueId?:string};
+  if(!body.organizationId||!body.userId||!body.context||!PRINCIPAL_ROLES.includes(body.context as never)||!body.role||!ORGANIZATION_ROLES.includes(body.role as never))return NextResponse.json({error:"Retiro inválido"},{status:400});
+  const{error}=await context.supabase!.rpc("remove_organization_member_access",{target_organization:body.organizationId,target_user:body.userId,target_context:body.context,target_role:body.role,target_venue:body.venueId||null});
+  return error?NextResponse.json({error:error.message},{status:403}):NextResponse.json({ok:true});
+}
