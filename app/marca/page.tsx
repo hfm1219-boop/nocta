@@ -1,2 +1,1 @@
-import { PlannedSection } from "@/components/planned-section";
-export default function BrandHome() { return <PlannedSection section="inicio" context="Marca / Distribuidor"/>; }
+import {BrandConsole} from "./brand-console";export default function BrandHome(){return <BrandConsole/>}

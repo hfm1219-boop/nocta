@@ -22,16 +22,20 @@ export function routeForContext(context: AccessContext | null | undefined) {
     case "nocta_admin": return "/super";
     case "establishment": return "/admin";
     case "promoter": return "/promotor";
-    case "brand_distributor": return "/";
+    case "brand_distributor": return "/marca";
     default: return "/";
   }
+}
+
+export function safeNextPath(value: string | null | undefined) {
+  return value?.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : null;
 }
 
 export function availableContexts(context: AccessContext) {
   const available: Array<{ organizationId: string | null; organizationName: string | null; role: PrincipalRole }> = [];
   if (context.globalRoles.includes("consumer")) available.push({ organizationId: null, organizationName: null, role: "consumer" });
   if (context.globalRoles.includes("nocta_admin")) available.push({ organizationId: null, organizationName: "NOCTA", role: "nocta_admin" });
-  for (const organization of context.organizations) for (const role of organization.contexts) {
+  for (const organization of context.organizations.filter((item) => item.membershipStatus === "active")) for (const role of organization.contexts) {
     if (["establishment", "promoter", "brand_distributor"].includes(role)) available.push({ organizationId: organization.id, organizationName: organization.name, role });
   }
   return available;

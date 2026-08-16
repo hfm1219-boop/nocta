@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
-import { routeForContext, type AccessContext } from "@/lib/auth/context";
+import { routeForContext, safeNextPath, type AccessContext } from "@/lib/auth/context";
 
 export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
       const { data } = await supabase.auth.getUser();
       const { data: access } = await supabase.rpc("get_my_access_context");
       const destinoCuenta = access ? routeForContext(access as AccessContext) : data.user?.user_metadata?.account_type === "promoter" ? "/promotor" : "/";
-      return NextResponse.redirect(new URL(next?.startsWith("/") ? next : destinoCuenta, request.url));
+      return NextResponse.redirect(new URL(safeNextPath(next) ?? destinoCuenta, request.url));
     }
   }
   return NextResponse.redirect(new URL("/login?error=callback", request.url));

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { rolesParaRuta } from "@/lib/auth/roles";
+import { routeForContext, type AccessContext } from "@/lib/auth/context";
 import { variablesSupabase } from "@/lib/supabase/config";
 
 export async function proxy(request: NextRequest) {
@@ -37,6 +38,19 @@ export async function proxy(request: NextRequest) {
       destino.pathname = "/sin-acceso";
       destino.search = "";
       return NextResponse.redirect(destino);
+    }
+  }
+  const expectedContext = request.nextUrl.pathname.startsWith("/super") ? "nocta_admin"
+    : request.nextUrl.pathname.startsWith("/admin") || ["/barra","/mesero","/dj"].some(prefix => request.nextUrl.pathname === prefix || request.nextUrl.pathname.startsWith(`${prefix}/`)) ? "establishment"
+    : request.nextUrl.pathname.startsWith("/promotor") ? "promoter"
+    : request.nextUrl.pathname.startsWith("/marca") ? "brand_distributor" : null;
+  if (expectedContext) {
+    const { data: access, error } = await supabase.rpc("get_my_access_context");
+    if (error || (access as AccessContext | null)?.activeContext?.role !== expectedContext) {
+      const destination = request.nextUrl.clone();
+      destination.pathname = routeForContext(access as AccessContext | null);
+      destination.search = "";
+      return NextResponse.redirect(destination);
     }
   }
   return response;
