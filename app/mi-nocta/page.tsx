@@ -2,9 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { CerrarSesion } from "@/components/cerrar-sesion";
 import { QRAcceso } from "@/components/qr-acceso";
-import { Logo } from "@/components/ui";
 
 type Balance = { available: number; pending: number; total: number; redeemed: number };
 type Tx = { id: string; points: number; status: string; concept: string; created_at: string };
@@ -65,7 +63,7 @@ export default function MiNocta() {
   const activeRedemptions = data.redemptions.filter((item) => item.status === "requested");
 
   return <main className="flex-1 px-5 py-8 max-w-6xl mx-auto w-full space-y-8">
-    <header className="flex justify-between gap-3"><div><Logo size="text-3xl"/><p className="text-xs uppercase tracking-[.2em] text-neon3 mt-2">Mi membresía</p></div><div className="flex gap-3 items-center"><Link href="/" className="text-sm text-muted">← Explorar</Link><CerrarSesion/></div></header>
+    <header><Link href="/mis-planes" className="inline-flex items-center gap-2 text-sm text-muted hover:text-foreground">← Volver a Mis planes</Link><p className="text-xs uppercase tracking-[.2em] text-neon3 mt-7">Mi membresía</p><h1 className="text-3xl md:text-5xl font-bold mt-2">Mi NOCTA</h1><p className="text-muted mt-2">Tus puntos, misiones, beneficios y actividad en un solo lugar.</p></header>
     <section className="card p-6 overflow-hidden relative"><div className="absolute -right-16 -top-20 h-52 w-52 rounded-full bg-neon1/10 blur-3xl"/><div className="relative"><div className="flex items-end justify-between gap-4"><div><p className="text-xs uppercase tracking-[.2em] text-neon2">Nivel {level.name}</p><h1 className="text-4xl font-black mt-2">{data.balance.available.toLocaleString("es-CO")} <span className="text-base text-muted font-medium">puntos</span></h1></div><p className="text-xs text-muted text-right">{level.name === "Black" ? "Nivel máximo" : `${Math.max(0, level.next - data.balance.total)} para el siguiente nivel`}</p></div><div className="h-2 bg-surface2 rounded-full mt-5"><div className="h-full bg-gradient-to-r from-neon1 to-neon2 rounded-full" style={{ width: `${progress}%` }}/></div><div className="grid grid-cols-3 gap-3 mt-5"><Kpi t="Por confirmar" v={data.balance.pending}/><Kpi t="Histórico" v={data.balance.total}/><Kpi t="Usados" v={data.balance.redeemed}/></div></div></section>
     {error && <p role="alert" className="rounded-xl border border-danger/40 bg-danger/10 p-3 text-danger">{error}</p>}
     {notice && <p role="status" className="rounded-xl border border-lime/40 bg-lime/10 p-3 text-lime">{notice}</p>}
