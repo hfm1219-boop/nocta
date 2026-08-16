@@ -12,7 +12,7 @@ export default function MisEntradas() {
   const planes = useEventosPromotor();
   return (
     <main className="flex-1 px-5 py-8 max-w-lg mx-auto w-full space-y-6">
-      <header className="flex items-center justify-between gap-3"><Logo size="text-3xl" /><div className="flex items-center gap-3"><Link href="/" className="text-sm text-muted">← Explorar</Link><CerrarSesion /></div></header>
+      <header className="flex items-center justify-between gap-3"><Logo size="text-3xl" /><div className="flex items-center gap-3"><Link href="/mis-planes" className="text-sm text-muted">← Mis planes</Link><CerrarSesion /></div></header>
       <nav className="grid grid-cols-3 gap-2"><span className="chip-active rounded-xl border p-3 text-center font-semibold">Entradas</span><Link href="/mis-reservas" className="card p-3 text-center text-muted">Reservas</Link><Link href="/mi-nocta" className="card p-3 text-center text-muted">Puntos</Link></nav>
       <div><h1 className="text-3xl font-bold">Mis entradas</h1><p className="text-muted mt-1">Tus accesos disponibles y utilizados.</p></div>
       <section className="space-y-3">
@@ -27,7 +27,7 @@ export default function MisEntradas() {
             </Link>
           );
         })}
-        {!entradas.length && <div className="card p-10 text-center text-muted">Todavía no tienes entradas.</div>}
+        {!entradas.length && <div className="card p-10 text-center"><p className="text-muted">Todavía no tienes entradas.</p><Link href="/eventos" className="inline-block text-neon3 mt-4">Ver eventos →</Link></div>}
       </section>
     </main>
   );

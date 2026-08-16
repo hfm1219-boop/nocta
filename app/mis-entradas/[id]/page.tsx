@@ -19,7 +19,7 @@ export default function DetalleEntrada() {
   const lugar = evento ? lugarPorId(evento.lugarId) : undefined;
   return (
     <main className="flex-1 px-5 py-8 max-w-md mx-auto w-full space-y-6">
-      <Link href="/mis-entradas" className="text-sm text-muted">← Mis entradas</Link>
+      <div className="flex justify-between gap-3"><Link href="/mis-planes" className="text-sm text-muted">← Mis planes</Link><Link href="/mis-entradas" className="text-sm text-neon3">Todas las entradas</Link></div>
       <section className="card p-6 text-center space-y-5">
         <div><p className="text-neon3 text-sm">{lugar?.nombre ?? plan?.lugarNombre}</p><h1 className="text-3xl font-bold mt-1">{evento?.nombre ?? plan?.nombre}</h1>{(evento || plan) && <p className="text-sm text-muted capitalize mt-2">{formatearFecha((evento ?? plan)!.fechaISO, true)}</p>}</div>
         {entrada.estado === "valida" && <QREntrada codigo={entrada.codigo} />}
