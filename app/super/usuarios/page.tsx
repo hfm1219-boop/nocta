@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { APP_ROLES, ROLE_LABELS, type AppRole } from "@/lib/auth/roles";
 
@@ -61,7 +60,7 @@ export default function UsuariosRoles() {
   }
 
   return <main className="flex-1 px-5 py-8 max-w-5xl mx-auto w-full space-y-6">
-    <header className="flex items-center justify-between gap-3"><div><p className="text-xs uppercase tracking-wider text-neon2">Gobierno de acceso</p><h1 className="text-3xl font-bold">Usuarios y roles</h1></div><Link href="/super" className="text-sm text-muted">← Operador</Link></header>
+    <header><p className="text-xs uppercase tracking-wider text-neon2">Gobierno de acceso</p><h1 className="text-3xl font-bold">Usuarios y roles</h1><p className="text-sm text-muted mt-1">Administra responsabilidades y alcances sin salir del panel.</p></header>
     <section className="card p-5 space-y-4"><h2 className="font-bold">Asignar acceso</h2><div className="grid md:grid-cols-2 gap-3">
       <label className="text-xs text-muted">Usuario<select className="entrada" value={seleccionado} onChange={(e)=>setSeleccionado(e.target.value)}><option value="">Selecciona un usuario</option>{usuarios.map(u=><option key={u.user_id} value={u.user_id}>{u.full_name || u.email} · {u.email}</option>)}</select></label>
       <label className="text-xs text-muted">Rol<select className="entrada" value={rol} onChange={(e)=>cambiarRol(e.target.value as AppRole)}>{APP_ROLES.filter(r=>r!=="platform_owner").map(r=><option key={r} value={r}>{ROLE_LABELS[r]}</option>)}</select></label>

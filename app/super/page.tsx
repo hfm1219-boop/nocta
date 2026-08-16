@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { afiliarLocal, cop, idLocalActivo, seleccionarLocal, useDB, useLocalesAfiliados } from "@/lib/store";
 import { EncabezadoStaff } from "@/components/ui";
-import Link from "next/link";
-import { CerrarSesion } from "@/components/cerrar-sesion";
 
 const ESTADO_RECAUDO = {
   activo: { texto: "Recaudo activo", clase: "text-lime border-lime/40" },
@@ -49,7 +47,6 @@ export default function Superadmin() {
       <EncabezadoStaff
         titulo="Superadmin — operador"
         subtitulo="Multi-tenant: un despliegue, N locales, datos aislados"
-        extra={<CerrarSesion />}
       />
       <main className="flex-1 p-4 max-w-5xl w-full mx-auto space-y-5">
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
@@ -62,12 +59,12 @@ export default function Superadmin() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="font-bold text-lg">Locales</h2>
-            <div className="flex flex-wrap gap-2"><Link href="/super/fidelidad" className="rounded-full border border-neon3/50 px-4 py-2 text-sm font-semibold text-neon3">Fidelización</Link><Link href="/super/integridad" className="rounded-full border border-lime/50 px-4 py-2 text-sm font-semibold text-lime">Integridad</Link><Link href="/super/usuarios" className="rounded-full border border-neon2/50 px-4 py-2 text-sm font-semibold text-neon2">Usuarios y roles</Link><button
+            <button
               onClick={() => setAltaAbierta(true)}
               className="btn-neon rounded-full px-5 py-2 text-sm font-semibold text-white"
             >
               + Agregar local
-            </button></div>
+            </button>
           </div>
 
           {locales.map((l) => (
