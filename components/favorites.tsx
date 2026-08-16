@@ -39,14 +39,17 @@ export function FavoritesProvider({ children }: { children: React.ReactNode }) {
     setError("");
     const next = !favorites.some((item) => item.entity_type === type && item.entity_key === key);
     setPending((current) => new Set(current).add(id));
+    setFavorites((current) => next
+      ? current.some((item) => item.entity_type === type && item.entity_key === key) ? current : [...current, { entity_type: type, entity_key: key }]
+      : current.filter((item) => item.entity_type !== type || item.entity_key !== key));
     try {
       const response = await fetch("/api/discovery", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ entityType: type, entityKey: key, favorite: next }) });
-      if (response.status === 401) { router.push(`/login?next=${encodeURIComponent(pathname)}`); return; }
+      if (response.status === 401) { setFavorites((current) => next ? current.filter((item) => item.entity_type !== type || item.entity_key !== key) : [...current, { entity_type: type, entity_key: key }]); router.push(`/login?next=${encodeURIComponent(pathname)}`); return; }
       if (!response.ok) { const body=await response.json().catch(()=>({})) as {error?:string};throw new Error(body.error??"No fue posible actualizar el favorito"); }
-      setFavorites((current) => next
-        ? current.some((item) => item.entity_type === type && item.entity_key === key) ? current : [...current, { entity_type: type, entity_key: key }]
-        : current.filter((item) => item.entity_type !== type || item.entity_key !== key));
     } catch (reason) {
+      setFavorites((current) => next
+        ? current.filter((item) => item.entity_type !== type || item.entity_key !== key)
+        : current.some((item) => item.entity_type === type && item.entity_key === key) ? current : [...current, { entity_type: type, entity_key: key }]);
       setError(reason instanceof Error ? reason.message : "No fue posible actualizar el favorito");
     } finally {
       setPending((current) => { const copy = new Set(current); copy.delete(id); return copy; });
@@ -73,6 +76,7 @@ export function FavoriteButton({ type, entityKey, className = "" }: { type: Favo
     aria-pressed={active}
     disabled={loading}
     onClick={(event) => { event.preventDefault(); event.stopPropagation(); void toggle(type, entityKey); }}
-    className={`rounded-full min-h-10 min-w-10 grid place-items-center text-xl transition ${active ? "text-neon1 bg-neon1/10" : "text-muted bg-background/60 hover:text-neon1"} disabled:opacity-50 ${className}`}
+    title={active ? "Guardado en Mis favoritos" : "Agregar a Mis favoritos"}
+    className={`rounded-full min-h-10 min-w-10 grid place-items-center text-xl border transition-all duration-200 ${active ? "text-white bg-neon1 border-neon1 shadow-[0_0_18px_rgba(255,45,135,.55)] scale-105" : "text-muted bg-background/80 border-line hover:text-neon1 hover:border-neon1/60"} disabled:opacity-50 ${className}`}
   >{active ? "♥" : "♡"}</button>;
 }
