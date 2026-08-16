@@ -70,7 +70,7 @@ export const ROLE_LABELS: Record<AppRole, string> = {
   waiter: "Mesero",
   dj: "DJ",
   analyst: "Analista",
-  customer: "Cliente",
+  customer: "Consumidor",
 };
 
 export function rolesParaRuta(pathname: string) {

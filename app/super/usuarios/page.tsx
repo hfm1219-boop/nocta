@@ -69,7 +69,7 @@ export default function UsuariosRoles() {
     const respuesta = await fetch("/api/admin/access/assign", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: seleccionado, role: rol, scopeType: alcance, scopeId }) });
     const datos = await respuesta.json();
     if (!respuesta.ok) return setMensaje(datos.error ?? "No fue posible asignar el rol.");
-    setMensaje("Rol asignado correctamente."); await cargar();
+    setMensaje(rol === "customer" ? "Rol consumidor asignado y activado correctamente." : "Rol asignado correctamente."); await cargar();
   }
 
   async function quitar() {
