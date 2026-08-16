@@ -9,6 +9,7 @@ export async function POST(request: NextRequest) {
   if (!claims?.claims) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
   const body = await request.json() as { userId?: string; role?: string; scopeType?: string; scopeId?: string; displayName?: string };
   if (!body.userId || !body.role || !APP_ROLES.includes(body.role as never)) return NextResponse.json({ error: "Asignación inválida" }, { status: 400 });
+  if (["promoter","venue_owner","venue_admin","cashier","bartender","waiter"].includes(body.role)) return NextResponse.json({ error: "Este rol debe asignarse como acceso empresarial" }, { status: 409 });
   const { error } = await supabase.rpc("set_user_access", {
     target_user_id: body.userId,
     target_role: body.role,

@@ -15,6 +15,7 @@ function FormularioLogin() {
   const params = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [fullName, setFullName] = useState("");
   const [mensaje, setMensaje] = useState("");
   const [cargando, setCargando] = useState(false);
   const [recuperando, setRecuperando] = useState(false);
@@ -38,7 +39,7 @@ function FormularioLogin() {
     }
     setCargando(true);
     const { data, error } = registro
-      ? await supabase.auth.signUp({ email, password, options: { data: { account_type: tipoCuenta } } })
+      ? await supabase.auth.signUp({ email, password, options: { data: { account_type: tipoCuenta, full_name: fullName.trim() } } })
       : await supabase.auth.signInWithPassword({ email, password });
     setCargando(false);
     if (error) return setMensaje(registro ? mensajeRegistro(error.code, error.message) : "No fue posible iniciar sesión. Revisa tus credenciales.");
@@ -70,7 +71,8 @@ function FormularioLogin() {
     <section className="card p-6 space-y-6">
       <header><Logo size="text-3xl" /><p className="text-xs uppercase tracking-wider text-neon2 mt-2">Identidad NOCTA</p><h1 className="text-2xl font-bold mt-1">{registro ? "Crea tu cuenta" : "Ingresa a tu cuenta"}</h1></header>
       <form onSubmit={ingresar} className="space-y-4">
-        {registro&&<label className="block text-sm"><span className="text-muted text-xs">Tipo de cuenta</span><select value={tipoCuenta} onChange={e=>setTipoCuenta(e.target.value as "customer"|"promoter")} className="entrada"><option value="customer">Asistente / consumidor</option><option value="promoter">Promotor independiente</option></select></label>}
+        {registro&&<label className="block text-sm"><span className="text-muted text-xs">Tipo de cuenta</span><select value={tipoCuenta} onChange={e=>setTipoCuenta(e.target.value as "customer"|"promoter")} className="entrada"><option value="customer">Asistente / consumidor</option><option value="promoter">Promotor / organizador</option></select>{tipoCuenta==="promoter"&&<span className="block mt-1 text-[11px] text-muted">Crearemos tu organización promotora. También podrás usar NOCTA como consumidor.</span>}</label>}
+        {registro&&<label className="block text-sm"><span className="text-muted text-xs">Nombre completo</span><input required minLength={2} maxLength={100} value={fullName} onChange={(e)=>setFullName(e.target.value)} className="entrada" autoComplete="name" /></label>}
         <label className="block text-sm"><span className="text-muted text-xs">Correo</span><input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="entrada" autoComplete="email" /></label>
         <label className="block text-sm"><span className="text-muted text-xs">Contraseña {registro && "(mínimo 6 caracteres)"}</span><input type="password" required minLength={registro ? 6 : undefined} value={password} onChange={(e) => setPassword(e.target.value)} className="entrada" autoComplete={registro ? "new-password" : "current-password"} /></label>
         {mensaje && <p className="text-sm text-neon3" role="alert">{mensaje}</p>}
