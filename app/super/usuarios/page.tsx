@@ -17,6 +17,8 @@ export default function UsuariosRoles() {
   const [scopeId, setScopeId] = useState("");
   const [establecimientos, setEstablecimientos] = useState<Alcance[]>([]);
   const [eventos, setEventos] = useState<Alcance[]>([]);
+  const [confirmarQuitar, setConfirmarQuitar] = useState<{ userId:string; userName:string; role:RolAsignado }>();
+  const [quitando, setQuitando] = useState(false);
 
   function aplicarDirectorio(datos: { users?: UsuarioAcceso[]; venues?: Array<{id:string;name:string;city:string}>; events?: Array<{id:string;name:string;status:string}> }) {
     setUsuarios(datos.users ?? []);
@@ -59,6 +61,15 @@ export default function UsuariosRoles() {
     setMensaje("Rol asignado correctamente."); await cargar();
   }
 
+  async function quitar() {
+    if (!confirmarQuitar) return;
+    setQuitando(true); setMensaje("Retirando acceso…");
+    const respuesta = await fetch("/api/admin/access/assign", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: confirmarQuitar.userId, role: confirmarQuitar.role.role, scopeType: confirmarQuitar.role.scope_type, scopeId: confirmarQuitar.role.scope_id }) });
+    const datos = await respuesta.json(); setQuitando(false);
+    if (!respuesta.ok) return setMensaje(datos.error ?? "No fue posible retirar el rol.");
+    setConfirmarQuitar(undefined); setMensaje("Rol retirado correctamente."); await cargar();
+  }
+
   return <main className="flex-1 px-5 py-8 max-w-5xl mx-auto w-full space-y-6">
     <header><p className="text-xs uppercase tracking-wider text-neon2">Gobierno de acceso</p><h1 className="text-3xl font-bold">Usuarios y roles</h1><p className="text-sm text-muted mt-1">Administra responsabilidades y alcances sin salir del panel.</p></header>
     <section className="card p-5 space-y-4"><h2 className="font-bold">Asignar acceso</h2><div className="grid md:grid-cols-2 gap-3">
@@ -67,6 +78,6 @@ export default function UsuariosRoles() {
       <label className="text-xs text-muted">Alcance<input className="entrada" value={alcance} readOnly /></label>
       {!['platform','promoter','customer'].includes(alcance)&&<label className="text-xs text-muted">{alcance === 'venue' ? 'Establecimiento' : 'Evento'}<select className="entrada" value={scopeId} onChange={(e)=>setScopeId(e.target.value)}><option value="">Selecciona {alcance === 'venue' ? 'un establecimiento' : 'un evento'}</option>{(alcance === 'venue' ? establecimientos : eventos).map(item=><option key={item.id} value={item.id}>{item.name}{item.detail ? ` · ${item.detail}` : ''}</option>)}</select></label>}
     </div><button onClick={asignar} className="btn-neon rounded-full px-5 py-3 font-semibold">Asignar rol</button>{mensaje&&<p className="text-sm text-neon3">{mensaje}</p>}</section>
-    <section className="space-y-3"><h2 className="font-bold">Directorio</h2>{cargando?<p className="text-muted">Cargando…</p>:usuarios.map(u=><article key={u.user_id} className="card p-4"><div className="flex justify-between gap-3"><span><b>{u.full_name || "Sin nombre"}</b><span className="block text-xs text-muted">{u.email}</span></span><span className="text-xs text-muted">{u.status}</span></div><div className="flex flex-wrap gap-2 mt-3">{u.roles.map((r,i)=><span key={`${r.role}-${r.scope_id}-${i}`} className="rounded-full border border-neon2/40 px-3 py-1 text-xs text-neon2">{ROLE_LABELS[r.role]} · {r.scope_name || r.scope_type}</span>)}{!u.roles.length&&<span className="text-xs text-muted">Sin acceso asignado</span>}</div></article>)}</section>
+    <section className="space-y-3"><h2 className="font-bold">Directorio</h2>{cargando?<p className="text-muted" role="status">Cargando…</p>:usuarios.map(u=><article key={u.user_id} className="card p-4"><div className="flex justify-between gap-3"><span><b>{u.full_name || "Sin nombre"}</b><span className="block text-xs text-muted">{u.email}</span></span><span className="text-xs text-muted">{u.status}</span></div><div className="flex flex-wrap gap-2 mt-3">{u.roles.map((r,i)=><button type="button" key={`${r.role}-${r.scope_id}-${i}`} onClick={()=>setConfirmarQuitar({userId:u.user_id,userName:u.full_name||u.email,role:r})} className="rounded-full border border-neon2/40 px-3 py-1 text-xs text-neon2 hover:border-danger/60 hover:text-danger" aria-label={`Quitar ${ROLE_LABELS[r.role]} a ${u.full_name||u.email}`}>{ROLE_LABELS[r.role]} · {r.scope_name || r.scope_type} <span aria-hidden="true">×</span></button>)}{!u.roles.length&&<span className="text-xs text-muted">Sin acceso asignado</span>}</div>{confirmarQuitar?.userId===u.user_id&&<div className="mt-4 rounded-xl border border-danger/40 bg-danger/10 p-4"><p className="text-sm font-semibold">¿Retirar {ROLE_LABELS[confirmarQuitar.role.role]} de {confirmarQuitar.userName}?</p><p className="text-xs text-muted mt-1">Perderá el acceso a {confirmarQuitar.role.scope_name||confirmarQuitar.role.scope_type}. La acción quedará registrada en auditoría.</p><div className="flex gap-2 mt-3"><button type="button" disabled={quitando} onClick={()=>setConfirmarQuitar(undefined)} className="rounded-xl border border-line px-4 py-2 text-sm">Cancelar</button><button type="button" disabled={quitando} onClick={()=>void quitar()} className="rounded-xl bg-danger px-4 py-2 text-sm font-bold text-white disabled:opacity-50">{quitando?"Retirando…":"Confirmar retiro"}</button></div></div>}</article>)}</section>
   </main>;
 }
