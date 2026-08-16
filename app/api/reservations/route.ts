@@ -26,6 +26,7 @@ export async function PATCH(request:NextRequest){
   const supabase=await crearClienteSupabaseServidor();if(!supabase)return NextResponse.json({error:"Supabase no configurado"},{status:503});
   const {data:claims}=await supabase.auth.getClaims();if(!claims?.claims?.sub)return NextResponse.json({error:"No autenticado"},{status:401});
   const body=await request.json() as {id?:string;status?:"confirmed"|"cancelled"|"completed"};if(!body.id||!body.status)return NextResponse.json({error:"Actualización inválida"},{status:400});
+  const{data:reservation}=await supabase.from("reservations").select("customer_user_id,venue_id").eq("id",body.id).maybeSingle();if(!reservation)return NextResponse.json({error:"Reserva no encontrada"},{status:404});const own=reservation.customer_user_id===claims.claims.sub;if(body.status==="cancelled"&&own){const{data,error}=await supabase.rpc("cancel_own_reservation",{reservation_id:body.id});if(error)return NextResponse.json({error:error.message},{status:403});return data?NextResponse.json({ok:true}):NextResponse.json({error:"La reserva ya no puede cancelarse"},{status:409});}const{data:operator}=await supabase.rpc("can_operate_venue",{target_venue:reservation.venue_id});if(!operator)return NextResponse.json({error:"No tienes permiso para cambiar este estado"},{status:403});
   const {error}=await supabase.from("reservations").update({status:body.status,updated_at:new Date().toISOString()}).eq("id",body.id);
   if(error)return NextResponse.json({error:error.message},{status:403});return NextResponse.json({ok:true});
 }

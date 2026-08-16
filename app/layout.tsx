@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ConsumerNav } from "@/components/consumer-nav";
+import { FavoritesProvider } from "@/components/favorites";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -33,7 +34,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="es"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}<ConsumerNav/></body>
+      <body className="min-h-full flex flex-col"><FavoritesProvider>{children}<ConsumerNav/></FavoritesProvider></body>
     </html>
   );
 }

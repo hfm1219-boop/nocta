@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EntrarLugar, PreordenarEvento } from "@/components/entrar-lugar";
 import { Logo } from "@/components/ui";
+import { FavoriteButton } from "@/components/favorites";
 import { EVENTOS, formatearFecha, LUGARES, lugarPorId } from "@/lib/discovery";
 
 export function generateStaticParams() {
@@ -28,6 +29,7 @@ export default async function LugarPage({ params }: PageProps<"/lugares/[id]">) 
           className="min-h-64 p-6 md:p-10 flex items-end relative overflow-hidden"
           style={{ background: `radial-gradient(circle at 80% 15%, ${lugar.color}99, transparent 42%), linear-gradient(145deg, ${lugar.color}44, #100e1c 75%)` }}
         >
+          <FavoriteButton type="venue" entityKey={lugar.id} className="absolute right-5 top-5 z-10" />
           <div className="absolute right-6 top-5 text-9xl opacity-20">{lugar.icono}</div>
           <div className="relative">
             <span className="rounded-full bg-black/30 px-3 py-1 text-xs capitalize">{lugar.categoria} · {lugar.rangoPrecio}</span>

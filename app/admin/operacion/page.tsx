@@ -958,7 +958,7 @@ function Zonas({ db }: { db: DB }) {
             )}
           </div>
           {z.tipo === "zona" && (
-            <button className="text-xs text-neon3 border border-line rounded-full px-3 py-1.5">
+            <button onClick={() => window.print()} className="text-xs text-neon3 border border-line rounded-full px-3 py-1.5">
               🖨 Imprimir QR
             </button>
           )}

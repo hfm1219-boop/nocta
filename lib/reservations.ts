@@ -58,15 +58,14 @@ export function crearReserva(datos: { eventoId: string; tipoId: TipoReserva; per
   guardar([...actuales, reserva]); return reserva;
 }
 
-export function actualizarEstadoReserva(id: string, estado: EstadoReserva) {
+export async function actualizarEstadoReserva(id: string, estado: EstadoReserva) {
   const reservas = parsear(snapshot()); const indice = reservas.findIndex((r) => r.id === id); if (indice < 0) return false;
   const actual = reservas[indice]; const transiciones: Record<EstadoReserva, EstadoReserva[]> = {
     pendiente: ["confirmada", "rechazada", "cancelada"], confirmada: ["cancelada", "usada"], rechazada: [], cancelada: [], usada: [],
   };
   if (!transiciones[actual.estado].includes(estado)) return false;
-  reservas[indice] = { ...actual, estado, actualizadaEn: Date.now() }; guardar(reservas);
   const remoto:Partial<Record<EstadoReserva,"confirmed"|"cancelled"|"completed">>={confirmada:"confirmed",rechazada:"cancelled",cancelada:"cancelled",usada:"completed"};
-  if(remoto[estado])void fetch("/api/reservations",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status:remoto[estado]})}).catch(()=>undefined);
+  if(remoto[estado]){const response=await fetch("/api/reservations",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,status:remoto[estado]})});if(!response.ok)return false;}reservas[indice] = { ...actual, estado, actualizadaEn: Date.now() }; guardar(reservas);
   return true;
 }
 

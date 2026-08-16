@@ -28,10 +28,12 @@ export default function EstadoPedido() {
   const [luzAbierta, setLuzAbierta] = useState(false);
   const [cambiandoZona, setCambiandoZona] = useState(false);
   const [zonaConfirmada, setZonaConfirmada] = useState(false);
+  const [estadoRecibo, setEstadoRecibo] = useState("");
 
   if (!db) return null;
   const p = db.pedidos.find((x) => x.id === id);
   if (!p) return <p className="p-8 text-muted">Pedido no encontrado.</p>;
+  const pedido = p;
 
   const paso = pasoActual(p.estado);
   const terminal = ["vencido", "anulado"].includes(p.estado);
@@ -40,6 +42,26 @@ export default function EstadoPedido() {
   const zonasDisponibles = db.zonas.filter(
     (zona) => zona.tipo === "zona" && zona.entregable,
   );
+
+  async function compartirRecibo() {
+    const detalle = pedido.items
+      .map((item) => `${item.cantidad}× ${item.nombre}: ${cop(item.precioUnit * item.cantidad)}`)
+      .join("\n");
+    const texto = `NOCTA · Pedido #${pedido.numero}\n${detalle}\nTotal: ${cop(pedido.total)}`;
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: `Recibo pedido #${pedido.numero}`, text: texto });
+        setEstadoRecibo("Recibo compartido.");
+      } else {
+        await navigator.clipboard.writeText(texto);
+        setEstadoRecibo("Recibo copiado. Ya puedes pegarlo en WhatsApp o correo.");
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setEstadoRecibo("No fue posible compartir. Intenta de nuevo.");
+    }
+  }
 
   if (luzAbierta && p.estado === "en_camino" && p.color) {
     return (
@@ -288,9 +310,10 @@ export default function EstadoPedido() {
               : "Pagas al recibir"}
           </span>
         </div>
-        <button className="w-full text-center text-xs text-neon3 pt-1">
+        <button onClick={compartirRecibo} className="w-full text-center text-xs text-neon3 pt-1">
           Enviar recibo por WhatsApp o correo
         </button>
+        {estadoRecibo && <p className="text-center text-xs text-muted">{estadoRecibo}</p>}
       </section>
 
       <button

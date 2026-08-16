@@ -145,18 +145,18 @@ export function compraPorId(compraId: string, entradas = parsear(snapshot())): C
     email: grupo[0].email, creadaEn: Math.min(...grupo.map((entrada) => entrada.compradaEn)) };
 }
 
-export function transferirEntrada(id: string, titular: string, email: string) {
+export async function transferirEntrada(id: string, titular: string, email: string) {
   const entradas = parsear(snapshot()); const indice = entradas.findIndex((entrada) => entrada.id === id);
   if (indice < 0 || entradas[indice].estado !== "valida") return false;
   if (!titular.trim() || !/^\S+@\S+\.\S+$/.test(email.trim())) return false;
-  entradas[indice] = { ...entradas[indice], titular: titular.trim(), email: email.trim(), transferidaEn: Date.now() };
+  const response=await fetch("/api/tickets",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,action:"transfer",holderName:titular,holderEmail:email})});if(!response.ok)return false;entradas[indice] = { ...entradas[indice], titular: titular.trim(), email: email.trim(), transferidaEn: Date.now() };
   guardar(entradas); return true;
 }
 
-export function anularEntrada(id: string) {
+export async function anularEntrada(id: string) {
   const entradas = parsear(snapshot()); const indice = entradas.findIndex((entrada) => entrada.id === id);
   if (indice < 0 || entradas[indice].estado !== "valida") return false;
-  entradas[indice] = { ...entradas[indice], estado: "anulada", anuladaEn: Date.now() };
+  const response=await fetch("/api/tickets",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,action:"cancel"})});if(!response.ok)return false;entradas[indice] = { ...entradas[indice], estado: "anulada", anuladaEn: Date.now() };
   guardar(entradas); return true;
 }
 
