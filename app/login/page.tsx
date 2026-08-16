@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Logo } from "@/components/ui";
 import { crearClienteSupabase } from "@/lib/supabase/client";
+import { routeForContext, type AccessContext } from "@/lib/auth/context";
 
 export default function Login() {
   return <Suspense fallback={<main className="flex-1 px-5 py-12 max-w-md mx-auto w-full"><section className="card p-6 text-muted">Preparando acceso…</section></main>}><FormularioLogin /></Suspense>;
@@ -46,8 +47,9 @@ function FormularioLogin() {
     if (data.user?.user_metadata?.account_type === "promoter") {
       await supabase.from("promoter_profiles").upsert({ user_id: data.user.id, public_name: data.user.email?.split("@")[0] ?? "Promotor NOCTA" });
     }
+    const { data: access } = await supabase.rpc("get_my_access_context");
     const next = params.get("next");
-    const destinoCuenta = data.user?.user_metadata?.account_type === "promoter" ? "/promotor" : "/";
+    const destinoCuenta = access ? routeForContext(access as AccessContext) : data.user?.user_metadata?.account_type === "promoter" ? "/promotor" : "/";
     router.replace(next?.startsWith("/") ? next : destinoCuenta);
     router.refresh();
   }

@@ -17,6 +17,31 @@ export const APP_ROLES = [
 
 export type AppRole = (typeof APP_ROLES)[number];
 
+export const PRINCIPAL_ROLES = ["consumer", "establishment", "promoter", "brand_distributor", "nocta_admin"] as const;
+export const ORGANIZATION_ROLES = ["owner", "admin", "member", "establishment_admin", "bar", "waiter", "cashier"] as const;
+export const BUSINESS_TYPES = ["manufacturer", "importer", "distributor", "brand_owner", "representative", "mixed"] as const;
+export type PrincipalRole = (typeof PRINCIPAL_ROLES)[number];
+export type OrganizationRole = (typeof ORGANIZATION_ROLES)[number];
+export type BusinessType = (typeof BUSINESS_TYPES)[number];
+
+export const PRINCIPAL_ROLE_LABELS: Record<PrincipalRole, string> = {
+  consumer: "Consumidor",
+  establishment: "Establecimiento",
+  promoter: "Promotor",
+  brand_distributor: "Marca / distribuidor",
+  nocta_admin: "Administrador NOCTA",
+};
+
+export const ORGANIZATION_ROLE_LABELS: Record<OrganizationRole, string> = {
+  owner: "Propietario de organización",
+  admin: "Administrador de organización",
+  member: "Miembro",
+  establishment_admin: "Administrador de establecimiento",
+  bar: "Barra",
+  waiter: "Mesero",
+  cashier: "Caja",
+};
+
 export const ROUTE_ROLES: ReadonlyArray<{ prefix: string; roles: readonly AppRole[] }> = [
   { prefix: "/super", roles: ["platform_owner"] },
   { prefix: "/admin", roles: ["venue_owner", "venue_admin"] },
