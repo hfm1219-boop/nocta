@@ -14,7 +14,7 @@ export function useCatalogoNocta(): CatalogoNocta {
     let activo = true;
     Promise.all([
       supabase.from("venues").select("external_key,name,city,address,zone,description,category,price_range,active").eq("active", true),
-      supabase.from("events").select("id,external_key,name,starts_at,ends_at,status").eq("status", "published"),
+      supabase.from("events").select("id,external_key,name,starts_at,ends_at,status,details,event_venue_collaborations(status,venues(external_key))").eq("status", "published"),
       supabase.from("ticket_types").select("event_id,price_cop,active").eq("active", true),
     ]).then(([lugaresRespuesta, eventosRespuesta, entradasRespuesta]) => {
       if (!activo || lugaresRespuesta.error || eventosRespuesta.error || entradasRespuesta.error) return;
@@ -24,14 +24,8 @@ export function useCatalogoNocta(): CatalogoNocta {
       const eventosRemotos = new Map((eventosRespuesta.data ?? []).map((item) => [item.external_key, item]));
       setCatalogo({
         remoto: true,
-        lugares: LUGARES.filter((base) => lugaresRemotos.has(base.id)).map((base) => {
-          const remoto = lugaresRemotos.get(base.id)!;
-          return { ...base, nombre: remoto.name, ciudad: remoto.city, zona: remoto.zone || remoto.address || base.zona, descripcion: remoto.description || base.descripcion, categoria: (["club","bar","rooftop","restaurante"].includes(remoto.category ?? "") ? remoto.category : base.categoria) as LugarNocta["categoria"], rangoPrecio: (["$$","$$$","$$$$"].includes(remoto.price_range ?? "") ? remoto.price_range : base.rangoPrecio) as LugarNocta["rangoPrecio"] };
-        }),
-        eventos: EVENTOS.filter((base) => eventosRemotos.has(base.id)).map((base) => {
-          const remoto = eventosRemotos.get(base.id)!;
-          return { ...base, nombre: remoto.name, fechaISO: remoto.starts_at, precioDesde: precios.get(remoto.id) ?? base.precioDesde };
-        }),
+        lugares: [...lugaresRemotos.values()].map((remoto) => { const base=LUGARES.find(item=>item.id===remoto.external_key);return { id:remoto.external_key,nombre:remoto.name,ciudad:remoto.city,zona:remoto.zone||remoto.address||base?.zona||"Zona por confirmar",descripcion:remoto.description||base?.descripcion||"Descubre este lugar en NOCTA.",categoria:(["club","bar","rooftop","restaurante"].includes(remoto.category??"")?remoto.category:base?.categoria??"bar")as LugarNocta["categoria"],estilos:base?.estilos??[],rangoPrecio:(["$$","$$$","$$$$"].includes(remoto.price_range??"")?remoto.price_range:base?.rangoPrecio??"$$")as LugarNocta["rangoPrecio"],color:base?.color??"#b644ff",icono:base?.icono??"✦"};}),
+        eventos: [...eventosRemotos.values()].map((remoto) => { const base=EVENTOS.find(item=>item.id===remoto.external_key);const details=(remoto.details??{})as Record<string,unknown>;const collaborations=(remoto.event_venue_collaborations??[])as Array<{status?:string;venues?:{external_key?:string}|null}>;const lugarId=collaborations.find(item=>item.status==="approved")?.venues?.external_key??collaborations[0]?.venues?.external_key??base?.lugarId??"";return {id:remoto.external_key,lugarId,nombre:remoto.name,resumen:String(details.summary??base?.resumen??"Consulta los detalles y asegura tu acceso."),descripcion:String(details.description??base?.descripcion??"Evento publicado en NOCTA."),fechaISO:remoto.starts_at,horaFin:base?.horaFin??new Date(remoto.ends_at??remoto.starts_at).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}),generos:Array.isArray(details.genres)?details.genres.map(String):base?.generos??[],precioDesde:precios.get(remoto.id)??base?.precioDesde??0,disponibilidad:base?.disponibilidad??"disponible",edadMinima:Number(details.min_age??base?.edadMinima??18),dressCode:String(details.dress_code??base?.dressCode??"Casual"),destacado:base?.destacado??false,color:base?.color??"#b644ff"};}),
       });
     });
     return () => { activo = false; };
