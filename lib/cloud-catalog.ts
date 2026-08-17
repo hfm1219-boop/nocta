@@ -4,20 +4,30 @@ import { useEffect, useState } from "react";
 import { EVENTOS, LUGARES, type EventoNocta, type LugarNocta } from "./discovery";
 import { crearClienteSupabase } from "./supabase/client";
 
-export interface CatalogoNocta { lugares: LugarNocta[]; eventos: EventoNocta[]; remoto: boolean }
+export interface CatalogoNocta { lugares: LugarNocta[]; eventos: EventoNocta[]; remoto: boolean; error?: string }
+
+function eventosVigentes(eventos: EventoNocta[]) {
+  const ahora = Date.now();
+  return eventos.filter((evento) => new Date(evento.fechaISO).getTime() > ahora);
+}
 
 export function useCatalogoNocta(): CatalogoNocta {
-  const [catalogo, setCatalogo] = useState<CatalogoNocta>({ lugares: LUGARES, eventos: EVENTOS, remoto: false });
+  const [catalogo, setCatalogo] = useState<CatalogoNocta>({ lugares: LUGARES, eventos: eventosVigentes(EVENTOS), remoto: false });
   useEffect(() => {
     const supabase = crearClienteSupabase();
     if (!supabase) return;
     let activo = true;
     Promise.all([
       supabase.from("venues").select("external_key,name,city,address,zone,description,category,price_range,active").eq("active", true),
-      supabase.from("events").select("id,external_key,name,starts_at,ends_at,status,details,event_venue_collaborations(status,venues(external_key))").eq("status", "published"),
+      supabase.from("events").select("id,external_key,name,starts_at,ends_at,status,details,event_venue_collaborations(status,venues(external_key))").eq("status", "published").gt("starts_at", new Date().toISOString()).order("starts_at"),
       supabase.from("ticket_types").select("event_id,price_cop,active").eq("active", true),
     ]).then(([lugaresRespuesta, eventosRespuesta, entradasRespuesta]) => {
-      if (!activo || lugaresRespuesta.error || eventosRespuesta.error || entradasRespuesta.error) return;
+      if (!activo) return;
+      const error = lugaresRespuesta.error ?? eventosRespuesta.error ?? entradasRespuesta.error;
+      if (error) {
+        setCatalogo({ lugares: LUGARES, eventos: eventosVigentes(EVENTOS), remoto: false, error: error.message });
+        return;
+      }
       const lugaresRemotos = new Map((lugaresRespuesta.data ?? []).map((item) => [item.external_key, item]));
       const precios = new Map<string, number>();
       for (const entrada of entradasRespuesta.data ?? []) precios.set(entrada.event_id, Math.min(precios.get(entrada.event_id) ?? Infinity, entrada.price_cop));
