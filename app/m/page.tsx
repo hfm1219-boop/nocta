@@ -7,6 +7,7 @@ import { agregarItem } from "@/lib/cart";
 import { Logo } from "@/components/ui";
 import { cotizarProducto } from "@/lib/mercado";
 import { useIntencionPedido } from "@/lib/order-intent";
+import { useVenueMenu } from "@/lib/venue-menu";
 
 export default function MenuCliente() {
   const db = useDB();
@@ -14,17 +15,22 @@ export default function MenuCliente() {
   const [cat, setCat] = useState("todos");
   const [busqueda, setBusqueda] = useState("");
   const intencionPedido = useIntencionPedido();
+  const remoteMenu = useVenueMenu();
   const eventoPreorden = intencionPedido?.eventoNombre ?? "";
 
   if (!db) return null;
   const ventanaCerrada = !db.config.ventanaAbierta;
 
-  const productos = db.productos.filter((p) => {
+  const productosLocales = db.productos.filter((p) => {
     if (busqueda) {
       return p.nombre.toLowerCase().includes(busqueda.toLowerCase());
     }
     return cat === "todos" || p.categoria === cat;
   });
+  const productos = remoteMenu.items.length ? remoteMenu.items.filter((item) => !busqueda || item.name.toLowerCase().includes(busqueda.toLowerCase())).map((item) => ({
+    id: item.id, menuItemId: item.id, nombre: item.name, descripcion: item.description, categoria: item.category_id ?? "todos",
+    precio: item.price_cop, disponible: true, imagenUrl: item.image_url ?? undefined, color: "#b644ff", icono: "🍸",
+  })) : productosLocales;
 
   return (
     <main className="px-4 pt-5 space-y-5">
@@ -96,7 +102,7 @@ export default function MenuCliente() {
 
       {!busqueda && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4">
-          {[{ id: "todos", nombre: "Todos", icono: "✨" }, ...db.categorias].map((c) => (
+          {[{ id: "todos", nombre: "Todos", icono: "✨" }, ...(remoteMenu.categories.length ? remoteMenu.categories.map(c=>({id:c.id,nombre:c.name,icono:"🍹"})) : db.categorias)].map((c) => (
             <button
               key={c.id}
               onClick={() => setCat(c.id)}
@@ -113,7 +119,7 @@ export default function MenuCliente() {
 
       <section className="space-y-3">
         {productos.map((p) => {
-          const cotizacion = cotizarProducto(p, db, ahora);
+          const cotizacion = "menuItemId" in p ? {precio:p.precio,anterior:p.precio,cambioPct:0,tendencia:"estable" as const} : cotizarProducto(p, db, ahora);
           const colorTendencia = cotizacion.tendencia === "sube"
             ? "text-danger"
             : cotizacion.tendencia === "baja" ? "text-lime" : "text-muted";
@@ -122,7 +128,7 @@ export default function MenuCliente() {
             className={`card p-3 flex items-center gap-3 ${!p.disponible ? "opacity-45" : ""}`}
           >
             <Link
-              href={p.disponible && !ventanaCerrada ? `/m/p/${p.id}` : "#"}
+              href={p.disponible && !ventanaCerrada && !("menuItemId" in p) ? `/m/p/${p.id}` : "#"}
               className="flex items-center gap-3 flex-1 min-w-0"
             >
               <div
@@ -157,6 +163,7 @@ export default function MenuCliente() {
                 onClick={() =>
                   agregarItem({
                     productoId: p.id,
+                    menuItemId: "menuItemId" in p ? p.menuItemId : undefined,
                     nombre: p.nombre,
                     precioUnit: cotizacion.precio,
                     cantidad: 1,

@@ -4,9 +4,9 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import {
-  aportarVaquita, cop, crearPedido, montoSiguienteAporte, tokenCliente, useDB,
+  aportarVaquita, cop, montoSiguienteAporte, tokenCliente, useDB,
 } from "@/lib/store";
-import { vaciarCarrito } from "@/lib/cart";
+import { reemplazarCarrito } from "@/lib/cart";
 
 export default function VaquitaPage() {
   const { codigo } = useParams<{ codigo: string }>();
@@ -35,15 +35,8 @@ export default function VaquitaPage() {
 
   function hacerPedido() {
     if (vaquitaActual.estado !== "completa" || !esCreador) return;
-    const pedido = crearPedido({
-      items: vaquitaActual.items,
-      modo: "barra",
-      medioPago: "digital",
-      propina: 0,
-      vaquitaId: vaquitaActual.id,
-    });
-    vaciarCarrito();
-    router.push(`/m/pedido/${pedido.id}`);
+    reemplazarCarrito(vaquitaActual.items);
+    router.push(`/m/carrito?vaquita=${encodeURIComponent(vaquitaActual.id)}`);
   }
 
   return (

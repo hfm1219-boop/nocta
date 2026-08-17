@@ -57,6 +57,7 @@ export interface Zona {
 
 export interface ItemPedido {
   productoId: string;
+  menuItemId?: string;
   nombre: string; // snapshot
   precioUnit: number; // snapshot con tamaño y extras
   cantidad: number;
@@ -104,6 +105,8 @@ export interface Pedido {
   politicasPreordenAceptadasEn?: number;
   pagoAlFinal?: boolean;
   vaquitaId?: string;
+  promotionRedemptionId?: string;
+  promotionTitle?: string;
   despachos?: DespachoPedido[];
   notas?: string;
   barraRecogidaId?: string;

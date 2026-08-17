@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:phase1": "node --experimental-strip-types --test lib/auth/context.test.ts"
+    "test:phase1": "node --experimental-strip-types --test lib/auth/context.test.ts",
+    "test:phase2": "node --experimental-strip-types --test lib/promotion-selection.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",

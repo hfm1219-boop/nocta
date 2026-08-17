@@ -292,7 +292,7 @@ export default function EstadoPedido() {
         )}
         {!!p.descuento && (
           <div className="flex justify-between text-lime font-semibold">
-            <span>Descuento por volumen ({p.descuentoPct}%)</span>
+            <span>{p.promotionTitle ?? "Promoción aplicada"} ({p.descuentoPct}%)</span>
             <span>− {cop(p.descuento)}</span>
           </div>
         )}

@@ -22,11 +22,16 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.action === "evaluate") {
+    let eventId = typeof body.eventId === "string" ? body.eventId : null;
+    if (!eventId && typeof body.eventKey === "string") {
+      const { data: event } = await supabase.from("events").select("id").eq("external_key", body.eventKey).maybeSingle();
+      eventId = event?.id ?? null;
+    }
     const { data, error } = await supabase.rpc("evaluate_promotions", {
       target_venue: body.venueId,
       cart: body.cart,
       at_time: new Date().toISOString(),
-      target_event: typeof body.eventId === "string" ? body.eventId : null,
+      target_event: eventId,
     });
     return error
       ? NextResponse.json({ error: error.message }, { status: 400 })

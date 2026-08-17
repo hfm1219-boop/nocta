@@ -292,6 +292,11 @@ export function crearPedido(datos: {
   politicasPreordenAceptadasEn?: number;
   pagoAlFinal?: boolean;
   vaquitaId?: string;
+  id?: string;
+  pin?: string;
+  sincronizarRemoto?: boolean;
+  promotionRedemptionId?: string;
+  promotionTitle?: string;
 }): Pedido {
   let creado!: Pedido;
   guardarDB((db) => {
@@ -300,7 +305,7 @@ export function crearPedido(datos: {
       throw new Error("El pedido contiene cantidades o precios no válidos.");
     }
     const productosValidos = new Set(db.productos.filter((producto) => producto.disponible).map((producto) => producto.id));
-    if (datos.items.some((item) => !productosValidos.has(item.productoId))) {
+    if (datos.items.some((item) => !item.menuItemId && !productosValidos.has(item.productoId))) {
       throw new Error("Uno o más productos ya no están disponibles.");
     }
     if (!Number.isFinite(datos.propina) || datos.propina < 0) throw new Error("La propina no es válida.");
@@ -337,7 +342,7 @@ export function crearPedido(datos: {
     const anticipado = datos.medioPago === "digital";
     const despachos = crearDespachosPedido(datos.items, datos.zonaId, db);
     creado = {
-      id: `p-${Date.now()}-${db.contador}`,
+      id: datos.id ?? `p-${Date.now()}-${db.contador}`,
       numero: db.contador,
       localId: idLocalActivo(),
       modo: datos.modo,
@@ -351,7 +356,7 @@ export function crearPedido(datos: {
       medioPago: datos.medioPago,
       estadoPago: anticipado ? "pagado" : "pendiente",
       estado: "nuevo",
-      pin: String(1000 + Math.floor(Math.random() * 9000)),
+      pin: datos.pin ?? String(1000 + Math.floor(Math.random() * 9000)),
       clienteToken: tokenCliente(),
       telefono: datos.telefono,
       timestamps: { nuevo: Date.now() },
@@ -364,6 +369,8 @@ export function crearPedido(datos: {
         : undefined,
       pagoAlFinal: datos.pagoAlFinal,
       vaquitaId: datos.vaquitaId,
+      promotionRedemptionId: datos.promotionRedemptionId,
+      promotionTitle: datos.promotionTitle,
       despachos,
       cobro: anticipado
         ? {
@@ -384,7 +391,7 @@ export function crearPedido(datos: {
       }
     }
   });
-  encolarOperacion(creado.id,"POST",{venueKey:creado.localId,externalKey:creado.id,serviceMode:creado.modo==="zona"?"zone":creado.modo==="mesa"?"table":"bar",zoneName:creado.zonaId,items:creado.items,subtotalCop:creado.subtotal,tipCop:creado.propina,totalCop:creado.total,paymentMethod:creado.medioPago,paymentStatus:creado.estadoPago==="pagado"?"paid":"pending",preorderFor:creado.programadoPara?new Date(creado.programadoPara).toISOString():null,pickupPin:creado.pin});
+  if (datos.sincronizarRemoto !== false) encolarOperacion(creado.id,"POST",{venueKey:creado.localId,externalKey:creado.id,serviceMode:creado.modo==="zona"?"zone":creado.modo==="mesa"?"table":"bar",zoneName:creado.zonaId,items:creado.items,subtotalCop:creado.subtotal,tipCop:creado.propina,totalCop:creado.total,paymentMethod:creado.medioPago,paymentStatus:creado.estadoPago==="pagado"?"paid":"pending",preorderFor:creado.programadoPara?new Date(creado.programadoPara).toISOString():null,pickupPin:creado.pin});
   return creado;
 }
 

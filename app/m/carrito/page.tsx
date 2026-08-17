@@ -1,20 +1,22 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useCarrito, cambiarCantidad, totalCarrito, vaciarCarrito } from "@/lib/cart";
-import { crearVaquita, useDB, cop, crearPedido, useReloj } from "@/lib/store";
+import { crearVaquita, useDB, cop, crearPedido, idLocalActivo, useReloj } from "@/lib/store";
 import { BotonPrimario, ETIQUETA_MEDIO, ETIQUETA_MODO } from "@/components/ui";
 import type { MedioPago, ModoServicio } from "@/lib/types";
 import {
-  cantidadTotal, descuentoVolumen, POLITICAS_PREORDEN, porcentajeDescuentoVolumen,
-  siguienteNivel, VERSION_POLITICAS_PREORDEN,
+  cantidadTotal, POLITICAS_PREORDEN, VERSION_POLITICAS_PREORDEN,
 } from "@/lib/preorden";
 import { EscanerMesa } from "@/components/qr-mesa";
 import { MapaZonas } from "@/components/mapa-zonas";
 import { limpiarIntencionPedido, useIntencionPedido } from "@/lib/order-intent";
+import { useVenueMenu } from "@/lib/venue-menu";
+import { mejorPromocionElegible } from "@/lib/promotion-selection";
 
 const PROPINAS = [0, 5, 10];
+type PromocionEvaluada={promotion_id:string;title:string;eligible:boolean;reason:string;discount_amount_cop:number;gross_amount_cop:number};
 
 function fechaInputLocal(timestamp: number) {
   const fecha = new Date(timestamp);
@@ -22,8 +24,10 @@ function fechaInputLocal(timestamp: number) {
   return local.toISOString().slice(0, 16);
 }
 
-export default function Checkout() {
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams=useSearchParams();
+  const vaquitaId=searchParams.get("vaquita")??undefined;
   const items = useCarrito();
   const db = useDB();
   const ahora = useReloj(60_000);
@@ -44,7 +48,11 @@ export default function Checkout() {
   const [armandoVaquita, setArmandoVaquita] = useState(false);
   const [participantesVaquita, setParticipantesVaquita] = useState(4);
   const enviado = useRef(false); // idempotencia: doble toque en pagar = un solo pedido
+  const checkoutKey = useRef("");
   const intencionPedido = useIntencionPedido();
+  const remoteMenu = useVenueMenu();
+  const [promociones,setPromociones]=useState<PromocionEvaluada[]>([]);
+  const [evaluandoPromocion,setEvaluandoPromocion]=useState(false);
   const esPreorden = intencionPedido?.tipo === "preorden";
   const eventoPreorden = intencionPedido?.eventoNombre ?? "";
   const fechaLlegadaEfectiva = fechaLlegada || (intencionPedido
@@ -52,8 +60,9 @@ export default function Checkout() {
     : "");
 
   const subtotal = totalCarrito(items);
-  const descuentoPct = esPreorden ? porcentajeDescuentoVolumen(items) : 0;
-  const descuento = esPreorden ? descuentoVolumen(items, subtotal) : 0;
+  const promocionAplicada=vaquitaId?undefined:mejorPromocionElegible(promociones);
+  const descuento = Math.min(subtotal,promocionAplicada?.discount_amount_cop??0);
+  const descuentoPct = subtotal?Math.round(descuento*100/subtotal):0;
   const subtotalConDescuento = subtotal - descuento;
   const porcentajePropina = usarPropinaPersonalizada
     ? Math.min(100, Math.max(0, Number(propinaPersonalizada) || 0))
@@ -61,7 +70,16 @@ export default function Checkout() {
   const propina = Math.round((subtotalConDescuento * porcentajePropina) / 100 / 500) * 500;
   const total = subtotalConDescuento + propina;
   const unidades = cantidadTotal(items);
-  const proximoNivel = siguienteNivel(items);
+
+  useEffect(()=>{
+    let active=true;
+    void (async()=>{await Promise.resolve();
+      if(!remoteMenu.venue||!items.length||items.some(item=>!item.menuItemId)){if(active){setPromociones([]);setEvaluandoPromocion(false);}return;}
+      if(active)setEvaluandoPromocion(true);
+      try{const response=await fetch("/api/promotions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"evaluate",venueId:remoteMenu.venue.id,eventKey:intencionPedido?.eventoId??null,cart:items.map(item=>({menuItemId:item.menuItemId,quantity:item.cantidad}))})});const data=await response.json();if(active)setPromociones(response.ok?data.promotions??[]:[]);}catch{if(active)setPromociones([]);}finally{if(active)setEvaluandoPromocion(false);}
+    })();
+    return()=>{active=false};
+  },[items,remoteMenu.venue,intencionPedido?.eventoId]);
 
   const config = db?.config;
   const modosHabilitados = config ? ([
@@ -119,9 +137,20 @@ export default function Checkout() {
     setErrorConfirmacion("");
     setPoliticasAbiertas(false);
     setPagando(true);
-    // Simula la confirmación del recaudo digital vía webhook (spec §8.1)
-    await new Promise((r) => setTimeout(r, medioValido === "digital" ? 1600 : 400));
     try {
+      if(items.some(item=>!item.menuItemId))throw new Error("Actualiza el carrito desde el menú productivo para aplicar precios y promociones.");
+      if(!checkoutKey.current)checkoutKey.current=`order-${crypto.randomUUID()}`;
+      const pin=String(1000+Math.floor(Math.random()*9000));
+      const response=await fetch("/api/orders/checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+        venueKey:idLocalActivo(),orderKey:checkoutKey.current,service:modoValido==="zona"?"zone":modoValido==="mesa"?"table":"bar",
+        zone:necesitaZona?zonaId:null,cart:items.map(item=>({menuItemId:item.menuItemId,quantity:item.cantidad})),tip:propina,
+        paymentMethod:medioValido,
+        preorderAt:esPreorden?new Date(programadoPara).toISOString():null,pickupPin:pin,
+        promotionId:promocionAplicada?.promotion_id??null,promotionIdempotency:promocionAplicada?`promotion:${checkoutKey.current}`:null,
+        eventKey:intencionPedido?.eventoId??null,
+      })});
+      const remote=await response.json()as{error?:string;checkout?:{discount_amount_cop:number;redemption_id?:string;promotion_title?:string}};
+      if(!response.ok||!remote.checkout)throw new Error(remote.error??"No pudimos confirmar el pedido.");
       const pedido = crearPedido({
         items,
         modo: modoValido,
@@ -131,10 +160,16 @@ export default function Checkout() {
         telefono: telefono || undefined,
         tipo: esPreorden ? "preorden" : "inmediato",
         programadoPara: esPreorden ? programadoPara : undefined,
-        descuento,
-        descuentoPct,
+        descuento:Number(remote.checkout.discount_amount_cop),
+        descuentoPct:subtotal?Math.round(Number(remote.checkout.discount_amount_cop)*100/subtotal):0,
         politicasPreordenVersion: esPreorden ? VERSION_POLITICAS_PREORDEN : undefined,
         pagoAlFinal: !esPreorden && pagoAlFinal,
+        id:checkoutKey.current,
+        pin,
+        sincronizarRemoto:false,
+        promotionRedemptionId:remote.checkout.redemption_id,
+        promotionTitle:remote.checkout.promotion_title,
+        vaquitaId,
       });
       limpiarIntencionPedido();
       vaciarCarrito();
@@ -164,7 +199,7 @@ export default function Checkout() {
         </p>
         <p className="text-muted text-sm">
           {medioValido === "digital"
-            ? "Esperando confirmación de la entidad de recaudo (webhook en tiempo real)."
+            ? "Registrando el pedido; quedará pendiente hasta recibir una confirmación real de pago."
             : "Tu pedido entrará a la cola de barra como pendiente de pago."}
         </p>
       </main>
@@ -208,28 +243,7 @@ export default function Checkout() {
               Elige una hora entre 30 minutos y 30 días desde ahora.
             </p>
           )}
-          <div className="bg-surface2 rounded-xl p-3 space-y-2">
-            <div className="flex justify-between text-sm">
-              <span>{unidades} unidades</span>
-              <span className={descuentoPct ? "text-lime font-bold" : "text-muted"}>
-                {descuentoPct ? `${descuentoPct}% de descuento` : "Sin descuento aún"}
-              </span>
-            </div>
-            <div className="h-2 rounded-full bg-background overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-neon3 to-lime transition-all"
-                style={{ width: `${Math.min(100, (unidades / 24) * 100)}%` }}
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-muted">
-              <span>6 uds. · 5%</span><span>12 uds. · 10%</span><span>24 uds. · 15%</span>
-            </div>
-            {proximoNivel && (
-              <p className="text-xs text-neon3">
-                Agrega {proximoNivel.cantidad - unidades} unidades más para ahorrar {proximoNivel.porcentaje}%.
-              </p>
-            )}
-          </div>
+          <div className="bg-surface2 rounded-xl p-3 text-sm flex justify-between"><span>{unidades} unidades</span><span className="text-muted">Las promociones se validan automáticamente</span></div>
           <button
             type="button"
             onClick={() => setPoliticasAbiertas(true)}
@@ -272,6 +286,11 @@ export default function Checkout() {
             </div>
           </div>
         ))}
+      </section>
+
+      <section className={`card p-4 ${promocionAplicada?"border-lime/50 bg-lime/5":"border-line"}`}>
+        <p className="text-xs uppercase tracking-wider text-muted">Promoción</p>
+        {vaquitaId?<p className="text-sm mt-2 text-muted">Las compras grupales conservan el total aportado y no acumulan promociones.</p>:evaluandoPromocion?<p className="text-sm mt-2 text-muted">Validando beneficios…</p>:promocionAplicada?<><h2 className="font-bold text-lime mt-1">{promocionAplicada.title}</h2><p className="text-sm mt-1">Aplicada automáticamente · ahorras {cop(descuento)}</p></>:<p className="text-sm mt-2 text-muted">No hay una promoción aplicable a este carrito.</p>}
       </section>
 
       <section className="card p-4 border-amber/40 bg-amber/5 space-y-3">
@@ -588,7 +607,7 @@ export default function Checkout() {
         </div>
         {descuento > 0 && (
           <div className="flex justify-between text-lime font-semibold">
-            <span>Descuento por volumen ({descuentoPct}%)</span>
+            <span>{promocionAplicada?.title??"Descuento"} ({descuentoPct}%)</span>
             <span>− {cop(descuento)}</span>
           </div>
         )}
@@ -710,4 +729,8 @@ export default function Checkout() {
       )}
     </main>
   );
+}
+
+export default function Checkout() {
+  return <Suspense fallback={<main className="min-h-dvh flex items-center justify-center text-muted">Cargando pedido…</main>}><CheckoutContent /></Suspense>;
 }
