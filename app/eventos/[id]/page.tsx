@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { EntrarLugar, PreordenarEvento } from "@/components/entrar-lugar";
 import { Logo } from "@/components/ui";
 import { FavoriteButton } from "@/components/favorites";
+import { DemandTracker } from "@/components/demand-tracker";
 import { EVENTOS, eventoPorId, formatearFecha, lugarPorId } from "@/lib/discovery";
 
 export function generateStaticParams() {
@@ -21,6 +22,7 @@ export default async function EventoPage({ params }: PageProps<"/eventos/[id]">)
 
   return (
     <main className="flex-1 pb-12">
+      <DemandTracker type="event_view" entityType="event" entityKey={evento.id}/>
       <header className="border-b border-line">
         <div className="max-w-3xl mx-auto px-5 py-4 flex items-center justify-between">
           <Link href="/" className="text-sm text-muted">← Explorar</Link>

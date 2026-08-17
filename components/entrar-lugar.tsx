@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { seleccionarLocal } from "@/lib/store";
 import { guardarIntencionPreorden, limpiarIntencionPedido } from "@/lib/order-intent";
+import { trackDemand } from "@/lib/demand-events";
 
 export function EntrarLugar({ lugarId, nombre }: { lugarId: string; nombre: string }) {
   const router = useRouter();
@@ -11,6 +12,7 @@ export function EntrarLugar({ lugarId, nombre }: { lugarId: string; nombre: stri
     <button
       className="w-full rounded-2xl border border-neon1/50 px-5 py-4 font-semibold text-neon3 hover:bg-neon1/10 transition"
       onClick={() => {
+        trackDemand("venue_checkin", "venue", lugarId);
         limpiarIntencionPedido();
         seleccionarLocal(lugarId, nombre);
         router.push("/m");

@@ -1,14 +1,16 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { eventoPorId, lugarPorId } from "@/lib/discovery";
 import { crearReserva, OPCIONES_RESERVA, reservasDisponibles, useReservas, type TipoReserva } from "@/lib/reservations";
+import { trackDemand } from "@/lib/demand-events";
 
 export default function ReservarEvento() {
   const { id } = useParams<{id:string}>(); const router = useRouter(); const evento = eventoPorId(id); const lugar = evento ? lugarPorId(evento.lugarId) : undefined;
   const reservas = useReservas(); const [tipoId,setTipoId]=useState<TipoReserva>("mesa"); const tipo=OPCIONES_RESERVA.find(o=>o.id===tipoId)!;
   const [personas,setPersonas]=useState(2); const [titular,setTitular]=useState(""); const [telefono,setTelefono]=useState(""); const [email,setEmail]=useState(""); const [ocasion,setOcasion]=useState(""); const [notas,setNotas]=useState(""); const [error,setError]=useState("");
+  useEffect(()=>trackDemand("reservation_started","event",id),[id]);
   if(!evento||!lugar) return <main className="p-8 text-muted">Evento no disponible.</main>;
   const disponible=reservasDisponibles(id,tipo,reservas)>0; const valido=disponible&&personas>=1&&personas<=tipo.capacidad&&titular.trim()&&telefono.trim()&&email.includes("@");
   async function confirmar(){ try{const respuesta=await fetch("/api/reservations",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({eventKey:id,partySize:personas,customerName:titular,phone:telefono,email,zoneName:tipo.nombre,depositCop:tipo.anticipo,notes:[ocasion,notas].filter(Boolean).join(" · ")})});const remoto=await respuesta.json() as {id?:string;token?:string;error?:string};if(!respuesta.ok||!remoto.id||!remoto.token)throw new Error(remoto.error??"No pudimos registrar la reserva."); const reserva=crearReserva({eventoId:id,tipoId,personas,titular,telefono,email,ocasion,notas,emitida:{id:remoto.id,token:remoto.token}}); router.push(`/mis-reservas/${reserva.id}`); }catch(e){setError(e instanceof Error?e.message:"No pudimos crear la reserva.");} }

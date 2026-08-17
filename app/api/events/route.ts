@@ -1,0 +1,12 @@
+import { NextRequest,NextResponse } from "next/server";
+import { crearClienteSupabaseServidor } from "@/lib/supabase/server";
+const TYPES=new Set(["venue_impression","venue_view","venue_click","event_impression","event_view","event_click","promotion_impression","promotion_view","promotion_click","reservation_started","ticket_checkout_started","venue_checkin"]);
+export async function POST(request:NextRequest){
+  const supabase=await crearClienteSupabaseServidor();if(!supabase)return NextResponse.json({error:"Supabase no configurado"},{status:503});
+  const body=await request.json().catch(()=>null)as Record<string,unknown>|null;
+  if(!body||typeof body.eventType!=="string"||!TYPES.has(body.eventType)||typeof body.sessionId!=="string"||!/^[0-9a-f-]{36}$/i.test(body.sessionId))return NextResponse.json({error:"Evento inválido"},{status:400});
+  const entityType=typeof body.entityType==="string"?body.entityType:null,entityKey=typeof body.entityKey==="string"?body.entityKey:null;
+  if(entityType&&!['venue','event','promotion'].includes(entityType)||entityKey&&entityKey.length>160)return NextResponse.json({error:"Entidad inválida"},{status:400});
+  const{error}=await supabase.rpc("track_consumer_event",{requested_type:body.eventType,requested_session:body.sessionId,entity_type:entityType,entity_key:entityKey,requested_source:"web",requested_device:typeof body.device==="string"?body.device:"unknown",requested_path:typeof body.path==="string"?body.path:null,requested_metadata:{},requested_dedup_key:typeof body.dedupKey==="string"?body.dedupKey.slice(0,300):null});
+  return error?NextResponse.json({error:"No fue posible registrar el evento"},{status:400}):new NextResponse(null,{status:204});
+}

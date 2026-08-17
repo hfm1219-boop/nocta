@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 import { eventoPorId, lugarPorId } from "@/lib/discovery";
 import { comprarEntradas, entradasDisponibles, TIPOS_ENTRADA, useEntradas } from "@/lib/tickets";
+import { DemandTracker } from "@/components/demand-tracker";
 
 export default function ComprarEntradas() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +42,7 @@ export default function ComprarEntradas() {
 
   return (
     <main className="flex-1 px-5 py-8 max-w-lg mx-auto w-full space-y-6">
+      <DemandTracker type="ticket_checkout_started" entityType="event" entityKey={id}/>
       <button onClick={() => router.back()} className="text-sm text-muted">← Volver al evento</button>
       <header>
         <p className="text-neon3 text-sm font-semibold">{lugar.nombre}</p>
