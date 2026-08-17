@@ -6,7 +6,8 @@ function validCart(value: unknown): value is CartRow[] {
   return Array.isArray(value) && value.length > 0 && value.length <= 100 && value.every((row) => row && typeof row === "object"
     && typeof row.menuItemId === "string" && /^[0-9a-f-]{36}$/i.test(row.menuItemId)
     && Number.isInteger(row.quantity) && Number(row.quantity) > 0 && Number(row.quantity) <= 100)
-    && new Set(value.map((row) => row.menuItemId)).size === value.length;
+    && new Set(value.map((row) => row.menuItemId)).size === value.length
+    && value.reduce((sum, row) => sum + Number(row.quantity), 0) <= 100;
 }
 
 export async function POST(request: NextRequest) {
@@ -15,7 +16,8 @@ export async function POST(request: NextRequest) {
   const { data: claims } = await supabase.auth.getClaims();
   if (!claims?.claims?.sub) return NextResponse.json({ error: "Inicia sesión para confirmar el pedido" }, { status: 401 });
   const body = await request.json() as Record<string, unknown>;
-  if (typeof body.venueKey !== "string" || typeof body.orderKey !== "string" || !validCart(body.cart)) {
+  if (typeof body.venueKey !== "string" || typeof body.orderKey !== "string" || !validCart(body.cart)
+    || !Number.isInteger(body.tip ?? 0) || Number(body.tip ?? 0) < 0 || Number(body.tip ?? 0) > 100_000_000) {
     return NextResponse.json({ error: "Pedido inválido" }, { status: 400 });
   }
   const { data, error } = await supabase.rpc("checkout_order_with_promotion", {
