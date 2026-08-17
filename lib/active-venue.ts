@@ -24,24 +24,19 @@ export function activateVenue(venue: ActiveVenue) {
 }
 
 export function useActiveVenue(venues: ActiveVenue[]) {
-  const [activeVenueId, setActiveVenueId] = useState("");
+  const [selectedVenueId, setSelectedVenueId] = useState(storedVenueId);
   const venueIds = venues.map((venue) => venue.id).join("|");
+  const activeVenue = venues.find((venue) => venue.id === selectedVenueId) ?? venues[0];
+  const activeVenueId = activeVenue?.id ?? "";
 
   useEffect(() => {
-    if (!venues.length) {
-      setActiveVenueId("");
-      return;
-    }
-    const saved = storedVenueId();
-    const venue = venues.find((item) => item.id === saved) ?? venues[0];
-    setActiveVenueId(venue.id);
-    activateVenue(venue);
-  }, [venueIds]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (activeVenue && storedVenueId() !== activeVenue.id) activateVenue(activeVenue);
+  }, [activeVenue]);
 
   useEffect(() => {
     const sync = () => {
       const saved = storedVenueId();
-      if (venues.some((venue) => venue.id === saved)) setActiveVenueId(saved);
+      if (venues.some((venue) => venue.id === saved)) setSelectedVenueId(saved);
     };
     window.addEventListener(ACTIVE_VENUE_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -54,12 +49,12 @@ export function useActiveVenue(venues: ActiveVenue[]) {
   const selectVenue = useCallback((id: string) => {
     const venue = venues.find((item) => item.id === id);
     if (!venue) return;
-    setActiveVenueId(id);
+    setSelectedVenueId(id);
     activateVenue(venue);
   }, [venues]);
 
   return {
-    activeVenue: venues.find((venue) => venue.id === activeVenueId) ?? venues[0],
+    activeVenue,
     activeVenueId,
     selectVenue,
   };
