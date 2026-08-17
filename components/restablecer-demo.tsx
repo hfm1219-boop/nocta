@@ -24,7 +24,7 @@ export function RestablecerDemo() {
           <div>
             <p className="font-bold text-neon3">¿Restablecer los datos de prueba?</p>
             <p className="text-xs text-muted mt-2">
-              Se reemplazarán los datos de prueba guardados en este dispositivo y volverán a cargarse establecimientos, productos, pedidos, entradas, experiencias y configuraciones demo iniciales. Las cuentas de acceso no se eliminan.
+              Se reemplazarán únicamente pedidos, carritos, entradas, reservas, listas y experiencias demo. Se conservan la sesión actual, el perfil, los roles, las organizaciones y la sede seleccionada.
             </p>
           </div>
           <div className="grid grid-cols-2 gap-3">
