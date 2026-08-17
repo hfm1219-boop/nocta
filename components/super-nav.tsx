@@ -9,6 +9,7 @@ import { Logo } from "@/components/ui";
 const ITEMS = [
   { href: "/super", label: "Resumen", icon: "⌂", exact: true },
   { href: "/super/organizaciones", label: "Organizaciones", icon: "⌖" },
+  { href: "/super/categorias", label: "Categorías", icon: "▦" },
   { href: "/super/usuarios", label: "Accesos", icon: "◎" },
   { href: "/super/fidelidad", label: "Fidelización", icon: "✦" },
   { href: "/super/integridad", label: "Integridad", icon: "✓" },

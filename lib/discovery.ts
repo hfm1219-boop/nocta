@@ -6,6 +6,7 @@ export interface LugarNocta {
   ciudad: string;
   zona: string;
   categoria: CategoriaLugar;
+  categorias?: string[];
   descripcion: string;
   estilos: string[];
   rangoPrecio: "$$" | "$$$" | "$$$$";
