@@ -40,7 +40,7 @@ export default function OperacionEstablecimiento() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="px-4 pt-6 max-w-5xl w-full mx-auto"><p className="text-xs uppercase tracking-[.2em] text-neon2">Establecimiento</p><h1 className="text-3xl font-bold mt-1">{db.config.nombre}</h1><p className="text-sm text-muted">Resumen administrativo y configuración operativa.</p></header>
-      <div className="px-4 pt-3 flex gap-2 overflow-x-auto">
+      <div className="mx-auto flex w-full max-w-5xl gap-2 overflow-x-auto px-4 pt-3">
         {TABS.map((t) => (
           <button
             key={t.id}
