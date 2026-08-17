@@ -34,45 +34,51 @@ export function BusinessShell({ kind, children }: { kind: Kind; children: React.
 
   const navLink = ([href, label, icon]: NavItem) => (
     <Link key={href} href={href} aria-current={active(href) ? "page" : undefined}
-      className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 text-sm transition ${active(href) ? "border-neon2/35 bg-neon2/15 font-semibold text-neon2" : "border-transparent text-muted hover:border-line hover:bg-surface2 hover:text-foreground"}`}>
-      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-surface2 text-base">{icon}</span>
+      className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 text-sm transition ${active(href) ? "border-neon2/35 bg-neon2/15 font-semibold text-neon2" : "border-transparent text-muted hover:border-line hover:bg-surface2 hover:text-foreground"}`}>
+      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-lg bg-surface2 text-sm">{icon}</span>
       <span>{label}</span>
     </Link>
   );
 
   return <div className="min-h-dvh md:flex">
-    <aside className="sticky top-0 hidden h-dvh w-72 shrink-0 flex-col border-r border-line bg-surface/70 p-5 backdrop-blur-xl md:flex">
+    <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-line bg-surface/70 p-4 backdrop-blur-xl md:flex">
       <Link href={root} className="flex items-center justify-between gap-3">
         <Logo size="text-2xl"/>
         <span className="rounded-full border border-neon2/25 bg-neon2/10 px-2 py-1 text-[9px] font-bold uppercase tracking-wider text-neon2">Business</span>
       </Link>
-      <p className="mt-3 text-[10px] uppercase tracking-[.16em] text-muted">{LABEL[kind]}</p>
+      <p className="mt-2 truncate text-[9px] uppercase tracking-[.12em] text-muted">{LABEL[kind]}</p>
 
-      <section className="mt-5 space-y-4 rounded-2xl border border-line bg-background/70 p-4">
-        <div><p className="mb-2 text-[10px] font-bold uppercase tracking-[.14em] text-muted">Perfil activo</p><ContextSwitcher compact/></div>
-        {kind === "establishment" && <div className="border-t border-line pt-3"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-muted">Sede activa</p><ActiveVenueSwitcher/></div>}
-      </section>
+      <details className="group relative mt-3">
+        <summary className="flex cursor-pointer list-none items-center justify-between rounded-xl border border-line bg-background/70 px-3 py-2 text-xs font-semibold [&::-webkit-details-marker]:hidden"><span>Perfil y sede</span><span className="text-neon2 transition group-open:rotate-180">⌄</span></summary>
+        <section className="absolute inset-x-0 top-full z-30 mt-2 space-y-3 rounded-2xl border border-line bg-background p-3 shadow-2xl">
+          <div><p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-muted">Perfil activo</p><ContextSwitcher compact/></div>
+          {kind === "establishment" && <div className="border-t border-line pt-2"><p className="text-[9px] font-bold uppercase tracking-wider text-muted">Sede activa</p><ActiveVenueSwitcher compact/></div>}
+        </section>
+      </details>
 
       {kind === "establishment" && <Link href="/admin/establecimientos" aria-current={active("/admin/establecimientos") ? "page" : undefined}
-        className={`mt-4 flex items-center gap-3 rounded-2xl border p-3 text-sm font-semibold transition ${active("/admin/establecimientos") ? "border-neon2/50 bg-neon2/15 text-neon2" : "border-line bg-background/50 hover:border-neon2/40"}`}>
-        <span className="grid h-9 w-9 place-items-center rounded-xl bg-neon2/10 text-neon2">⌖</span>
-        <span><span className="block">Sedes</span><span className="block text-[10px] font-normal text-muted">Administrar establecimientos</span></span>
+        className={`mt-3 flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${active("/admin/establecimientos") ? "border-neon2/50 bg-neon2/15 text-neon2" : "border-line bg-background/50 hover:border-neon2/40"}`}>
+        <span className="grid h-7 w-7 place-items-center rounded-lg bg-neon2/10 text-neon2">⌖</span>
+        <span>Sedes</span>
       </Link>}
 
-      <p className="mb-2 mt-5 px-3 text-[10px] font-bold uppercase tracking-[.16em] text-muted">Módulos</p>
+      <p className="mb-1 mt-3 px-2 text-[9px] font-bold uppercase tracking-[.14em] text-muted">Módulos</p>
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto pr-1" aria-label={LABEL[kind]}>{desktopItems.map(navLink)}</nav>
       <div className="mt-3 border-t border-line pt-4"><CerrarSesion/></div>
     </aside>
 
     <div className="min-w-0 flex-1 pb-24 md:pb-0">
-      <header className="sticky top-0 z-40 border-b border-line bg-background/95 px-4 py-3 backdrop-blur-xl md:hidden">
+      <header className="sticky top-0 z-40 border-b border-line bg-background/95 px-4 py-2.5 backdrop-blur-xl md:hidden">
         <div className="flex items-center justify-between gap-3">
-          <Link href={root} className="flex min-w-0 items-center gap-3"><Logo size="text-2xl"/><span className="truncate text-[10px] uppercase tracking-[.12em] text-muted">{kind === "establishment" ? "Establecimiento" : kind === "promoter" ? "Promotor" : "Marca"}</span></Link>
+          <Link href={root} className="shrink-0"><Logo size="text-2xl"/></Link>
+          <details className="group relative min-w-0 flex-1">
+            <summary className="flex h-9 cursor-pointer list-none items-center justify-between rounded-xl border border-line bg-surface px-3 text-xs font-semibold [&::-webkit-details-marker]:hidden"><span className="truncate">Perfil y sede</span><span className="ml-2 text-neon2 transition group-open:rotate-180">⌄</span></summary>
+            <section className="absolute inset-x-0 top-full z-50 mt-2 min-w-[240px] space-y-3 rounded-2xl border border-line bg-background p-3 shadow-2xl">
+              <div><p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-muted">Perfil activo</p><ContextSwitcher compact/></div>
+              {kind === "establishment" && <div className="border-t border-line pt-2"><p className="text-[9px] font-bold uppercase tracking-wider text-muted">Sede activa</p><ActiveVenueSwitcher compact/></div>}
+            </section>
+          </details>
           <CerrarSesion/>
-        </div>
-        <div className={`mt-3 grid gap-2 ${kind === "establishment" ? "grid-cols-2" : "grid-cols-1"}`}>
-          <section className="min-w-0 rounded-xl border border-line bg-surface p-2.5"><p className="mb-1 text-[9px] font-bold uppercase tracking-wider text-muted">Perfil</p><ContextSwitcher compact/></section>
-          {kind === "establishment" && <section className="min-w-0 rounded-xl border border-neon2/25 bg-neon2/5 p-2.5"><p className="text-[9px] font-bold uppercase tracking-wider text-muted">Sede</p><ActiveVenueSwitcher compact/></section>}
         </div>
       </header>
       {children}
