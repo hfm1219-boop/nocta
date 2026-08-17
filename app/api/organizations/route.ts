@@ -18,11 +18,13 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const context = await client(); if (context.error) return context.error;
-  const body = await request.json() as { action?: "create" | "add_context" | "set_member"; name?: string; organizationId?: string; context?: string; businessType?: string; userId?: string; role?: string; venueId?: string };
+  const body = await request.json() as { action?: "create" | "admin_create" | "admin_add_context" | "add_context" | "set_member"; name?: string; organizationId?: string; context?: string; businessType?: string; userId?: string; role?: string; venueId?: string };
   if (!body.context || !PRINCIPAL_ROLES.includes(body.context as never)) return NextResponse.json({ error: "Contexto inválido" }, { status: 400 });
   if (body.businessType && !BUSINESS_TYPES.includes(body.businessType as never)) return NextResponse.json({ error: "Tipo empresarial inválido" }, { status: 400 });
   let result: { data: unknown; error: { message: string } | null };
-  if (body.action === "create" && body.name?.trim()) result = await context.supabase!.rpc("create_nocta_organization", { organization_name: body.name.trim(), initial_context: body.context, organization_business_type: body.businessType || null });
+  if (body.action === "admin_create" && body.name?.trim() && body.userId) result = await context.supabase!.rpc("admin_create_nocta_organization", { organization_name: body.name.trim(), initial_context: body.context, organization_business_type: body.businessType || null, owner_user: body.userId });
+  else if (body.action === "admin_add_context" && body.organizationId) result = await context.supabase!.rpc("admin_add_organization_context", { target_organization: body.organizationId, new_context: body.context, organization_business_type: body.businessType || null });
+  else if (body.action === "create" && body.name?.trim()) result = await context.supabase!.rpc("create_nocta_organization", { organization_name: body.name.trim(), initial_context: body.context, organization_business_type: body.businessType || null });
   else if (body.action === "add_context" && body.organizationId) result = await context.supabase!.rpc("add_organization_context", { target_organization: body.organizationId, new_context: body.context });
   else if (body.action === "set_member" && body.organizationId && body.userId && body.role && ORGANIZATION_ROLES.includes(body.role as never)) result = await context.supabase!.rpc("set_organization_member_access", { target_organization: body.organizationId, target_user: body.userId, target_context: body.context, target_role: body.role, target_venue: body.venueId || null });
   else return NextResponse.json({ error: "Operación inválida" }, { status: 400 });
