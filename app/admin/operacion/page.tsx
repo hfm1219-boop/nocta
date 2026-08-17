@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import {
-  borrarDatosPrueba, cop, editarPrecio, guardarDB, registrarCobro, toggleDisponible, useDB, useReloj,
+  borrarDatosPrueba, cop, guardarDB, registrarCobro, useDB, useReloj,
 } from "@/lib/store";
 import type { DB, MedioPago, Pedido } from "@/lib/types";
 import { cotizarProducto } from "@/lib/mercado";
@@ -22,7 +22,6 @@ const NOMBRE_MEDIO: Record<MedioPago, string> = {
 
 const TABS = [
   { id: "reportes", nombre: "Reportes" },
-  { id: "menu", nombre: "Menú" },
   { id: "mercado", nombre: "Bolsa de precios" },
   { id: "zonas", nombre: "Zonas y QRs" },
   { id: "estaciones", nombre: "Estaciones" },
@@ -57,7 +56,6 @@ export default function OperacionEstablecimiento() {
       </div>
       <main className="flex-1 p-4 max-w-5xl w-full mx-auto">
         {tab === "reportes" && <Reportes db={db} />}
-        {tab === "menu" && <MenuAdmin db={db} />}
         {tab === "mercado" && <MercadoPrecios db={db} />}
         {tab === "zonas" && <Zonas db={db} />}
         {tab === "estaciones" && <Estaciones db={db} />}
@@ -622,70 +620,6 @@ function ControlMercado({
         <span>{min}{sufijo}</span><span>{max}{sufijo}</span>
       </div>
     </label>
-  );
-}
-
-// ---------------- Menú ----------------
-
-function MenuAdmin({ db }: { db: DB }) {
-  const [editando, setEditando] = useState<string | null>(null);
-  const [precio, setPrecio] = useState("");
-  return (
-    <div className="space-y-3">
-      <p className="text-sm text-muted">
-        Cambios en vivo: el precio se congela en cada pedido (snapshot) y el
-        carrito del cliente respeta su precio por 10 minutos.
-      </p>
-      {db.productos.map((p) => (
-        <div key={p.id} className="card px-4 py-3 flex items-center gap-3">
-          <span className="text-xl">{p.icono}</span>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold text-sm truncate">{p.nombre}</div>
-            <div className="text-xs text-muted">{p.descripcion}</div>
-          </div>
-          {editando === p.id ? (
-            <div className="flex items-center gap-2">
-              <input
-                value={precio}
-                onChange={(e) => setPrecio(e.target.value.replace(/\D/g, ""))}
-                inputMode="numeric"
-                autoFocus
-                className="card w-28 px-3 py-1.5 bg-transparent outline-none text-sm"
-              />
-              <button
-                onClick={() => {
-                  editarPrecio(p.id, Number(precio));
-                  setEditando(null);
-                }}
-                className="text-lime text-sm font-semibold"
-              >
-                ✓
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={() => {
-                setEditando(p.id);
-                setPrecio(String(p.precio));
-              }}
-              className="text-neon2 font-bold text-sm"
-            >
-              {cop(p.precio)} ✎
-            </button>
-          )}
-          <button
-            onClick={() => toggleDisponible(p.id)}
-            className={`text-xs font-semibold px-3 py-1.5 rounded-full border ${
-              p.disponible
-                ? "border-lime/40 text-lime"
-                : "border-danger/50 text-danger"
-            }`}
-          >
-            {p.disponible ? "Disponible" : "AGOTADO"}
-          </button>
-        </div>
-      ))}
-    </div>
   );
 }
 
