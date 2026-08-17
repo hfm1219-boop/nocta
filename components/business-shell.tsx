@@ -9,7 +9,7 @@ import { Logo } from "@/components/ui";
 
 type Kind = "establishment" | "promoter" | "brand_distributor";
 const NAV = {
-  establishment: [["/admin","Inicio","⌂"],["/admin/operacion","Operación","◉"],["/admin/eventos","Eventos","◇"],["/admin/promociones","Promociones","%"],["/admin/menu","Menú","≡"],["/admin/clientes","Clientes","◎"],["/admin/analitica","Analítica","↗"],["/admin/equipo","Equipo","♙"],["/admin/configuracion","Configuración","⚙"]],
+  establishment: [["/admin","Inicio","⌂"],["/admin/establecimientos","Establecimientos","⌖"],["/admin/operacion","Operación","◉"],["/admin/eventos","Eventos","◇"],["/admin/promociones","Promociones","%"],["/admin/menu","Menú","≡"],["/admin/clientes","Clientes","◎"],["/admin/analitica","Analítica","↗"],["/admin/equipo","Equipo","♙"],["/admin/configuracion","Configuración","⚙"]],
   promoter: [["/promotor","Inicio","⌂"],["/promotor/eventos","Eventos","◇"],["/promotor/tickets","Tickets","▣"],["/promotor/audiencia","Audiencia","◎"],["/promotor/alianzas","Alianzas","⇄"],["/promotor/liquidaciones","Liquidaciones","$"],["/promotor/analitica","Analítica","↗"],["/promotor/equipo","Equipo","♙"],["/promotor/configuracion","Configuración","⚙"]],
   brand_distributor: [["/marca","Inicio","⌂"],["/marca/campanas","Campañas","◆"],["/marca/portafolio","Marcas y productos","▦"],["/marca/establecimientos","Establecimientos","⌖"],["/marca/eventos","Eventos","◇"],["/marca/audiencias","Audiencias","◎"],["/marca/resultados","Resultados","↗"],["/marca/equipo","Equipo","♙"],["/marca/configuracion","Configuración","⚙"]],
 } satisfies Record<Kind, string[][]>;
