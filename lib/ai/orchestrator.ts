@@ -109,14 +109,20 @@ export async function confirmAgentAction(ctx: AgentServerContext, input: { conve
 }
 
 async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id: string; state: ConversationState }, runId: string, started: number, message: string, venue?: { id: string; name: string }) {
-  if (!venue) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿En cuál establecimiento quieres configurar el motor de la promoción?", []), 2);
+  if (!venue) {
+    await updateConversation(ctx, conversation.id, { ...conversation.state, intent: "CONFIGURE_PROMOTION_ENGINE" });
+    return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿En cuál establecimiento quieres configurar el motor de la promoción?", []), 2);
+  }
   const result = await getPromotionEngineCatalog(ctx, venue.id);
   await recordTool(ctx, runId, "get_promotion_engine_catalog", "READ", { venueId: venue.id }, result.ok ? { ok: true, promotions: result.data.promotions.length, products: result.data.menuItems.length, skus: result.data.brandProducts.length, activations: result.data.activations.length } : result, started);
   if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
   const catalog = result.data; let draft = conversation.state.engineDraft;
   if (!draft) {
     const promotion = catalog.promotions.find((item) => item.id === conversation.state.promotionId) ?? matchNamed(message, catalog.promotions, (item) => item.title);
-    if (!promotion) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
+    if (!promotion) {
+      await updateConversation(ctx, conversation.id, { ...conversation.state, intent: "CONFIGURE_PROMOTION_ENGINE" }, venue.id);
+      return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
+    }
     const relation = Array.isArray(promotion.promotion_rules) ? promotion.promotion_rules[0] : promotion.promotion_rules;
     const rule = relation as Record<string, unknown> | null;
     draft = { promotionId: promotion.id, promotionTitle: promotion.title, venueId: venue.id, mechanic: String(rule?.mechanic ?? "percentage") as PromotionMechanic, benefit: Number(rule?.percentage_off ?? rule?.fixed_amount_cop ?? rule?.fixed_price_cop) || undefined, buyQuantity: Number(rule?.buy_quantity) || undefined, getQuantity: Number(rule?.get_quantity) || undefined, minimumQuantity: Number(rule?.minimum_quantity) || 1, minimumSpendCop: Number(rule?.minimum_spend_cop) || 0, maximumDiscountCop: Number(rule?.maximum_discount_cop) || undefined, perUserLimit: Number(rule?.per_user_limit) || undefined, totalLimit: Number(rule?.total_redemption_limit) || undefined, budgetCop: Number(rule?.budget_cop) || undefined, timeStart: typeof rule?.local_time_start === "string" ? rule.local_time_start : undefined, timeEnd: typeof rule?.local_time_end === "string" ? rule.local_time_end : undefined, weekdays: Array.isArray(rule?.weekdays) ? rule.weekdays as number[] : [0,1,2,3,4,5,6], priority: Number(rule?.priority) || 100, stackable: Boolean(rule?.stackable) };
