@@ -93,8 +93,10 @@ export type AgentCard =
   | { type: "promotion_engine_preview"; confirmationId: string; draft: PromotionEngineDraft; mappingVerified: boolean; expiresAt: string }
   | { type: "tool_result"; title: string; detail: string; href?: string }
   | { type: "confirmation"; confirmationId: string; prompt: string }
-  | { type: "suggestion"; title: string; actions: string[] }
+  | { type: "suggestion"; title: string; actions: AgentSuggestionAction[] }
   | { type: "error"; title: string; detail: string };
+
+export type AgentSuggestionAction = string | { label: string; value: string; promotionId: string };
 
 export type AgentReply = {
   conversationId: string;
