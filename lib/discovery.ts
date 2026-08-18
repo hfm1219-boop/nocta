@@ -52,6 +52,11 @@ export const LUGARES: LugarNocta[] = [
     categoria: "bar", descripcion: "Bar de coctelería contemporánea para comenzar o cerrar la noche.",
     estilos: ["Lounge", "Soul"], rangoPrecio: "$$", color: "#fbbf24", icono: "🍸",
   },
+  {
+    id: "lobo-de-mar", nombre: "Lobo de Mar", ciudad: "Cartagena", zona: "Centro Histórico",
+    categoria: "restaurante", descripcion: "Cocina de mar, fuego y producto fresco con una propuesta mediterránea y caribeña.",
+    estilos: ["Mariscos", "Mediterráneo", "Coctelería"], rangoPrecio: "$$$$", color: "#0ea5a4", icono: "🐺",
+  },
 ];
 
 export const EVENTOS: EventoNocta[] = [

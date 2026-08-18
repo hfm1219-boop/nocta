@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { EntrarLugar, PreordenarEvento } from "@/components/entrar-lugar";
+import { EntrarLugar } from "@/components/entrar-lugar";
 import { Logo } from "@/components/ui";
 import { FavoriteButton } from "@/components/favorites";
 import { DemandTracker } from "@/components/demand-tracker";
-import { EVENTOS, formatearFecha, LUGARES, lugarPorId } from "@/lib/discovery";
+import { ProximosEventosLugar } from "@/components/proximos-eventos-lugar";
+import { LUGARES, lugarPorId } from "@/lib/discovery";
 
 export function generateStaticParams() {
   return LUGARES.map((lugar) => ({ id: lugar.id }));
@@ -14,7 +15,6 @@ export default async function LugarPage({ params }: PageProps<"/lugares/[id]">) 
   const { id } = await params;
   const lugar = lugarPorId(id);
   if (!lugar) notFound();
-  const eventos = EVENTOS.filter((evento) => evento.lugarId === lugar.id);
 
   return (
     <main className="flex-1 pb-12">
@@ -50,35 +50,7 @@ export default async function LugarPage({ params }: PageProps<"/lugares/[id]">) 
             </div>
           </section>
 
-          <section className="space-y-4">
-            <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-neon2">Antes de llegar</p>
-              <h2 className="text-2xl font-bold mt-1">Próximos eventos</h2>
-              <p className="text-sm text-muted mt-1">Selecciona el evento para comprar acceso o dejar tu preorden lista.</p>
-            </div>
-            {eventos.map((evento) => (
-              <div key={evento.id} className="card p-5 space-y-4">
-                <Link href={`/eventos/${evento.id}`} className="block group">
-                  <div className="flex justify-between gap-4">
-                    <div>
-                      <p className="text-sm font-semibold text-neon3 capitalize">{formatearFecha(evento.fechaISO)}</p>
-                      <h3 className="text-xl font-bold mt-1 group-hover:text-neon2 transition">{evento.nombre}</h3>
-                      <p className="text-sm text-muted mt-2">{evento.resumen}</p>
-                    </div>
-                    <span className="text-neon2">→</span>
-                  </div>
-                </Link>
-                <PreordenarEvento
-                  lugarId={lugar.id}
-                  lugarNombre={lugar.nombre}
-                  eventoId={evento.id}
-                  eventoNombre={evento.nombre}
-                  fechaISO={evento.fechaISO}
-                />
-              </div>
-            ))}
-            {eventos.length === 0 && <div className="card p-6 text-center text-muted">No hay eventos publicados próximamente.</div>}
-          </section>
+          <ProximosEventosLugar lugarId={lugar.id} lugarNombre={lugar.nombre} />
 
           <section className="pt-2">
             <p className="text-xs uppercase tracking-[0.2em] text-muted mb-3">Durante tu visita</p>
