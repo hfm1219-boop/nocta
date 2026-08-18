@@ -49,6 +49,10 @@ export async function POST(request: NextRequest) {
     const configuration = { mechanic: body.mechanic, benefit: body.benefit, buyQuantity: body.buyQuantity, getQuantity: body.getQuantity, minimumQuantity: body.minimumQuantity, minimumSpendCop: body.minimumSpendCop, maximumDiscountCop: body.maximumDiscountCop || "", perUserLimit: body.perUserLimit || "", totalLimit: body.totalLimit || "", budgetCop: body.budgetCop || "", timeStart: body.timeStart || "", timeEnd: body.timeEnd || "", weekdays: body.weekdays ?? [0,1,2,3,4,5,6], priority: body.priority ?? 100, stackable: body.stackable ?? false };
     const { error } = await ctx.supabase!.rpc("configure_promotion_rule", { target_promotion: body.promotionId, target_menu_item: body.menuItemId, target_brand_product: body.brandProductId || null, target_activation: body.activationId || null, configuration });
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (!body.activationId) {
+      const unlinked = await ctx.supabase!.from("promotions").update({ activation_id: null, updated_at: new Date().toISOString() }).eq("id", body.promotionId).eq("venue_id", body.venueId);
+      if (unlinked.error) return NextResponse.json({ error: unlinked.error.message }, { status: 400 });
+    }
     return NextResponse.json({ ok: true }, { status: 201 });
   }
 
