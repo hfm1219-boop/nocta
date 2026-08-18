@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackIntent } from "./intent-router.ts";
-import { parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "./conversation.ts";
+import { matchByLabel, parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "./conversation.ts";
 import { requiresExplicitConfirmation, validatePromotionDraft } from "./validation.ts";
 
 const productId = "10000000-0000-4000-8000-000000000001";
@@ -49,6 +49,14 @@ test("una promoción nueva abandona el flujo pendiente", () => {
   assert.equal(startsNewPromotion("una promoción nueva"), true);
   assert.equal(startsNewPromotion("quiero otra promo"), true);
   assert.equal(startsNewPromotion("configura esta promoción"), false);
+});
+
+test("un título exacto duplicado selecciona el elemento más reciente", () => {
+  const promotions = [
+    { id: "newest", title: "Gin Tropical · Noche especial" },
+    { id: "older", title: "Gin Tropical · Noche especial" },
+  ];
+  assert.equal(matchByLabel("Gin Tropical - Noche especial", promotions, (item) => item.title)?.id, "newest");
 });
 
 test("WRITE requiere confirmación y READ/DRAFT no", () => {
