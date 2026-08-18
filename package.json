@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:phase1": "node --experimental-strip-types --test lib/auth/context.test.ts",
-    "test:phase2": "node --experimental-strip-types --test lib/promotion-selection.test.ts"
+    "test:phase2": "node --experimental-strip-types --test lib/promotion-selection.test.ts",
+    "test:ai": "node --experimental-strip-types --test lib/ai/validation.test.ts lib/ai/permissions.test.ts lib/ai/write-guard.test.ts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.4",
