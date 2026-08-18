@@ -1,5 +1,5 @@
 import type { AgentServerContext } from "@/lib/ai/context";
-import type { PromotionDraft, PromotionMutationDraft, ToolResult } from "@/lib/ai/types";
+import type { PromotionDraft, PromotionEngineDraft, PromotionMutationDraft, ToolResult } from "@/lib/ai/types";
 import { validatePromotionDraft } from "@/lib/ai/validation";
 
 export type VenueRecord = { id: string; name: string; city: string };
@@ -53,6 +53,32 @@ export async function executePromotionMutation(ctx: AgentServerContext, confirma
   if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : error?.message.includes("ALREADY_USED") || error?.message.includes("EXPIRED") ? "CONFLICT" : "INVALID_INPUT", error?.message ?? "No fue posible aplicar el cambio.");
   const result = data as { promotionId: string; action: string };
   return { ok: true, data: { ...result, href: "/admin/promociones" } };
+}
+
+export async function getPromotionEngineCatalog(ctx: AgentServerContext, venueId: string) {
+  if (!venueAllowed(ctx, venueId)) return errorResult("FORBIDDEN", "No puedes administrar este establecimiento.");
+  const [catalog, menu, promotions] = await Promise.all([
+    ctx.supabase.rpc("promotion_configuration_catalog", { target_venue: venueId }),
+    ctx.supabase.from("venue_menu_items").select("id,name,price_cop").eq("venue_id", venueId).eq("available", true).order("name"),
+    ctx.supabase.from("promotions").select("id,title,active,promotion_rules(mechanic,percentage_off,fixed_amount_cop,buy_quantity,get_quantity,fixed_price_cop,minimum_quantity,minimum_spend_cop,maximum_discount_cop,per_user_limit,total_redemption_limit,budget_cop,local_time_start,local_time_end,weekdays,priority,stackable,promotion_rule_items(venue_menu_item_id,brand_product_id))").eq("venue_id", venueId).order("created_at", { ascending: false }),
+  ]);
+  const error = catalog.error ?? menu.error ?? promotions.error;
+  if (error) return errorResult("INTERNAL", error.message);
+  const base = (catalog.data ?? {}) as { brandProducts?: Array<{ id: string; sku: string; name: string; brandId: string; brandName: string }>; activations?: Array<{ id: string; name: string; campaignId: string; campaignName: string; brandName: string }>; mappings?: Array<{ brandProductId: string; menuItemId: string; brandQuantity: number; brandUnit: string; verified: boolean }> };
+  return { ok: true as const, data: { brandProducts: base.brandProducts ?? [], activations: base.activations ?? [], mappings: base.mappings ?? [], menuItems: menu.data ?? [], promotions: promotions.data ?? [] } };
+}
+
+export async function preparePromotionEngineConfiguration(ctx: AgentServerContext, conversationId: string, draft: PromotionEngineDraft): Promise<ToolResult<{ confirmationId: string; expiresAt: string; mappingVerified: boolean }>> {
+  const { data, error } = await ctx.supabase.rpc("prepare_agent_promotion_engine", { target_conversation: conversationId, configuration_payload: draft });
+  if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : "INVALID_INPUT", error?.message ?? "No fue posible preparar la configuración.");
+  const result = data as { confirmationId: string; mappingVerified: boolean };
+  return { ok: true, data: { ...result, expiresAt: new Date(Date.now() + 30 * 60_000).toISOString() } };
+}
+
+export async function executePromotionEngineConfiguration(ctx: AgentServerContext, confirmationId: string): Promise<ToolResult<{ promotionId: string; status: string; mappingVerified: boolean; href: string }>> {
+  const { data, error } = await ctx.supabase.rpc("execute_confirmed_agent_promotion_engine", { target_confirmation: confirmationId });
+  if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : error?.message.includes("ALREADY_USED") || error?.message.includes("EXPIRED") ? "CONFLICT" : "INVALID_INPUT", error?.message ?? "No fue posible configurar el motor.");
+  return { ok: true, data: { ...(data as { promotionId: string; status: string; mappingVerified: boolean }), href: "/admin/promociones" } };
 }
 
 export async function validatePromotion(ctx: AgentServerContext, draft: PromotionDraft): Promise<ToolResult<PromotionDraft>> {
