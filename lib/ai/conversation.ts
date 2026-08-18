@@ -7,6 +7,22 @@ export function startsNewPromotion(message: string) {
   return /\b(?:nueva|nuevo|otra|otro)\s+(?:promocion|promo)\b|\b(?:promocion|promo)\s+(?:nueva|nuevo|distinta|diferente)\b/.test(normalized);
 }
 
+export function matchByLabel<T>(message: string, items: T[], label: (item: T) => string) {
+  const query = normalizeLabel(message);
+  const exact = items.find((item) => normalizeLabel(label(item)) === query);
+  if (exact) return exact;
+  const contained = items.filter((item) => {
+    const candidate = normalizeLabel(label(item));
+    return candidate.length > 0 && (query.includes(candidate) || candidate.includes(query));
+  });
+  if (contained.length === 1) return contained[0];
+  const scored = items.map((item) => ({
+    item,
+    score: normalizeLabel(label(item)).split(/\s+/).filter((word) => word.length >= 3 && query.includes(word)).length,
+  })).sort((a, b) => b.score - a.score);
+  return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
+}
+
 export function preservePromotionFlow(state: ConversationState, intent: AgentIntent): AgentIntent {
   if (state.intent !== "CREATE_PROMOTION" || intent.intent === "CREATE_PROMOTION" || intent.intent === "LIST_PROMOTIONS") return intent;
   return { ...intent, intent: "CREATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };
@@ -63,3 +79,4 @@ function cleanEntity(value: unknown) { return typeof value === "string" ? value.
 function bogotaDateParts(date: Date) { return { date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(date) }; }
 function pad(value: number) { return String(value).padStart(2, "0"); }
 function normalize(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-CO"); }
+function normalizeLabel(value: string) { return normalize(value).replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " "); }

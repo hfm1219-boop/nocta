@@ -1,5 +1,5 @@
 import type { AgentServerContext } from "@/lib/ai/context";
-import { parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "@/lib/ai/conversation";
+import { matchByLabel, parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "@/lib/ai/conversation";
 import { fallbackIntent, routeIntent } from "@/lib/ai/intent-router";
 import type { AgentReply, PromotionDraft, PromotionEngineDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
 import { cleanText, isUuid } from "@/lib/ai/validation";
@@ -118,7 +118,7 @@ async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id
   if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
   const catalog = result.data; let draft = conversation.state.engineDraft;
   if (!draft) {
-    const promotion = catalog.promotions.find((item) => item.id === conversation.state.promotionId) ?? matchNamed(message, catalog.promotions, (item) => item.title);
+    const promotion = catalog.promotions.find((item) => item.id === conversation.state.promotionId) ?? matchByLabel(message, catalog.promotions, (item) => item.title);
     if (!promotion) {
       await updateConversation(ctx, conversation.id, { ...conversation.state, intent: "CONFIGURE_PROMOTION_ENGINE" }, venue.id);
       return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
@@ -129,11 +129,11 @@ async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id
     const items = Array.isArray(rule?.promotion_rule_items) ? rule.promotion_rule_items as Array<{ venue_menu_item_id?: string; brand_product_id?: string }> : [];
     const linked = items[0]; if (linked?.venue_menu_item_id) draft.menuItemId = linked.venue_menu_item_id; if (linked?.brand_product_id) draft.brandProductId = linked.brand_product_id;
   }
-  const menuItem = catalog.menuItems.find((item) => item.id === draft?.menuItemId) ?? matchNamed(message, catalog.menuItems, (item) => item.name);
+  const menuItem = catalog.menuItems.find((item) => item.id === draft?.menuItemId) ?? matchByLabel(message, catalog.menuItems, (item) => item.name);
   if (menuItem) { draft.menuItemId = menuItem.id; draft.menuItemName = menuItem.name; }
-  const brandProduct = catalog.brandProducts.find((item) => item.id === draft?.brandProductId) ?? matchNamed(message, catalog.brandProducts, (item) => `${item.brandName} ${item.sku} ${item.name}`);
+  const brandProduct = catalog.brandProducts.find((item) => item.id === draft?.brandProductId) ?? matchByLabel(message, catalog.brandProducts, (item) => `${item.brandName} ${item.sku} ${item.name}`);
   if (brandProduct) { draft.brandProductId = brandProduct.id; draft.brandProductName = `${brandProduct.brandName} · ${brandProduct.name}`; draft.brandSku = brandProduct.sku; }
-  const activation = catalog.activations.find((item) => item.id === draft?.activationId) ?? matchNamed(message, catalog.activations, (item) => `${item.brandName} ${item.campaignName} ${item.name}`) ?? (catalog.activations.length === 1 ? catalog.activations[0] : undefined);
+  const activation = catalog.activations.find((item) => item.id === draft?.activationId) ?? matchByLabel(message, catalog.activations, (item) => `${item.brandName} ${item.campaignName} ${item.name}`) ?? (catalog.activations.length === 1 ? catalog.activations[0] : undefined);
   if (activation) { draft.activationId = activation.id; draft.activationName = `${activation.campaignName} · ${activation.name}`; }
   const composition = normalize(message).match(/(\d+(?:[.,]\d+)?)\s*(ml|g|gramos?|unidades?|porciones?)/);
   if (composition) { draft.brandQuantity = Number(composition[1].replace(",", ".")); draft.brandUnit = composition[2].startsWith("ml") ? "ml" : composition[2].startsWith("g") ? "g" : composition[2].startsWith("unidad") ? "unit" : "serving"; }
@@ -199,10 +199,6 @@ function matchPromotion(message: string, entityTitle: string, promotions: Array<
   const exact = promotions.filter((item) => query.includes(normalize(item.title)) || normalize(item.title).includes(query));
   if (exact.length === 1) return exact[0];
   const scored = promotions.map((item) => ({ item, score: normalize(item.title).split(/\s+/).filter((word) => word.length >= 4 && query.includes(word)).length })).sort((a, b) => b.score - a.score);
-  return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
-}
-function matchNamed<T>(message: string, items: T[], label: (item: T) => string) {
-  const query = normalize(message); const scored = items.map((item) => ({ item, score: normalize(label(item)).split(/\s+/).filter((word) => word.length >= 3 && query.includes(word)).length })).sort((a, b) => b.score - a.score);
   return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
 }
 function actionLabel(action: PromotionMutationAction) { return action === "pause_promotion" ? "pausar" : action === "reactivate_promotion" ? "reactivar" : action === "duplicate_promotion" ? "duplicar" : "editar"; }
