@@ -12,7 +12,7 @@ type Kind = "establishment" | "promoter" | "brand_distributor";
 type NavItem = [href: string, label: string, icon: string];
 
 const NAV: Record<Kind, NavItem[]> = {
-  establishment: [["/admin","Inicio","⌂"],["/admin/establecimientos","Establecimientos","⌖"],["/admin/operacion","Operación","◉"],["/admin/eventos","Eventos","◇"],["/admin/promociones","Promociones","%"],["/admin/menu","Menú","≡"],["/admin/clientes","Clientes","◎"],["/admin/analitica","Analítica","↗"],["/admin/equipo","Equipo","♙"],["/admin/configuracion","Configuración","⚙"]],
+  establishment: [["/admin","Inicio","⌂"],["/admin/establecimientos","Establecimientos","⌖"],["/accesos","Turno en vivo","◉"],["/admin/eventos","Eventos","◇"],["/admin/promociones","Promociones","%"],["/admin/menu","Menú","≡"],["/admin/clientes","Clientes","◎"],["/admin/analitica","Analítica","↗"],["/admin/equipo","Equipo","♙"],["/admin/operacion","Configuración operativa","⚙"],["/admin/configuracion","Perfil y horarios","⚙"]],
   promoter: [["/promotor","Inicio","⌂"],["/promotor/eventos","Eventos","◇"],["/promotor/tickets","Tickets","▣"],["/promotor/audiencia","Audiencia","◎"],["/promotor/alianzas","Alianzas","⇄"],["/promotor/liquidaciones","Liquidaciones","$"],["/promotor/analitica","Analítica","↗"],["/promotor/equipo","Equipo","♙"],["/promotor/configuracion","Configuración","⚙"]],
   brand_distributor: [["/marca","Inicio","⌂"],["/marca/campanas","Campañas","◆"],["/marca/portafolio","Marcas y productos","▦"],["/marca/establecimientos","Establecimientos","⌖"],["/marca/eventos","Eventos","◇"],["/marca/audiencias","Audiencias","◎"],["/marca/resultados","Resultados","↗"],["/marca/equipo","Equipo","♙"],["/marca/configuracion","Configuración","⚙"]],
 };
