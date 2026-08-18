@@ -17,13 +17,15 @@ export async function GET() {
   const ctx = await context(); if (ctx.error) return ctx.error;
   const eventsQuery = await ctx.supabase!.from("events").select("id,external_key,name,starts_at,ends_at,capacity,status,details,created_at,ticket_types(id,name,price_cop,capacity,tickets(id,status,amount_cop,holder_user_id)),event_venue_collaborations(id,status,notes,venues(id,name,city)),event_sponsors(id,name,contribution_type,contribution_value_cop,status),event_complimentary_allocations(id,recipient_name,recipient_email,quantity,status),promoter_settlements(id,gross_cop,fees_cop,deductions_cop,net_cop,status,due_at,paid_at)").eq("organization_id", ctx.organizationId!).order("created_at", { ascending: false });
   if (eventsQuery.error) return NextResponse.json({ error: eventsQuery.error.message }, { status: 400 });
-  const [profile, team] = await Promise.all([
+  const [profile, team,eventAnalytics] = await Promise.all([
     ctx.supabase!.from("promoter_profiles").select("public_name,bio,verified,contact_email,contact_phone,social_links").eq("user_id", ctx.userId!).maybeSingle(),
     ctx.supabase!.from("organization_memberships").select("id,user_id,status,profiles(full_name),organization_roles(context_role,role)").eq("organization_id", ctx.organizationId!),
+    ctx.supabase!.from("event_analytics").select("event_id,impressions,views,clicks,checkins,reached_people,tickets,reservations,ticket_revenue_cop").eq("organization_id",ctx.organizationId!),
   ]);
+  const relatedError=profile.error??team.error??eventAnalytics.error;if(relatedError)return NextResponse.json({error:relatedError.message},{status:400});
   const events = eventsQuery.data ?? [];
-  const tickets = events.flatMap(event => event.ticket_types?.flatMap(type => type.tickets ?? []) ?? []);
-  return NextResponse.json({ organizationId: ctx.organizationId, profile: profile.data, events, team: team.data ?? [], analytics: { events: events.length, published: events.filter(e => e.status === "published").length, tickets: tickets.length, checkedIn: tickets.filter(t => t.status === "used").length, grossCop: tickets.filter(t => t.status !== "cancelled").reduce((sum, t) => sum + Number(t.amount_cop ?? 0), 0), audience: new Set(tickets.map(t => t.holder_user_id).filter(Boolean)).size } });
+  const eventMetrics=eventAnalytics.data??[];
+  return NextResponse.json({ organizationId: ctx.organizationId, profile: profile.data, events, team: team.data ?? [],eventAnalytics:eventMetrics, analytics: { events: events.length, published: events.filter(e => e.status === "published").length, tickets:eventMetrics.reduce((sum,row)=>sum+Number(row.tickets),0), checkedIn:eventMetrics.reduce((sum,row)=>sum+Number(row.checkins),0), grossCop:eventMetrics.reduce((sum,row)=>sum+Number(row.ticket_revenue_cop),0), audience:eventMetrics.reduce((sum,row)=>sum+Number(row.reached_people),0),impressions:eventMetrics.reduce((sum,row)=>sum+Number(row.impressions),0),views:eventMetrics.reduce((sum,row)=>sum+Number(row.views),0),clicks:eventMetrics.reduce((sum,row)=>sum+Number(row.clicks),0),reservations:eventMetrics.reduce((sum,row)=>sum+Number(row.reservations),0) } });
 }
 
 export async function POST(request: NextRequest) {

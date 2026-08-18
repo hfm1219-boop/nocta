@@ -27,7 +27,7 @@ type SkuPerformance = {
 export async function GET() {
   const c = await context();
   if (c.error) return c.error;
-  const [organization, brands, campaigns, performance, skuPerformance, venues, events, team] = await Promise.all([
+  const [organization, brands, campaigns, performance, skuPerformance, venues, events, team,demandPerformance] = await Promise.all([
     c.supabase!.from("organizations").select("id,name,business_type").eq("id", c.organizationId!).single(),
     c.supabase!.from("brands").select("id,name,description,logo_url,website,active,brand_products(id,sku,name,description,category,presentation,unit_cost_cop,active)").eq("organization_id", c.organizationId!).order("name"),
     c.supabase!.from("brand_campaigns").select("id,name,objective,starts_at,ends_at,budget_cop,status,target_audience,brands(id,name),brand_activations(id,name,activation_type,status,allocated_budget_cop,actual_spend_cop,planned_reach,actual_reach,redemptions,units_sold,revenue_cop,events(id,external_key,name),venues(id,name,city))").eq("organization_id", c.organizationId!).order("created_at", { ascending: false }),
@@ -36,11 +36,13 @@ export async function GET() {
     c.supabase!.from("venues").select("id,name,city").eq("active", true).order("name"),
     c.supabase!.from("events").select("id,external_key,name,starts_at,status").eq("status", "published").order("starts_at"),
     c.supabase!.from("organization_memberships").select("id,user_id,status,profiles(full_name),organization_roles(context_role,role)").eq("organization_id", c.organizationId!),
+    c.supabase!.from("brand_activation_analytics").select("activation_id,impressions,views,clicks,reach"),
   ]);
-  const error = organization.error ?? brands.error ?? campaigns.error ?? performance.error ?? skuPerformance.error ?? venues.error ?? events.error ?? team.error;
+  const error = organization.error ?? brands.error ?? campaigns.error ?? performance.error ?? skuPerformance.error ?? venues.error ?? events.error ?? team.error??demandPerformance.error;
   if (error) return NextResponse.json({ error: error.message }, { status: 400 });
 
   const performanceByActivation = new Map(((performance.data ?? []) as Performance[]).map((row) => [row.activation_id, row]));
+  const demandByActivation=new Map((demandPerformance.data??[]).map(row=>[row.activation_id,row]));
   const skuByActivation = new Map<string, SkuPerformance[]>();
   for (const row of (skuPerformance.data ?? []) as SkuPerformance[]) {
     skuByActivation.set(row.activation_id, [...(skuByActivation.get(row.activation_id) ?? []), row]);
@@ -54,6 +56,7 @@ export async function GET() {
         gross_sellout_cop: 0, discount_cop: 0, net_sellout_cop: 0, sku_attributions: [],
       },
       skuPerformance: skuByActivation.get(activation.id) ?? [],
+      demandPerformance:demandByActivation.get(activation.id)??{impressions:0,views:0,clicks:0,reach:0},
     })),
   }));
   const activations = campaignRows.flatMap((row) => row.brand_activations ?? []);
@@ -67,7 +70,10 @@ export async function GET() {
       activeCampaigns: campaignRows.filter((row) => row.status === "active").length,
       budgetCop: campaignRows.reduce((sum, row) => sum + Number(row.budget_cop), 0),
       spendCop: activations.reduce((sum, row) => sum + Number(row.actual_spend_cop), 0),
-      reach: activations.reduce((sum, row) => sum + Number(row.actual_reach), 0),
+      reach: activations.reduce((sum, row) => sum + Number(row.demandPerformance.reach), 0),
+      impressions:activations.reduce((sum,row)=>sum+Number(row.demandPerformance.impressions),0),
+      views:activations.reduce((sum,row)=>sum+Number(row.demandPerformance.views),0),
+      clicks:activations.reduce((sum,row)=>sum+Number(row.demandPerformance.clicks),0),
       ordersInfluenced: activations.reduce((sum, row) => sum + Number(row.performance.orders_influenced), 0),
       redemptions: activations.reduce((sum, row) => sum + Number(row.performance.redemptions), 0),
       unitsSold: activations.reduce((sum, row) => sum + Number(row.performance.menu_units_sold), 0),
