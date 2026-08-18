@@ -42,8 +42,21 @@ export type PromotionDraft = {
   budgetCop?: number;
 };
 
+export type PromotionMutationAction = "update_promotion" | "pause_promotion" | "reactivate_promotion" | "duplicate_promotion";
+export type PromotionMutationDraft = {
+  action: PromotionMutationAction;
+  promotionId: string;
+  title: string;
+  venueId: string;
+  active?: boolean;
+  benefit?: number;
+  startsAt?: string;
+  endsAt?: string;
+};
+
 export type AgentCard =
   | { type: "promotion_preview"; confirmationId: string; draft: PromotionDraft; expiresAt: string }
+  | { type: "promotion_mutation_preview"; confirmationId: string; draft: PromotionMutationDraft; expiresAt: string }
   | { type: "tool_result"; title: string; detail: string; href?: string }
   | { type: "confirmation"; confirmationId: string; prompt: string }
   | { type: "suggestion"; title: string; actions: string[] }

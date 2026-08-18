@@ -1,5 +1,5 @@
 import type { AgentServerContext } from "@/lib/ai/context";
-import type { PromotionDraft, ToolResult } from "@/lib/ai/types";
+import type { PromotionDraft, PromotionMutationDraft, ToolResult } from "@/lib/ai/types";
 import { validatePromotionDraft } from "@/lib/ai/validation";
 
 export type VenueRecord = { id: string; name: string; city: string };
@@ -32,6 +32,27 @@ export async function listActivePromotions(ctx: AgentServerContext, venueId: str
   const { data, error } = await ctx.supabase.from("promotions").select("id,title,starts_at,ends_at,active").eq("venue_id", venueId).eq("active", true).order("starts_at", { ascending: false }).limit(50);
   if (error) return errorResult("INTERNAL", error.message);
   return { ok: true as const, data: data ?? [] };
+}
+
+export async function listManageablePromotions(ctx: AgentServerContext, venueId: string) {
+  if (!venueAllowed(ctx, venueId)) return errorResult("FORBIDDEN", "No puedes administrar este establecimiento.");
+  const { data, error } = await ctx.supabase.from("promotions").select("id,title,starts_at,ends_at,active,promotion_rules(mechanic,percentage_off,fixed_amount_cop,buy_quantity,get_quantity,fixed_price_cop)").eq("venue_id", venueId).order("created_at", { ascending: false }).limit(100);
+  if (error) return errorResult("INTERNAL", error.message);
+  return { ok: true as const, data: data ?? [] };
+}
+
+export async function preparePromotionMutation(ctx: AgentServerContext, conversationId: string, draft: PromotionMutationDraft): Promise<ToolResult<{ confirmationId: string; expiresAt: string }>> {
+  if (!venueAllowed(ctx, draft.venueId)) return errorResult("FORBIDDEN", "No puedes administrar este establecimiento.");
+  const { data, error } = await ctx.supabase.rpc("prepare_agent_promotion_mutation", { target_conversation: conversationId, target_promotion: draft.promotionId, mutation_action: draft.action, mutation_payload: draft });
+  if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : "INVALID_INPUT", error?.message ?? "No fue posible preparar el cambio.");
+  return { ok: true, data: { confirmationId: data as string, expiresAt: new Date(Date.now() + 30 * 60_000).toISOString() } };
+}
+
+export async function executePromotionMutation(ctx: AgentServerContext, confirmationId: string): Promise<ToolResult<{ promotionId: string; action: string; href: string }>> {
+  const { data, error } = await ctx.supabase.rpc("execute_confirmed_agent_promotion_mutation", { target_confirmation: confirmationId });
+  if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : error?.message.includes("ALREADY_USED") || error?.message.includes("EXPIRED") ? "CONFLICT" : "INVALID_INPUT", error?.message ?? "No fue posible aplicar el cambio.");
+  const result = data as { promotionId: string; action: string };
+  return { ok: true, data: { ...result, href: "/admin/promociones" } };
 }
 
 export async function validatePromotion(ctx: AgentServerContext, draft: PromotionDraft): Promise<ToolResult<PromotionDraft>> {
