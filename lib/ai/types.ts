@@ -85,6 +85,9 @@ export type PromotionEngineDraft = {
   weekdays: number[];
   priority: number;
   stackable: boolean;
+  configureMapping?: boolean;
+  configureRule?: boolean;
+  configureAttribution?: boolean;
 };
 
 export type AgentCard =
