@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   borrarDatosPrueba, cop, guardarDB, registrarCobro, useDB, useReloj,
@@ -39,6 +40,10 @@ export default function OperacionEstablecimiento() {
   return (
     <div className="min-h-dvh flex flex-col">
       <header className="px-4 pt-6 max-w-5xl w-full mx-auto"><p className="text-xs uppercase tracking-[.2em] text-neon2">Establecimiento</p><h1 className="text-3xl font-bold mt-1">{db.config.nombre}</h1><p className="text-sm text-muted">Resumen administrativo y configuración operativa.</p></header>
+      <section className="mx-auto grid w-full max-w-5xl gap-3 px-4 pt-4 sm:grid-cols-2">
+        <Link href="/barra" className="card flex items-center justify-between gap-4 border-neon2/25 p-4 transition hover:border-neon2"><span><span className="text-xs font-bold uppercase tracking-wider text-neon2">Preparación</span><b className="mt-1 block text-lg">Barra y cocina</b><small className="text-muted">Pedidos nuevos, preparando y listos por estación.</small></span><span className="text-right"><b className="text-3xl">{db.pedidos.filter(p=>["nuevo","preparando","listo"].includes(p.estado)).length}</b><small className="block text-muted">pendientes →</small></span></Link>
+        <Link href="/mesero" className="card flex items-center justify-between gap-4 border-neon3/25 p-4 transition hover:border-neon3"><span><span className="text-xs font-bold uppercase tracking-wider text-neon3">Entrega</span><b className="mt-1 block text-lg">Meseros</b><small className="text-muted">Pedidos en camino por mesero, zona, mesa o VIP.</small></span><span className="text-right"><b className="text-3xl">{db.pedidos.filter(p=>p.estado==="en_camino").length}</b><small className="block text-muted">pendientes →</small></span></Link>
+      </section>
       <div className="mx-auto flex w-full max-w-5xl gap-2 overflow-x-auto px-4 pt-3">
         {TABS.map((t) => (
           <button
