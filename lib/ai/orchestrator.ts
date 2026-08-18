@@ -1,4 +1,5 @@
 import type { AgentServerContext } from "@/lib/ai/context";
+import { parseBuyXGetY, parseWindow, preservePromotionFlow } from "@/lib/ai/conversation";
 import { fallbackIntent, routeIntent } from "@/lib/ai/intent-router";
 import type { AgentReply, PromotionDraft, PromotionMechanic } from "@/lib/ai/types";
 import { cleanText, isUuid } from "@/lib/ai/validation";
@@ -27,21 +28,21 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   } catch {
     intent = fallbackIntent(message);
   }
-  if (state.intent === "CREATE_PROMOTION" && intent.intent === "UNKNOWN") intent = { ...intent, intent: "CREATE_PROMOTION" as const, confidence: 0.7 };
+  intent = preservePromotionFlow(state, intent);
   const run = await startRun(ctx, conversation.id, intent.intent);
 
   if (intent.intent === "LIST_PROMOTIONS") {
-    if (!venue) return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "needs_input", "¿De cuál establecimiento quieres consultar las promociones?", []), 2);
+    if (!venue) return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "needs_input", "¿De cuál establecimiento quieres consultar las promociones?", []), 2);
     const promotions = await listActivePromotions(ctx, venue.id);
     await recordTool(ctx, run.id, "list_active_promotions", "READ", { venueId: venue.id }, promotions, started);
     if (!promotions.ok) return completeRun(ctx, run.id, started, failReply(conversation.id, promotions.error, run.id), 2);
     const text = promotions.data.length ? `Tienes ${promotions.data.length} ${promotions.data.length === 1 ? "promoción activa" : "promociones activas"}: ${promotions.data.map((item) => item.title).join(", ")}.` : `No hay promociones activas en ${venue.name}.`;
-    return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "tool_result", title: "Promociones activas", detail: text, href: "/admin/promociones" }]), 2);
+    return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "tool_result", title: "Promociones activas", detail: text, href: "/admin/promociones" }]), 2);
   }
 
   if (intent.intent !== "CREATE_PROMOTION") {
     const text = intent.intent === "CREATE_EVENT" ? "La creación conversacional de eventos será la siguiente capacidad. En este sprint ya puedes crear promociones de punta a punta." : "Por ahora puedo crear promociones o consultar las promociones activas de tu establecimiento.";
-    return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "suggestion", title: "Prueba una acción", actions: ["Crear promoción", "¿Qué promociones tengo activas?"] }]), 1);
+    return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "suggestion", title: "Prueba una acción", actions: ["Crear promoción", "¿Qué promociones tengo activas?"] }]), 1);
   }
 
   const draft = enrichDraft(state.promotionDraft, message, intent.entities, venue, productResult.data);
@@ -113,6 +114,11 @@ async function completeRun(ctx: AgentServerContext, runId: string, started: numb
   return response;
 }
 
+async function completeRunWithMessage(ctx: AgentServerContext, runId: string, started: number, response: AgentReply, steps: number) {
+  await addMessage(ctx, response.conversationId, "assistant", response.message, { status: response.status });
+  return completeRun(ctx, runId, started, response, steps);
+}
+
 function enrichDraft(previous: PromotionDraft | undefined, message: string, entities: Record<string, unknown>, venue: { id: string; name: string } | undefined, products: Array<{ id: string; name: string; priceCop: number }>): PromotionDraft {
   const draft: PromotionDraft = { productIds: [], products: [], ...previous };
   if (venue) { draft.venueId = venue.id; draft.venueName = venue.name; }
@@ -128,7 +134,8 @@ function enrichDraft(previous: PromotionDraft | undefined, message: string, enti
   }
   const percentage = message.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/);
   if (percentage) { draft.mechanic = "percentage"; draft.benefit = Number(percentage[1].replace(",", ".")); }
-  if (/\b2\s*x\s*1\b|\b2x1\b/.test(normalized)) { draft.mechanic = "buy_x_get_y"; draft.buyQuantity = 1; draft.getQuantity = 1; }
+  const quantities = parseBuyXGetY(message);
+  if (quantities) { draft.mechanic = "buy_x_get_y"; draft.buyQuantity = quantities.buyQuantity; draft.getQuantity = quantities.getQuantity; }
   if (/\bprecio especial\b/.test(normalized)) draft.mechanic = "fixed_price";
   if (/\bdescuento\b/.test(normalized) && !draft.mechanic) draft.mechanic = "percentage";
   const money = message.match(/\$?\s*(\d{2,}(?:[.,]\d{3})*)\s*(?:cop|pesos)?/i);
@@ -137,7 +144,11 @@ function enrichDraft(previous: PromotionDraft | undefined, message: string, enti
   if (["percentage", "fixed_amount", "buy_x_get_y", "fixed_price"].includes(entityMechanic)) draft.mechanic = entityMechanic;
   const entityBenefit = Number(entities.benefit);
   if (Number.isFinite(entityBenefit) && entityBenefit > 0) draft.benefit = entityBenefit;
-  const window = parseWindow(message, entities);
+  const entityBuyQuantity = Number(entities.buyQuantity); const entityGetQuantity = Number(entities.getQuantity);
+  if (draft.mechanic === "buy_x_get_y" && Number.isInteger(entityBuyQuantity) && entityBuyQuantity > 0 && Number.isInteger(entityGetQuantity) && entityGetQuantity > 0) {
+    draft.buyQuantity = entityBuyQuantity; draft.getQuantity = entityGetQuantity;
+  }
+  const window = parseWindow(message, entities, previous?.startsAt);
   if (window.startsAt) draft.startsAt = window.startsAt;
   if (window.endsAt) draft.endsAt = window.endsAt;
   const productLabel = draft.products.map((product) => product.name).join(", ");
@@ -154,40 +165,11 @@ function nextQuestion(draft: PromotionDraft, venueCount: number) {
   if (!draft.productIds.length) return { title: "Producto", message: "¿Qué producto del menú quieres impulsar? Escríbeme su nombre tal como aparece en tu catálogo.", actions: [] };
   if (!draft.mechanic) return { title: "Tipo de incentivo", message: "¿Qué tipo de incentivo quieres ofrecer?", actions: ["20% de descuento", "2x1", "Precio especial"] };
   if (draft.mechanic !== "buy_x_get_y" && !draft.benefit) return { title: "Valor del incentivo", message: draft.mechanic === "percentage" ? "¿Qué porcentaje de descuento quieres ofrecer?" : "¿Cuál será el valor en pesos?", actions: draft.mechanic === "percentage" ? ["10%", "15%", "20%"] : [] };
-  if (!draft.startsAt || !draft.endsAt) return { title: "Fecha y horario", message: "¿Qué día y en qué horario estará vigente? Por ejemplo: “este viernes de 6:00 p. m. a 9:00 p. m.”", actions: [] };
+  if (!draft.startsAt) return { title: "Fecha y horario", message: "¿Qué día y a qué hora comienza? Por ejemplo: “este viernes a las 6:00 p. m.”", actions: [] };
+  if (!draft.endsAt) return { title: "Hora de cierre", message: "¿Hasta qué hora estará vigente la promoción?", actions: [] };
   return null;
 }
 
-function parseWindow(message: string, entities: Record<string, unknown>) {
-  const entityStart = cleanText(entities.startsAt, 50); const entityEnd = cleanText(entities.endsAt, 50);
-  if (entityStart && entityEnd && !Number.isNaN(Date.parse(entityStart)) && !Number.isNaN(Date.parse(entityEnd))) return { startsAt: new Date(entityStart).toISOString(), endsAt: new Date(entityEnd).toISOString() };
-  const normalized = normalize(message);
-  const now = bogotaDateParts(new Date());
-  const date = new Date(`${now.date}T12:00:00-05:00`);
-  if (normalized.includes("manana")) date.setUTCDate(date.getUTCDate() + 1);
-  else {
-    const days = ["domingo","lunes","martes","miercoles","jueves","viernes","sabado"];
-    const index = days.findIndex((day) => normalized.includes(day));
-    if (index < 0) return {};
-    const current = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Bogota", weekday: "short" }).format(new Date()).match(/Sun|Mon|Tue|Wed|Thu|Fri|Sat/) ? new Date(`${now.date}T12:00:00-05:00`).getUTCDay() : 0);
-    let delta = (index - current + 7) % 7; if (delta === 0) delta = 7;
-    date.setUTCDate(date.getUTCDate() + delta);
-  }
-  const times = [...message.matchAll(/(\d{1,2})(?::(\d{2}))?\s*(a\.?\s*m\.?|p\.?\s*m\.?)/gi)].map((match) => {
-    let hour = Number(match[1]); const minute = Number(match[2] ?? 0); const pm = normalize(match[3]).startsWith("p");
-    if (pm && hour < 12) hour += 12; if (!pm && hour === 12) hour = 0;
-    return { hour, minute };
-  });
-  if (times.length < 2) return {};
-  const day = bogotaDateParts(date).date;
-  const start = new Date(`${day}T${pad(times[0].hour)}:${pad(times[0].minute)}:00-05:00`);
-  const end = new Date(`${day}T${pad(times[1].hour)}:${pad(times[1].minute)}:00-05:00`);
-  if (end <= start) end.setUTCDate(end.getUTCDate() + 1);
-  return { startsAt: start.toISOString(), endsAt: end.toISOString() };
-}
-
-function bogotaDateParts(date: Date) { return { date: new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).format(date) }; }
-function pad(value: number) { return String(value).padStart(2, "0"); }
 function normalize(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-CO"); }
 function reply(conversationId: string, runId: string, status: AgentReply["status"], message: string, cards: AgentReply["cards"]): AgentReply { return { conversationId, runId, status, message, cards }; }
 function failReply(conversationId: string, message: string, runId?: string): AgentReply { return { conversationId, runId, status: "error", message, cards: [{ type: "error", title: "No pude completar la acción", detail: message }] }; }
