@@ -1,5 +1,5 @@
 import type { AgentServerContext } from "@/lib/ai/context";
-import { parseBuyXGetY, parseWindow, preservePromotionFlow } from "@/lib/ai/conversation";
+import { parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "@/lib/ai/conversation";
 import { fallbackIntent, routeIntent } from "@/lib/ai/intent-router";
 import type { AgentReply, PromotionDraft, PromotionEngineDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
 import { cleanText, isUuid } from "@/lib/ai/validation";
@@ -18,7 +18,13 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   if (!venuesResult.ok) return failReply(conversation.id, venuesResult.error);
   const venues = venuesResult.data;
   const requestedVenue = input.venueId ? venues.find((venue) => venue.id === input.venueId) : undefined;
-  const state = conversation.state;
+  let state = conversation.state;
+  const resetForNewPromotion = startsNewPromotion(message);
+  if (resetForNewPromotion) {
+    const { error } = await ctx.supabase.rpc("reset_agent_promotion_flow", { target_conversation: conversation.id });
+    if (error) throw new OrchestratorError("CONVERSATION_RESET_FAILED", 500, "No fue posible iniciar la nueva promoción.");
+    state = {};
+  }
   const venue = requestedVenue ?? venues.find((item) => item.id === state.promotionDraft?.venueId) ?? (venues.length === 1 ? venues[0] : undefined);
   const productResult = venue ? await searchProducts(ctx, venue.id) : { ok: true as const, data: [] };
   if (!productResult.ok) return failReply(conversation.id, productResult.error);
@@ -28,6 +34,7 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   } catch {
     intent = fallbackIntent(message);
   }
+  if (resetForNewPromotion) intent = { ...intent, intent: "CREATE_PROMOTION" as const, confidence: 1 };
   intent = preservePromotionFlow(state, intent);
   if (state.intent === "UPDATE_PROMOTION" && intent.intent !== "LIST_PROMOTIONS") intent = { ...intent, intent: "UPDATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };
   if (state.intent === "CONFIGURE_PROMOTION_ENGINE") intent = { ...intent, intent: "CONFIGURE_PROMOTION_ENGINE", confidence: Math.max(intent.confidence, 0.95) };
