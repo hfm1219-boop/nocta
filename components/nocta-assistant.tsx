@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import type { AgentCard, AgentReply, PromotionDraft } from "@/lib/ai/types";
+import type { AgentCard, AgentReply, AgentSuggestionAction, PromotionDraft } from "@/lib/ai/types";
 import { ACTIVE_VENUE_EVENT, ACTIVE_VENUE_KEY } from "@/lib/active-venue";
 
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; cards?: AgentCard[] };
@@ -24,11 +24,13 @@ export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: b
   }, []);
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, busy]);
 
-  async function submit(text: string) {
+  async function submit(action: AgentSuggestionAction) {
+    const text = typeof action === "string" ? action : action.value;
+    const promotionId = typeof action === "string" ? undefined : action.promotionId;
     const clean = text.trim(); if (!clean || busy) return;
     setInput(""); setOpen(true); setBusy(true);
-    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: clean }]);
-    await request({ message: clean, conversationId, venueId: venueId || undefined });
+    setMessages((current) => [...current, { id: crypto.randomUUID(), role: "user", text: typeof action === "string" ? clean : action.label }]);
+    await request({ message: clean, conversationId, venueId: venueId || undefined, promotionId });
   }
 
   async function confirm(confirmationId: string) {
@@ -82,7 +84,7 @@ export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: b
   </>;
 }
 
-function Card({ card, writeActionsEnabled, busy, onAction, onConfirm }: { card: AgentCard; writeActionsEnabled: boolean; busy: boolean; onAction: (value: string) => void; onConfirm: (id: string) => void }) {
+function Card({ card, writeActionsEnabled, busy, onAction, onConfirm }: { card: AgentCard; writeActionsEnabled: boolean; busy: boolean; onAction: (value: AgentSuggestionAction) => void; onConfirm: (id: string) => void }) {
   if (card.type === "promotion_preview") return <PromotionPreviewCard draft={card.draft}/>;
   if (card.type === "promotion_mutation_preview") return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon3">Cambio propuesto</p><h3 className="mt-1 font-bold">{card.draft.title}</h3><p className="mt-2 text-sm">{mutationLabel(card.draft.action)}</p>{card.draft.mechanic === "buy_x_get_y" && <p className="mt-1 text-xs text-muted">Nueva mecánica: paga {card.draft.buyQuantity}, lleva {(card.draft.buyQuantity ?? 0) + (card.draft.getQuantity ?? 0)}</p>}{card.draft.benefit && <p className="mt-1 text-xs text-muted">Nuevo beneficio: {card.draft.benefit}%</p>}{card.draft.startsAt && <p className="mt-1 text-xs text-muted">Inicio: {formatDate(card.draft.startsAt)}</p>}{card.draft.endsAt && <p className="mt-1 text-xs text-muted">Fin: {formatDate(card.draft.endsAt)}</p>}</section>;
   if (card.type === "promotion_engine_preview") return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon3">Motor transaccional</p><h3 className="mt-1 font-bold">{card.draft.promotionTitle}</h3><div className="mt-3 space-y-1 text-xs text-muted"><p>Menú: <b className="text-foreground">{card.draft.menuItemName}</b></p><p>SKU: <b className="text-foreground">{card.draft.brandSku} · {card.draft.brandProductName}</b></p><p>Composición: <b className="text-foreground">{card.draft.brandQuantity} {card.draft.brandUnit}</b></p><p>Activación: <b className="text-foreground">{card.draft.activationName}</b></p><p>Regla: mínimo {card.draft.minimumQuantity} unidad(es){card.draft.perUserLimit ? ` · ${card.draft.perUserLimit} por usuario` : ""}</p></div><p className={`mt-3 rounded-lg p-2 text-xs ${card.mappingVerified ? "bg-lime/10 text-lime" : "bg-amber/10 text-amber"}`}>{card.mappingVerified ? "✓ Mapping verificado: la atribución puede activarse." : "◷ Mapping pendiente de aprobación de la marca."}</p></section>;
@@ -99,7 +101,7 @@ export function PromotionPreviewCard({ draft }: { draft: PromotionDraft }) {
 
 export function ConfirmationCard({ prompt, disabled, onConfirm }: { prompt: string; disabled: boolean; onConfirm: () => void }) { return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-3"><p className="text-sm font-semibold">{prompt}</p><button type="button" disabled={disabled} onClick={onConfirm} className="btn-neon mt-3 w-full rounded-xl p-2.5 disabled:cursor-not-allowed disabled:opacity-40">{disabled ? "Creación no habilitada" : "Confirmar creación"}</button></section>; }
 export function ToolResultCard({ title, detail, href }: { title: string; detail: string; href?: string }) { return <section className="mt-2 rounded-2xl border border-lime/30 bg-lime/5 p-3"><p className="font-bold text-lime">✓ {title}</p><p className="mt-1 text-xs text-muted">{detail}</p>{href && <Link href={href} className="mt-2 inline-block text-xs font-bold text-neon2">Abrir en NOCTA →</Link>}</section>; }
-export function AgentSuggestionCard({ title, actions, onAction }: { title: string; actions: string[]; onAction: (value: string) => void }) { return <section className="rounded-2xl border border-line bg-surface p-3"><p className="text-xs font-bold">{title}</p><div className="mt-2 flex flex-wrap gap-2">{actions.map((action) => <button type="button" key={action} onClick={() => onAction(action)} className="rounded-full border border-neon2/25 bg-neon2/10 px-3 py-2 text-left text-xs text-neon2 hover:border-neon2">{action}</button>)}</div></section>; }
+export function AgentSuggestionCard({ title, actions, onAction }: { title: string; actions: AgentSuggestionAction[]; onAction: (value: AgentSuggestionAction) => void }) { return <section className="rounded-2xl border border-line bg-surface p-3"><p className="text-xs font-bold">{title}</p><div className="mt-2 flex flex-wrap gap-2">{actions.map((action) => { const label = typeof action === "string" ? action : action.label; const key = typeof action === "string" ? action : action.promotionId; return <button type="button" key={key} onClick={() => onAction(action)} className="rounded-full border border-neon2/25 bg-neon2/10 px-3 py-2 text-left text-xs text-neon2 hover:border-neon2">{label}</button>; })}</div></section>; }
 export function ErrorCard({ title, detail }: { title: string; detail: string }) { return <section className="mt-2 rounded-2xl border border-danger/30 bg-danger/10 p-3"><p className="font-bold text-danger">{title}</p><p className="mt-1 text-xs text-muted">{detail}</p></section>; }
 export function EventPreviewCard() { return <section className="rounded-2xl border border-line p-3 text-sm text-muted">Vista previa de evento disponible en la siguiente capacidad.</section>; }
 

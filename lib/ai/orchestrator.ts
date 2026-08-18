@@ -8,7 +8,7 @@ import { createPromotion, executePromotionEngineConfiguration, executePromotionM
 const MAX_STEPS = 8;
 type ConversationState = { intent?: string; promotionId?: string; action?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft; pendingMutationAction?: PromotionMutationAction; engineDraft?: PromotionEngineDraft };
 
-export async function handleAgentMessage(ctx: AgentServerContext, input: { conversationId?: string; venueId?: string; message: string }): Promise<AgentReply> {
+export async function handleAgentMessage(ctx: AgentServerContext, input: { conversationId?: string; venueId?: string; promotionId?: string; message: string }): Promise<AgentReply> {
   const started = Date.now();
   const message = cleanText(input.message, 2_000);
   if (!message) throw new OrchestratorError("INVALID_MESSAGE", 400, "Escribe qué quieres lograr.");
@@ -25,6 +25,7 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
     if (error) throw new OrchestratorError("CONVERSATION_RESET_FAILED", 500, "No fue posible iniciar la nueva promoción.");
     state = {};
   }
+  if (input.promotionId && isUuid(input.promotionId)) state = { ...state, promotionId: input.promotionId };
   const venue = requestedVenue ?? venues.find((item) => item.id === state.promotionDraft?.venueId) ?? (venues.length === 1 ? venues[0] : undefined);
   const productResult = venue ? await searchProducts(ctx, venue.id) : { ok: true as const, data: [] };
   if (!productResult.ok) return failReply(conversation.id, productResult.error);
@@ -49,8 +50,8 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
     return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "tool_result", title: "Promociones activas", detail: text, href: "/admin/promociones" }]), 2);
   }
 
-  if (intent.intent === "UPDATE_PROMOTION") return handlePromotionMutation(ctx, conversation, run.id, started, message, intent.entities, venue);
-  if (intent.intent === "CONFIGURE_PROMOTION_ENGINE") return handlePromotionEngine(ctx, conversation, run.id, started, message, venue);
+  if (intent.intent === "UPDATE_PROMOTION") return handlePromotionMutation(ctx, { ...conversation, state }, run.id, started, message, intent.entities, venue);
+  if (intent.intent === "CONFIGURE_PROMOTION_ENGINE") return handlePromotionEngine(ctx, { ...conversation, state }, run.id, started, message, venue);
 
   if (intent.intent !== "CREATE_PROMOTION") {
     const text = intent.intent === "CREATE_EVENT" ? "La creación conversacional de eventos será la siguiente capacidad. En este sprint ya puedes crear promociones de punta a punta." : "Por ahora puedo crear promociones o consultar las promociones activas de tu establecimiento.";
@@ -118,10 +119,10 @@ async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id
   if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
   const catalog = result.data; let draft = conversation.state.engineDraft;
   if (!draft) {
-    const promotion = catalog.promotions.find((item) => item.id === conversation.state.promotionId) ?? matchByLabel(message, catalog.promotions, (item) => item.title);
+    const promotion = catalog.promotions.find((item) => item.id === statePromotionId(conversation.state, message)) ?? matchByLabel(message, catalog.promotions, (item) => item.title);
     if (!promotion) {
       await updateConversation(ctx, conversation.id, { ...conversation.state, intent: "CONFIGURE_PROMOTION_ENGINE" }, venue.id);
-      return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
+      return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => ({ label: `${item.title} · #${item.id.slice(0, 8)}`, value: item.title, promotionId: item.id })) }]), 3);
     }
     const relation = Array.isArray(promotion.promotion_rules) ? promotion.promotion_rules[0] : promotion.promotion_rules;
     const rule = relation as Record<string, unknown> | null;
@@ -163,9 +164,10 @@ async function handlePromotionMutation(ctx: AgentServerContext, conversation: { 
     const target = result.data.find((item) => item.id === conversation.state.promotionId) ?? matchPromotion(message, cleanText(entities.promotionTitle, 120), result.data);
     if (!target) {
       await updateConversation(ctx, conversation.id, { intent: "UPDATE_PROMOTION", pendingMutationAction: action }, venue.id);
+      const choices = result.data.slice(0, 8).map((item) => ({ label: `${item.title} · #${item.id.slice(0, 8)}`, value: item.title, promotionId: item.id }));
       const names = result.data.slice(0, 8).map((item) => item.title);
       const text = names.length ? `¿Cuál promoción quieres ${actionLabel(action)}? Puedes elegir: ${names.join(", ")}.` : "No encontré promociones administrables en este establecimiento.";
-      return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", text, names.length ? [{ type: "suggestion", title: "Promociones", actions: names }] : []), 3);
+      return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", text, choices.length ? [{ type: "suggestion", title: "Promociones", actions: choices }] : []), 3);
     }
     draft = { action, promotionId: target.id, title: target.title, venueId: venue.id, active: action === "reactivate_promotion" ? true : action === "pause_promotion" ? false : undefined };
   }
@@ -201,6 +203,7 @@ function matchPromotion(message: string, entityTitle: string, promotions: Array<
   const scored = promotions.map((item) => ({ item, score: normalize(item.title).split(/\s+/).filter((word) => word.length >= 4 && query.includes(word)).length })).sort((a, b) => b.score - a.score);
   return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
 }
+function statePromotionId(state: ConversationState, message: string) { return isUuid(state.promotionId) ? state.promotionId : isUuid(message) ? message : undefined; }
 function actionLabel(action: PromotionMutationAction) { return action === "pause_promotion" ? "pausar" : action === "reactivate_promotion" ? "reactivar" : action === "duplicate_promotion" ? "duplicar" : "editar"; }
 function mutationSuccessMessage(action: string) { return action === "pause_promotion" ? "La promoción quedó pausada." : action === "reactivate_promotion" ? "La promoción quedó activa nuevamente." : action === "duplicate_promotion" ? "La promoción fue duplicada y activada." : "La promoción fue actualizada correctamente."; }
 

@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       const result = await confirmAgentAction(ctx, { conversationId: String(body.conversationId ?? ""), confirmationId: String(body.confirmationId ?? "") });
       return streamReply(result);
     }
-    const result = await handleAgentMessage(ctx, { conversationId: typeof body.conversationId === "string" ? body.conversationId : undefined, venueId: typeof body.venueId === "string" ? body.venueId : undefined, message: String(body.message ?? "") });
+    const result = await handleAgentMessage(ctx, { conversationId: typeof body.conversationId === "string" ? body.conversationId : undefined, venueId: typeof body.venueId === "string" ? body.venueId : undefined, promotionId: typeof body.promotionId === "string" ? body.promotionId : undefined, message: String(body.message ?? "") });
     return streamReply(result);
   } catch (error) { return errorResponse(error); }
 }
