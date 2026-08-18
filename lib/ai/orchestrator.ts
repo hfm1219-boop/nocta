@@ -6,7 +6,7 @@ import { cleanText, isUuid } from "@/lib/ai/validation";
 import { createPromotion, executePromotionEngineConfiguration, executePromotionMutation, getPromotionEngineCatalog, listActivePromotions, listEstablishments, listManageablePromotions, preparePromotionConfirmation, preparePromotionEngineConfiguration, preparePromotionMutation, searchProducts } from "@/lib/ai/tools/promotion-tools";
 
 const MAX_STEPS = 8;
-type ConversationState = { intent?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft; engineDraft?: PromotionEngineDraft };
+type ConversationState = { intent?: string; promotionId?: string; action?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft; pendingMutationAction?: PromotionMutationAction; engineDraft?: PromotionEngineDraft };
 
 export async function handleAgentMessage(ctx: AgentServerContext, input: { conversationId?: string; venueId?: string; message: string }): Promise<AgentReply> {
   const started = Date.now();
@@ -108,7 +108,7 @@ async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id
   if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
   const catalog = result.data; let draft = conversation.state.engineDraft;
   if (!draft) {
-    const promotion = matchNamed(message, catalog.promotions, (item) => item.title);
+    const promotion = catalog.promotions.find((item) => item.id === conversation.state.promotionId) ?? matchNamed(message, catalog.promotions, (item) => item.title);
     if (!promotion) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
     const relation = Array.isArray(promotion.promotion_rules) ? promotion.promotion_rules[0] : promotion.promotion_rules;
     const rule = relation as Record<string, unknown> | null;
@@ -146,9 +146,10 @@ async function handlePromotionMutation(ctx: AgentServerContext, conversation: { 
   if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
   let draft = conversation.state.mutationDraft;
   if (!draft) {
-    const action = detectMutationAction(message, entities);
-    const target = matchPromotion(message, cleanText(entities.promotionTitle, 120), result.data);
+    const action = conversation.state.pendingMutationAction ?? detectMutationAction(message, entities);
+    const target = result.data.find((item) => item.id === conversation.state.promotionId) ?? matchPromotion(message, cleanText(entities.promotionTitle, 120), result.data);
     if (!target) {
+      await updateConversation(ctx, conversation.id, { intent: "UPDATE_PROMOTION", pendingMutationAction: action }, venue.id);
       const names = result.data.slice(0, 8).map((item) => item.title);
       const text = names.length ? `¿Cuál promoción quieres ${actionLabel(action)}? Puedes elegir: ${names.join(", ")}.` : "No encontré promociones administrables en este establecimiento.";
       return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", text, names.length ? [{ type: "suggestion", title: "Promociones", actions: names }] : []), 3);
@@ -157,10 +158,12 @@ async function handlePromotionMutation(ctx: AgentServerContext, conversation: { 
   }
   const benefit = Number(entities.benefit) || Number(message.match(/(\d{1,3}(?:[.,]\d+)?)\s*%/)?.[1]?.replace(",", "."));
   if (Number.isFinite(benefit) && benefit > 0) draft.benefit = benefit;
+  const quantities = parseBuyXGetY(message);
+  if (quantities) { draft.mechanic = "buy_x_get_y"; draft.buyQuantity = quantities.buyQuantity; draft.getQuantity = quantities.getQuantity; draft.benefit = undefined; }
   const window = parseWindow(message, entities, draft.startsAt);
   if (window.startsAt) draft.startsAt = window.startsAt; if (window.endsAt) draft.endsAt = window.endsAt;
   await updateConversation(ctx, conversation.id, { intent: "UPDATE_PROMOTION", mutationDraft: draft }, venue.id);
-  if (draft.action === "update_promotion" && !draft.benefit && !draft.startsAt && !draft.endsAt) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", `¿Qué quieres cambiar en “${draft.title}”? Por ejemplo: “cambia el descuento a 25%” o “extiéndela este viernes de 6:00 p. m. a 11:00 p. m.”`, []), 3);
+  if (draft.action === "update_promotion" && !draft.benefit && !draft.mechanic && !draft.startsAt && !draft.endsAt) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", `¿Qué quieres cambiar en “${draft.title}”? Por ejemplo: “cambia el descuento a 25%”, “pague 3 lleve 5” o “extiéndela este viernes de 6:00 p. m. a 11:00 p. m.”`, []), 3);
   if (draft.action === "duplicate_promotion" && (!draft.startsAt || !draft.endsAt)) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", `¿Qué día y horario tendrá la copia de “${draft.title}”?`, []), 3);
   const prepared = await preparePromotionMutation(ctx, conversation.id, draft);
   await recordTool(ctx, runId, "validate_promotion_mutation", "DRAFT", { draft }, prepared, started);

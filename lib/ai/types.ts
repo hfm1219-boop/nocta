@@ -49,7 +49,10 @@ export type PromotionMutationDraft = {
   title: string;
   venueId: string;
   active?: boolean;
+  mechanic?: PromotionMechanic;
   benefit?: number;
+  buyQuantity?: number;
+  getQuantity?: number;
   startsAt?: string;
   endsAt?: string;
 };
