@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { PreordenarEvento } from "@/components/entrar-lugar";
 import { useCatalogoNocta } from "@/lib/cloud-catalog";
-import { EVENTOS, formatearFecha } from "@/lib/discovery";
+import { formatearFecha, rutaEventoConsumidor } from "@/lib/discovery";
 
 interface ProximosEventosLugarProps {
   lugarId: string;
@@ -32,7 +32,7 @@ export function ProximosEventosLugar({ lugarId, lugarNombre }: ProximosEventosLu
       </div>
 
       {eventos.map((evento) => {
-        const href = EVENTOS.some((item) => item.id === evento.id) ? `/eventos/${evento.id}` : `/planes/${evento.id}`;
+        const href = rutaEventoConsumidor(evento.id);
         return (
         <div key={evento.id} className="card p-5 space-y-4">
           <Link href={href} className="block group">

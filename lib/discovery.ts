@@ -98,6 +98,10 @@ export function eventoPorId(id: string) {
   return EVENTOS.find((evento) => evento.id === id);
 }
 
+export function rutaEventoConsumidor(id: string) {
+  return eventoPorId(id) ? `/eventos/${id}` : `/planes/${id}`;
+}
+
 export function formatearFecha(fechaISO: string, detallada = false) {
   return new Intl.DateTimeFormat("es-CO", {
     weekday: detallada ? "long" : "short",
