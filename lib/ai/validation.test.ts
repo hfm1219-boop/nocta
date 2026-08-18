@@ -1,12 +1,36 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackIntent } from "./intent-router.ts";
+import { parseBuyXGetY, parseWindow, preservePromotionFlow } from "./conversation.ts";
 import { requiresExplicitConfirmation, validatePromotionDraft } from "./validation.ts";
 
 const productId = "10000000-0000-4000-8000-000000000001";
 
 test("crear una promo para mañana enruta a CREATE_PROMOTION", () => {
   assert.equal(fallbackIntent("Crear una promo para mañana" ).intent, "CREATE_PROMOTION");
+});
+
+test("una respuesta de horario conserva el flujo de creación aunque el modelo diga UPDATE", () => {
+  const routed = preservePromotionFlow(
+    { intent: "CREATE_PROMOTION", promotionDraft: { productIds: [], products: [] } },
+    { intent: "UPDATE_PROMOTION", confidence: 0.82, entities: {}, missingFields: [] },
+  );
+  assert.equal(routed.intent, "CREATE_PROMOTION");
+});
+
+test("un horario con una sola hora conserva el inicio para pedir únicamente el cierre", () => {
+  const window = parseWindow("este viernes desde las 6:00 p. m.", {});
+  assert.ok(window.startsAt);
+  assert.equal(window.endsAt, undefined);
+});
+
+test("una hora aislada completa el cierre sobre un inicio existente", () => {
+  const window = parseWindow("hasta las 2:00 a. m.", {}, "2026-08-21T23:00:00.000Z");
+  assert.equal(window.endsAt, "2026-08-22T07:00:00.000Z");
+});
+
+test("pague 3 lleve 5 se interpreta como compra 3 y recibe 2 adicionales", () => {
+  assert.deepEqual(parseBuyXGetY("pague 3 lleve 5"), { buyQuantity: 3, getQuantity: 2 });
 });
 
 test("WRITE requiere confirmación y READ/DRAFT no", () => {
