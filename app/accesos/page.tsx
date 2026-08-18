@@ -38,8 +38,8 @@ export default function Accesos() {
       <header className="text-center space-y-2">
         <div className="flex justify-end"><CerrarSesion /></div>
         <Logo size="text-4xl" />
-        <h1 className="text-2xl font-bold">Accesos operativos</h1>
-        <p className="text-sm text-muted">Entra como promotor independiente o selecciona un establecimiento.</p>
+        <h1 className="text-2xl font-bold">Centro operativo</h1>
+        <p className="text-sm text-muted">Selecciona la sede y entra únicamente a las funciones autorizadas para tu turno.</p>
       </header>
       {loading&&<section className="card p-6 text-center text-muted" role="status">Cargando tus permisos y sedes…</section>}
       {error&&<section className="card border-danger/40 p-5"><p className="font-bold text-danger">No pudimos cargar los accesos</p><p className="text-sm text-muted mt-2">{error}</p><button onClick={()=>window.location.reload()} className="btn-neon rounded-xl px-4 py-3 mt-4">Reintentar</button></section>}
