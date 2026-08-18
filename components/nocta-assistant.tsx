@@ -6,7 +6,7 @@ import type { AgentCard, AgentReply, PromotionDraft } from "@/lib/ai/types";
 import { ACTIVE_VENUE_EVENT, ACTIVE_VENUE_KEY } from "@/lib/active-venue";
 
 type ChatMessage = { id: string; role: "user" | "assistant"; text: string; cards?: AgentCard[] };
-const QUICK_ACTIONS = ["Crear promoción", "¿Qué promociones tengo activas?", "Ayúdame a aumentar ventas este fin de semana"];
+const QUICK_ACTIONS = ["Crear promoción", "¿Qué promociones tengo activas?", "Configurar motor de una promoción"];
 
 export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: boolean }) {
   const [open, setOpen] = useState(false);
@@ -85,6 +85,7 @@ export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: b
 function Card({ card, writeActionsEnabled, busy, onAction, onConfirm }: { card: AgentCard; writeActionsEnabled: boolean; busy: boolean; onAction: (value: string) => void; onConfirm: (id: string) => void }) {
   if (card.type === "promotion_preview") return <PromotionPreviewCard draft={card.draft}/>;
   if (card.type === "promotion_mutation_preview") return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon3">Cambio propuesto</p><h3 className="mt-1 font-bold">{card.draft.title}</h3><p className="mt-2 text-sm">{mutationLabel(card.draft.action)}</p>{card.draft.benefit && <p className="mt-1 text-xs text-muted">Nuevo beneficio: {card.draft.benefit}%</p>}{card.draft.startsAt && <p className="mt-1 text-xs text-muted">Inicio: {formatDate(card.draft.startsAt)}</p>}{card.draft.endsAt && <p className="mt-1 text-xs text-muted">Fin: {formatDate(card.draft.endsAt)}</p>}</section>;
+  if (card.type === "promotion_engine_preview") return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon3">Motor transaccional</p><h3 className="mt-1 font-bold">{card.draft.promotionTitle}</h3><div className="mt-3 space-y-1 text-xs text-muted"><p>Menú: <b className="text-foreground">{card.draft.menuItemName}</b></p><p>SKU: <b className="text-foreground">{card.draft.brandSku} · {card.draft.brandProductName}</b></p><p>Composición: <b className="text-foreground">{card.draft.brandQuantity} {card.draft.brandUnit}</b></p><p>Activación: <b className="text-foreground">{card.draft.activationName}</b></p><p>Regla: mínimo {card.draft.minimumQuantity} unidad(es){card.draft.perUserLimit ? ` · ${card.draft.perUserLimit} por usuario` : ""}</p></div><p className={`mt-3 rounded-lg p-2 text-xs ${card.mappingVerified ? "bg-lime/10 text-lime" : "bg-amber/10 text-amber"}`}>{card.mappingVerified ? "✓ Mapping verificado: la atribución puede activarse." : "◷ Mapping pendiente de aprobación de la marca."}</p></section>;
   if (card.type === "confirmation") return <ConfirmationCard prompt={card.prompt} disabled={busy || !writeActionsEnabled} onConfirm={() => onConfirm(card.confirmationId)}/>;
   if (card.type === "tool_result") return <ToolResultCard title={card.title} detail={card.detail} href={card.href}/>;
   if (card.type === "suggestion") return <AgentSuggestionCard title={card.title} actions={card.actions} onAction={onAction}/>;

@@ -7,7 +7,7 @@ type RoutingContext = { now: string; venueName?: string; products: Array<{ id: s
 const INTENT_SCHEMA = {
   type: "object", additionalProperties: false,
   properties: {
-    intent: { type: "string", enum: ["CREATE_PROMOTION","UPDATE_PROMOTION","LIST_PROMOTIONS","CREATE_EVENT","UPDATE_EVENT","BUSINESS_ANALYSIS","GENERAL_QUESTION","UNKNOWN"] },
+    intent: { type: "string", enum: ["CREATE_PROMOTION","UPDATE_PROMOTION","LIST_PROMOTIONS","CREATE_EVENT","UPDATE_EVENT","CONFIGURE_PROMOTION_ENGINE","BUSINESS_ANALYSIS","GENERAL_QUESTION","UNKNOWN"] },
     confidence: { type: "number", minimum: 0, maximum: 1 },
     entities: {
       type: "object", additionalProperties: false,
@@ -50,6 +50,7 @@ export async function routeIntent(message: string, context: RoutingContext): Pro
 
 export function fallbackIntent(message: string): AgentIntent {
   const normalized = message.toLocaleLowerCase("es-CO");
+  if (/\b(mapping|sell[ -]?out|atribuci[oó]n|sku|motor transaccional|regla transaccional)\b/.test(normalized)) return { intent: "CONFIGURE_PROMOTION_ENGINE", confidence: 0.9, entities: {}, missingFields: [] };
   if (/\b(promociones).*(activas|tengo|listar|ver)\b/.test(normalized)) return { intent: "LIST_PROMOTIONS", confidence: 0.75, entities: {}, missingFields: [] };
   if (/\b(pausa|pausar|desactiva|reactiva|reactivar|activa|editar|cambia|cambiar|duplica|duplicar|repite|repetir)\b.*\b(promoci[oó]n|promo)\b|\b(promoci[oó]n|promo)\b.*\b(pausa|reactiva|editar|cambia|duplica|repite)\b/.test(normalized)) return { intent: "UPDATE_PROMOTION", confidence: 0.86, entities: {}, missingFields: [] };
   if (/\b(promoci[oó]n|promo|descuento|2x1|precio especial|combo)\b/.test(normalized) || /\b(mover|impulsar|aumentar)\b.*\b(ventas?|producto|gin|ron|whisk|vodka|cerveza)\b/.test(normalized)) {

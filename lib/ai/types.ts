@@ -2,7 +2,7 @@ import type { PrincipalRole } from "@/lib/auth/roles";
 
 export const AGENT_INTENTS = [
   "CREATE_PROMOTION", "UPDATE_PROMOTION", "LIST_PROMOTIONS", "CREATE_EVENT",
-  "UPDATE_EVENT", "BUSINESS_ANALYSIS", "GENERAL_QUESTION", "UNKNOWN",
+  "UPDATE_EVENT", "CONFIGURE_PROMOTION_ENGINE", "BUSINESS_ANALYSIS", "GENERAL_QUESTION", "UNKNOWN",
 ] as const;
 
 export type AgentIntentName = (typeof AGENT_INTENTS)[number];
@@ -54,9 +54,40 @@ export type PromotionMutationDraft = {
   endsAt?: string;
 };
 
+export type PromotionEngineDraft = {
+  promotionId: string;
+  promotionTitle: string;
+  venueId: string;
+  menuItemId?: string;
+  menuItemName?: string;
+  brandProductId?: string;
+  brandProductName?: string;
+  brandSku?: string;
+  brandQuantity?: number;
+  brandUnit?: "unit" | "ml" | "g" | "serving";
+  activationId?: string;
+  activationName?: string;
+  mechanic: PromotionMechanic;
+  benefit?: number;
+  buyQuantity?: number;
+  getQuantity?: number;
+  minimumQuantity: number;
+  minimumSpendCop: number;
+  maximumDiscountCop?: number;
+  perUserLimit?: number;
+  totalLimit?: number;
+  budgetCop?: number;
+  timeStart?: string;
+  timeEnd?: string;
+  weekdays: number[];
+  priority: number;
+  stackable: boolean;
+};
+
 export type AgentCard =
   | { type: "promotion_preview"; confirmationId: string; draft: PromotionDraft; expiresAt: string }
   | { type: "promotion_mutation_preview"; confirmationId: string; draft: PromotionMutationDraft; expiresAt: string }
+  | { type: "promotion_engine_preview"; confirmationId: string; draft: PromotionEngineDraft; mappingVerified: boolean; expiresAt: string }
   | { type: "tool_result"; title: string; detail: string; href?: string }
   | { type: "confirmation"; confirmationId: string; prompt: string }
   | { type: "suggestion"; title: string; actions: string[] }

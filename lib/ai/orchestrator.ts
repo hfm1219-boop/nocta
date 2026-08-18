@@ -1,12 +1,12 @@
 import type { AgentServerContext } from "@/lib/ai/context";
 import { parseBuyXGetY, parseWindow, preservePromotionFlow } from "@/lib/ai/conversation";
 import { fallbackIntent, routeIntent } from "@/lib/ai/intent-router";
-import type { AgentReply, PromotionDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
+import type { AgentReply, PromotionDraft, PromotionEngineDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
 import { cleanText, isUuid } from "@/lib/ai/validation";
-import { createPromotion, executePromotionMutation, listActivePromotions, listEstablishments, listManageablePromotions, preparePromotionConfirmation, preparePromotionMutation, searchProducts } from "@/lib/ai/tools/promotion-tools";
+import { createPromotion, executePromotionEngineConfiguration, executePromotionMutation, getPromotionEngineCatalog, listActivePromotions, listEstablishments, listManageablePromotions, preparePromotionConfirmation, preparePromotionEngineConfiguration, preparePromotionMutation, searchProducts } from "@/lib/ai/tools/promotion-tools";
 
 const MAX_STEPS = 8;
-type ConversationState = { intent?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft };
+type ConversationState = { intent?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft; engineDraft?: PromotionEngineDraft };
 
 export async function handleAgentMessage(ctx: AgentServerContext, input: { conversationId?: string; venueId?: string; message: string }): Promise<AgentReply> {
   const started = Date.now();
@@ -30,6 +30,7 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   }
   intent = preservePromotionFlow(state, intent);
   if (state.intent === "UPDATE_PROMOTION" && intent.intent !== "LIST_PROMOTIONS") intent = { ...intent, intent: "UPDATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };
+  if (state.intent === "CONFIGURE_PROMOTION_ENGINE") intent = { ...intent, intent: "CONFIGURE_PROMOTION_ENGINE", confidence: Math.max(intent.confidence, 0.95) };
   const run = await startRun(ctx, conversation.id, intent.intent);
 
   if (intent.intent === "LIST_PROMOTIONS") {
@@ -42,6 +43,7 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   }
 
   if (intent.intent === "UPDATE_PROMOTION") return handlePromotionMutation(ctx, conversation, run.id, started, message, intent.entities, venue);
+  if (intent.intent === "CONFIGURE_PROMOTION_ENGINE") return handlePromotionEngine(ctx, conversation, run.id, started, message, venue);
 
   if (intent.intent !== "CREATE_PROMOTION") {
     const text = intent.intent === "CREATE_EVENT" ? "La creación conversacional de eventos será la siguiente capacidad. En este sprint ya puedes crear promociones de punta a punta." : "Por ahora puedo crear promociones o consultar las promociones activas de tu establecimiento.";
@@ -73,7 +75,16 @@ export async function confirmAgentAction(ctx: AgentServerContext, input: { conve
   const conversation = await getConversation(ctx, input.conversationId);
   const started = Date.now();
   const isMutation = conversation.state.intent === "UPDATE_PROMOTION";
-  const run = await startRun(ctx, conversation.id, isMutation ? "UPDATE_PROMOTION" : "CREATE_PROMOTION");
+  const isEngine = conversation.state.intent === "CONFIGURE_PROMOTION_ENGINE";
+  const run = await startRun(ctx, conversation.id, isEngine ? "CONFIGURE_PROMOTION_ENGINE" : isMutation ? "UPDATE_PROMOTION" : "CREATE_PROMOTION");
+  if (isEngine) {
+    const result = await executePromotionEngineConfiguration(ctx, input.confirmationId);
+    await recordTool(ctx, run.id, "configure_promotion_engine", "WRITE", { confirmationId: input.confirmationId }, result, started);
+    if (!result.ok) return completeRun(ctx, run.id, started, failReply(conversation.id, friendlyToolError(result.error), run.id), 1);
+    const message = result.data.mappingVerified ? "El mapping, la regla y la atribución quedaron configurados." : "El mapping quedó propuesto. La regla atribuible se activará cuando la marca apruebe el mapping.";
+    await addMessage(ctx, conversation.id, "assistant", message, { promotionId: result.data.promotionId, status: result.data.status });
+    return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", message, [{ type: "tool_result", title: result.data.mappingVerified ? "Motor configurado" : "Mapping pendiente de marca", detail: message, href: result.data.href }]), 1);
+  }
   if (isMutation) {
     const result = await executePromotionMutation(ctx, input.confirmationId);
     await recordTool(ctx, run.id, conversation.state.mutationDraft?.action ?? "update_promotion", "WRITE", { confirmationId: input.confirmationId }, result, started);
@@ -88,6 +99,44 @@ export async function confirmAgentAction(ctx: AgentServerContext, input: { conve
   const message = "La promoción fue creada y activada correctamente mediante el motor real de NOCTA.";
   await addMessage(ctx, conversation.id, "assistant", message, { promotionId: result.data.promotionId });
   return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", message, [{ type: "tool_result", title: "Promoción creada", detail: `ID: ${result.data.promotionId}`, href: result.data.href }]), 1);
+}
+
+async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id: string; state: ConversationState }, runId: string, started: number, message: string, venue?: { id: string; name: string }) {
+  if (!venue) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿En cuál establecimiento quieres configurar el motor de la promoción?", []), 2);
+  const result = await getPromotionEngineCatalog(ctx, venue.id);
+  await recordTool(ctx, runId, "get_promotion_engine_catalog", "READ", { venueId: venue.id }, result.ok ? { ok: true, promotions: result.data.promotions.length, products: result.data.menuItems.length, skus: result.data.brandProducts.length, activations: result.data.activations.length } : result, started);
+  if (!result.ok) return completeRun(ctx, runId, started, failReply(conversation.id, result.error, runId), 2);
+  const catalog = result.data; let draft = conversation.state.engineDraft;
+  if (!draft) {
+    const promotion = matchNamed(message, catalog.promotions, (item) => item.title);
+    if (!promotion) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué promoción quieres configurar?", [{ type: "suggestion", title: "Promociones", actions: catalog.promotions.slice(0, 8).map((item) => item.title) }]), 3);
+    const relation = Array.isArray(promotion.promotion_rules) ? promotion.promotion_rules[0] : promotion.promotion_rules;
+    const rule = relation as Record<string, unknown> | null;
+    draft = { promotionId: promotion.id, promotionTitle: promotion.title, venueId: venue.id, mechanic: String(rule?.mechanic ?? "percentage") as PromotionMechanic, benefit: Number(rule?.percentage_off ?? rule?.fixed_amount_cop ?? rule?.fixed_price_cop) || undefined, buyQuantity: Number(rule?.buy_quantity) || undefined, getQuantity: Number(rule?.get_quantity) || undefined, minimumQuantity: Number(rule?.minimum_quantity) || 1, minimumSpendCop: Number(rule?.minimum_spend_cop) || 0, maximumDiscountCop: Number(rule?.maximum_discount_cop) || undefined, perUserLimit: Number(rule?.per_user_limit) || undefined, totalLimit: Number(rule?.total_redemption_limit) || undefined, budgetCop: Number(rule?.budget_cop) || undefined, timeStart: typeof rule?.local_time_start === "string" ? rule.local_time_start : undefined, timeEnd: typeof rule?.local_time_end === "string" ? rule.local_time_end : undefined, weekdays: Array.isArray(rule?.weekdays) ? rule.weekdays as number[] : [0,1,2,3,4,5,6], priority: Number(rule?.priority) || 100, stackable: Boolean(rule?.stackable) };
+    const items = Array.isArray(rule?.promotion_rule_items) ? rule.promotion_rule_items as Array<{ venue_menu_item_id?: string; brand_product_id?: string }> : [];
+    const linked = items[0]; if (linked?.venue_menu_item_id) draft.menuItemId = linked.venue_menu_item_id; if (linked?.brand_product_id) draft.brandProductId = linked.brand_product_id;
+  }
+  const menuItem = catalog.menuItems.find((item) => item.id === draft?.menuItemId) ?? matchNamed(message, catalog.menuItems, (item) => item.name);
+  if (menuItem) { draft.menuItemId = menuItem.id; draft.menuItemName = menuItem.name; }
+  const brandProduct = catalog.brandProducts.find((item) => item.id === draft?.brandProductId) ?? matchNamed(message, catalog.brandProducts, (item) => `${item.brandName} ${item.sku} ${item.name}`);
+  if (brandProduct) { draft.brandProductId = brandProduct.id; draft.brandProductName = `${brandProduct.brandName} · ${brandProduct.name}`; draft.brandSku = brandProduct.sku; }
+  const activation = catalog.activations.find((item) => item.id === draft?.activationId) ?? matchNamed(message, catalog.activations, (item) => `${item.brandName} ${item.campaignName} ${item.name}`) ?? (catalog.activations.length === 1 ? catalog.activations[0] : undefined);
+  if (activation) { draft.activationId = activation.id; draft.activationName = `${activation.campaignName} · ${activation.name}`; }
+  const composition = normalize(message).match(/(\d+(?:[.,]\d+)?)\s*(ml|g|gramos?|unidades?|porciones?)/);
+  if (composition) { draft.brandQuantity = Number(composition[1].replace(",", ".")); draft.brandUnit = composition[2].startsWith("ml") ? "ml" : composition[2].startsWith("g") ? "g" : composition[2].startsWith("unidad") ? "unit" : "serving"; }
+  const minSpend = message.match(/(?:compra|minimo|mínimo)[^\d]{0,12}\$?\s*(\d{3,}(?:[.,]\d{3})*)/i); if (minSpend) draft.minimumSpendCop = Number(minSpend[1].replace(/[.,]/g, ""));
+  const perUser = message.match(/(?:por usuario|por persona)[^\d]{0,8}(\d+)/i); if (perUser) draft.perUserLimit = Number(perUser[1]);
+  await updateConversation(ctx, conversation.id, { intent: "CONFIGURE_PROMOTION_ENGINE", engineDraft: draft }, venue.id);
+  if (!draft.menuItemId) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", `¿Qué producto del menú corresponde a “${draft.promotionTitle}”?`, [{ type: "suggestion", title: "Productos del menú", actions: catalog.menuItems.slice(0, 8).map((item) => item.name) }]), 3);
+  if (!draft.brandProductId) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿Qué SKU de marca se consume con ese producto?", [{ type: "suggestion", title: "SKU de marca", actions: catalog.brandProducts.slice(0, 8).map((item) => `${item.brandName} · ${item.sku} · ${item.name}`) }]), 3);
+  if (!draft.brandQuantity || !draft.brandUnit) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", `¿Qué cantidad de ${draft.brandProductName} consume cada ${draft.menuItemName}? Por ejemplo: “45 ml”.`, []), 3);
+  if (!draft.activationId) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", "¿A qué campaña y activación debemos atribuir el sell-out?", [{ type: "suggestion", title: "Activaciones", actions: catalog.activations.slice(0, 8).map((item) => `${item.brandName} · ${item.campaignName} · ${item.name}`) }]), 3);
+  const prepared = await preparePromotionEngineConfiguration(ctx, conversation.id, draft);
+  await recordTool(ctx, runId, "validate_promotion_engine", "DRAFT", { draft }, prepared, started);
+  if (!prepared.ok) return completeRun(ctx, runId, started, failReply(conversation.id, prepared.error, runId), 4);
+  const text = prepared.data.mappingVerified ? "El mapping ya está verificado. Preparé la regla y la atribución para confirmar." : "Preparé el mapping y la regla. La atribución quedará pendiente hasta la aprobación de la marca.";
+  await addMessage(ctx, conversation.id, "assistant", text, { confirmationId: prepared.data.confirmationId });
+  return completeRun(ctx, runId, started, reply(conversation.id, runId, "needs_confirmation", text, [{ type: "promotion_engine_preview", confirmationId: prepared.data.confirmationId, draft, mappingVerified: prepared.data.mappingVerified, expiresAt: prepared.data.expiresAt }, { type: "confirmation", confirmationId: prepared.data.confirmationId, prompt: "¿Confirmas esta configuración del motor?" }]), 4);
 }
 
 async function handlePromotionMutation(ctx: AgentServerContext, conversation: { id: string; state: ConversationState }, runId: string, started: number, message: string, entities: Record<string, unknown>, venue?: { id: string; name: string }) {
@@ -134,6 +183,10 @@ function matchPromotion(message: string, entityTitle: string, promotions: Array<
   const exact = promotions.filter((item) => query.includes(normalize(item.title)) || normalize(item.title).includes(query));
   if (exact.length === 1) return exact[0];
   const scored = promotions.map((item) => ({ item, score: normalize(item.title).split(/\s+/).filter((word) => word.length >= 4 && query.includes(word)).length })).sort((a, b) => b.score - a.score);
+  return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
+}
+function matchNamed<T>(message: string, items: T[], label: (item: T) => string) {
+  const query = normalize(message); const scored = items.map((item) => ({ item, score: normalize(label(item)).split(/\s+/).filter((word) => word.length >= 3 && query.includes(word)).length })).sort((a, b) => b.score - a.score);
   return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
 }
 function actionLabel(action: PromotionMutationAction) { return action === "pause_promotion" ? "pausar" : action === "reactivate_promotion" ? "reactivar" : action === "duplicate_promotion" ? "duplicar" : "editar"; }

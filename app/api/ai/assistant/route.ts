@@ -10,7 +10,7 @@ export async function GET() {
   if (!flags.enabled) return Response.json({ enabled: false }, { status: 404 });
   try {
     const ctx = await getAgentServerContext();
-    return Response.json({ enabled: true, writeActionsEnabled: flags.writeActionsEnabled, role: ctx.role, quickActions: ["Crear promoción", "¿Qué promociones tengo activas?", "Ayúdame a aumentar ventas este fin de semana"] });
+    return Response.json({ enabled: true, writeActionsEnabled: flags.writeActionsEnabled, role: ctx.role, quickActions: ["Crear promoción", "¿Qué promociones tengo activas?", "Configurar motor de una promoción"] });
   } catch (error) { return errorResponse(error); }
 }
 

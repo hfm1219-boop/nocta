@@ -18,6 +18,10 @@ test("pausar una promoción enruta al ciclo de actualización", () => {
   assert.equal(fallbackIntent("Pausa la promoción de Negroni").intent, "UPDATE_PROMOTION");
 });
 
+test("configurar mapping de sell-out enruta al motor transaccional", () => {
+  assert.equal(fallbackIntent("Configura el mapping de sell-out de la promo Negroni").intent, "CONFIGURE_PROMOTION_ENGINE");
+});
+
 test("una respuesta de horario conserva el flujo de creación aunque el modelo diga UPDATE", () => {
   const routed = preservePromotionFlow(
     { intent: "CREATE_PROMOTION", promotionDraft: { productIds: [], products: [] } },
