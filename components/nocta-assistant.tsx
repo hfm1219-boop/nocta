@@ -58,12 +58,19 @@ export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: b
     } finally { setBusy(false); }
   }
 
+  function resetConversation() {
+    if (busy) return;
+    setConversationId(undefined);
+    setMessages([]);
+    setInput("");
+  }
+
   function onSubmit(event: FormEvent) { event.preventDefault(); void submit(input); }
 
   return <>
     <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} aria-label="Abrir NOCTA Assistant" className="fixed bottom-20 right-4 z-[70] grid h-14 w-14 place-items-center rounded-full border border-neon2/40 bg-neon2 text-xl font-black text-background shadow-[0_0_35px_rgba(85,255,200,.28)] transition hover:scale-105 md:bottom-6 md:right-6">N<span className="sr-only">OCTA Assistant</span></button>
     {open && <section role="dialog" aria-label="NOCTA Assistant" className="fixed inset-x-3 bottom-36 z-[69] flex max-h-[min(690px,75dvh)] flex-col overflow-hidden rounded-3xl border border-line bg-background/98 shadow-2xl backdrop-blur-xl md:inset-x-auto md:bottom-24 md:right-6 md:h-[650px] md:w-[430px]">
-      <header className="flex items-start justify-between border-b border-line bg-surface/70 p-4"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-neon2">NOCTA Assistant</p><h2 className="mt-1 font-bold">¿Qué quieres lograr?</h2><p className="text-xs text-muted">Opera tu negocio con lenguaje natural.</p></div><button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-line px-2 py-1 text-muted" aria-label="Cerrar">×</button></header>
+      <header className="flex items-start justify-between gap-3 border-b border-line bg-surface/70 p-4"><div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-neon2">NOCTA Assistant</p><h2 className="mt-1 font-bold">¿Qué quieres lograr?</h2><p className="text-xs text-muted">Opera tu negocio con lenguaje natural.</p></div><div className="flex items-center gap-2"><button type="button" onClick={resetConversation} disabled={busy || !messages.length} className="rounded-lg border border-line px-2.5 py-1.5 text-xs font-semibold text-muted transition hover:border-neon2/40 hover:text-neon2 disabled:cursor-not-allowed disabled:opacity-40" aria-label="Iniciar un nuevo chat">Nuevo chat</button><button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-line px-2 py-1 text-muted" aria-label="Cerrar">×</button></div></header>
       <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
         {!messages.length && <div className="space-y-3"><AgentSuggestionCard title="Acciones sugeridas" actions={QUICK_ACTIONS} onAction={(action) => void submit(action)}/>{!writeActionsEnabled && <p className="rounded-xl border border-neon3/25 bg-neon3/10 p-3 text-xs text-neon3">Modo seguro: puedes consultar y preparar propuestas; la creación está deshabilitada.</p>}</div>}
         {messages.map((message) => <article key={message.id} className={message.role === "user" ? "ml-10" : "mr-3"}><p className={`rounded-2xl px-4 py-3 text-sm ${message.role === "user" ? "bg-neon2 text-background" : "border border-line bg-surface"}`}>{message.text}</p>{message.cards?.map((card, index) => <Card key={`${message.id}-${index}`} card={card} writeActionsEnabled={writeActionsEnabled} busy={busy} onAction={(action) => void submit(action)} onConfirm={(id) => void confirm(id)}/>)}</article>)}
@@ -84,7 +91,7 @@ function Card({ card, writeActionsEnabled, busy, onAction, onConfirm }: { card: 
 }
 
 export function PromotionPreviewCard({ draft }: { draft: PromotionDraft }) {
-  const mechanic = draft.mechanic === "percentage" ? `${draft.benefit}% OFF` : draft.mechanic === "buy_x_get_y" ? "2×1" : draft.mechanic === "fixed_price" ? `Precio $${draft.benefit?.toLocaleString("es-CO")}` : `$${draft.benefit?.toLocaleString("es-CO")} OFF`;
+  const mechanic = draft.mechanic === "percentage" ? `${draft.benefit}% OFF` : draft.mechanic === "buy_x_get_y" ? `Paga ${draft.buyQuantity ?? 1}, lleva ${(draft.buyQuantity ?? 1) + (draft.getQuantity ?? 1)}` : draft.mechanic === "fixed_price" ? `Precio $${draft.benefit?.toLocaleString("es-CO")}` : `$${draft.benefit?.toLocaleString("es-CO")} OFF`;
   return <section className="mt-2 rounded-2xl border border-neon2/30 bg-neon2/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon2">Promoción propuesta</p><h3 className="mt-1 font-bold">{draft.title}</h3><p className="mt-1 text-xs text-muted">{draft.venueName}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs"><p className="rounded-xl bg-background p-2"><span className="block text-muted">Inicio</span>{formatDate(draft.startsAt)}</p><p className="rounded-xl bg-background p-2"><span className="block text-muted">Fin</span>{formatDate(draft.endsAt)}</p></div><p className="mt-3 text-xl font-black text-neon2">{mechanic}</p><p className="mt-1 text-xs text-muted">{draft.products.length} producto{draft.products.length === 1 ? "" : "s"}: {draft.products.map((product) => product.name).join(", ")}</p>{draft.budgetCop && <p className="mt-2 text-xs">Presupuesto: ${draft.budgetCop.toLocaleString("es-CO")}</p>}</section>;
 }
 
