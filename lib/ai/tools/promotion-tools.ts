@@ -75,10 +75,10 @@ export async function preparePromotionEngineConfiguration(ctx: AgentServerContex
   return { ok: true, data: { ...result, expiresAt: new Date(Date.now() + 30 * 60_000).toISOString() } };
 }
 
-export async function executePromotionEngineConfiguration(ctx: AgentServerContext, confirmationId: string): Promise<ToolResult<{ promotionId: string; status: string; mappingVerified: boolean; href: string }>> {
+export async function executePromotionEngineConfiguration(ctx: AgentServerContext, confirmationId: string): Promise<ToolResult<{ promotionId: string; status: string; mappingVerified: boolean; components: string[]; href: string }>> {
   const { data, error } = await ctx.supabase.rpc("execute_confirmed_agent_promotion_engine", { target_confirmation: confirmationId });
   if (error || !data) return errorResult(error?.message.includes("FORBIDDEN") ? "FORBIDDEN" : error?.message.includes("ALREADY_USED") || error?.message.includes("EXPIRED") ? "CONFLICT" : "INVALID_INPUT", error?.message ?? "No fue posible configurar el motor.");
-  return { ok: true, data: { ...(data as { promotionId: string; status: string; mappingVerified: boolean }), href: "/admin/promociones" } };
+  return { ok: true, data: { ...(data as { promotionId: string; status: string; mappingVerified: boolean; components: string[] }), href: "/admin/promociones" } };
 }
 
 export async function validatePromotion(ctx: AgentServerContext, draft: PromotionDraft): Promise<ToolResult<PromotionDraft>> {

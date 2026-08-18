@@ -23,6 +23,15 @@ export function matchByLabel<T>(message: string, items: T[], label: (item: T) =>
   return scored[0]?.score > 0 && scored[0].score > (scored[1]?.score ?? -1) ? scored[0].item : undefined;
 }
 
+export function detectEngineSections(message: string) {
+  const normalized = normalize(message);
+  if (/\b(todo|todos|completo|completa|motor completo)\b/.test(normalized)) return { configureMapping: true, configureRule: true, configureAttribution: true };
+  const configureMapping = /\b(mapping|sell[ -]?out|mapeo)\b/.test(normalized);
+  const configureRule = /\b(regla|mecanica|beneficio)\b/.test(normalized);
+  const configureAttribution = /\b(atribucion|campana|activacion)\b/.test(normalized);
+  return configureMapping || configureRule || configureAttribution ? { configureMapping, configureRule, configureAttribution } : {};
+}
+
 export function preservePromotionFlow(state: ConversationState, intent: AgentIntent): AgentIntent {
   if (state.intent !== "CREATE_PROMOTION" || intent.intent === "CREATE_PROMOTION" || intent.intent === "LIST_PROMOTIONS") return intent;
   return { ...intent, intent: "CREATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };

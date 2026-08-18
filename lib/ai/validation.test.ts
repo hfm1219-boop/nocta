@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fallbackIntent } from "./intent-router.ts";
-import { matchByLabel, parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "./conversation.ts";
+import { detectEngineSections, matchByLabel, parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "./conversation.ts";
 import { requiresExplicitConfirmation, validatePromotionDraft } from "./validation.ts";
 
 const productId = "10000000-0000-4000-8000-000000000001";
@@ -57,6 +57,12 @@ test("un título exacto duplicado selecciona el elemento más reciente", () => {
     { id: "older", title: "Gin Tropical · Noche especial" },
   ];
   assert.equal(matchByLabel("Gin Tropical - Noche especial", promotions, (item) => item.title)?.id, "newest");
+});
+
+test("el motor permite elegir módulos independientes", () => {
+  assert.deepEqual(detectEngineSections("solo mapping de sell-out"), { configureMapping: true, configureRule: false, configureAttribution: false });
+  assert.deepEqual(detectEngineSections("regla y atribución"), { configureMapping: false, configureRule: true, configureAttribution: true });
+  assert.deepEqual(detectEngineSections("todo el motor"), { configureMapping: true, configureRule: true, configureAttribution: true });
 });
 
 test("WRITE requiere confirmación y READ/DRAFT no", () => {
