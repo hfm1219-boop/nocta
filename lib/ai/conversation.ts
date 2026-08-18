@@ -2,6 +2,11 @@ import type { AgentIntent, PromotionDraft } from "./types.ts";
 
 type ConversationState = { intent?: string; promotionDraft?: PromotionDraft };
 
+export function startsNewPromotion(message: string) {
+  const normalized = normalize(message);
+  return /\b(?:nueva|nuevo|otra|otro)\s+(?:promocion|promo)\b|\b(?:promocion|promo)\s+(?:nueva|nuevo|distinta|diferente)\b/.test(normalized);
+}
+
 export function preservePromotionFlow(state: ConversationState, intent: AgentIntent): AgentIntent {
   if (state.intent !== "CREATE_PROMOTION" || intent.intent === "CREATE_PROMOTION" || intent.intent === "LIST_PROMOTIONS") return intent;
   return { ...intent, intent: "CREATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };
