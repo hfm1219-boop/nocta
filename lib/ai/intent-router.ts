@@ -16,8 +16,9 @@ const INTENT_SCHEMA = {
         mechanic: { type: ["string", "null"], enum: ["percentage", "fixed_amount", "buy_x_get_y", "fixed_price", null] },
         benefit: { type: ["number", "null"] }, startsAt: { type: ["string", "null"] }, endsAt: { type: ["string", "null"] },
         buyQuantity: { type: ["number", "null"] }, getQuantity: { type: ["number", "null"] },
+        promotionTitle: { type: ["string", "null"] }, action: { type: ["string", "null"], enum: ["update", "pause", "reactivate", "duplicate", null] },
       },
-      required: ["product", "productName", "mechanic", "benefit", "startsAt", "endsAt", "buyQuantity", "getQuantity"],
+      required: ["product", "productName", "mechanic", "benefit", "startsAt", "endsAt", "buyQuantity", "getQuantity", "promotionTitle", "action"],
     },
     missingFields: { type: "array", items: { type: "string" } },
   },
@@ -49,10 +50,11 @@ export async function routeIntent(message: string, context: RoutingContext): Pro
 
 export function fallbackIntent(message: string): AgentIntent {
   const normalized = message.toLocaleLowerCase("es-CO");
+  if (/\b(promociones).*(activas|tengo|listar|ver)\b/.test(normalized)) return { intent: "LIST_PROMOTIONS", confidence: 0.75, entities: {}, missingFields: [] };
+  if (/\b(pausa|pausar|desactiva|reactiva|reactivar|activa|editar|cambia|cambiar|duplica|duplicar|repite|repetir)\b.*\b(promoci[oó]n|promo)\b|\b(promoci[oó]n|promo)\b.*\b(pausa|reactiva|editar|cambia|duplica|repite)\b/.test(normalized)) return { intent: "UPDATE_PROMOTION", confidence: 0.86, entities: {}, missingFields: [] };
   if (/\b(promoci[oó]n|promo|descuento|2x1|precio especial|combo)\b/.test(normalized) || /\b(mover|impulsar|aumentar)\b.*\b(ventas?|producto|gin|ron|whisk|vodka|cerveza)\b/.test(normalized)) {
     return { intent: "CREATE_PROMOTION", confidence: 0.76, entities: {}, missingFields: [] };
   }
-  if (/\b(promociones).*\b(activas|tengo|listar|ver)\b/.test(normalized)) return { intent: "LIST_PROMOTIONS", confidence: 0.75, entities: {}, missingFields: [] };
   if (/\b(evento|dj|publicar)\b/.test(normalized)) return { intent: "CREATE_EVENT", confidence: 0.65, entities: {}, missingFields: [] };
   return { intent: "UNKNOWN", confidence: 0.35, entities: {}, missingFields: [] };
 }

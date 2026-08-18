@@ -84,6 +84,7 @@ export function NoctaAssistant({ writeActionsEnabled }: { writeActionsEnabled: b
 
 function Card({ card, writeActionsEnabled, busy, onAction, onConfirm }: { card: AgentCard; writeActionsEnabled: boolean; busy: boolean; onAction: (value: string) => void; onConfirm: (id: string) => void }) {
   if (card.type === "promotion_preview") return <PromotionPreviewCard draft={card.draft}/>;
+  if (card.type === "promotion_mutation_preview") return <section className="mt-2 rounded-2xl border border-neon3/30 bg-neon3/5 p-4"><p className="text-[10px] font-bold uppercase tracking-wider text-neon3">Cambio propuesto</p><h3 className="mt-1 font-bold">{card.draft.title}</h3><p className="mt-2 text-sm">{mutationLabel(card.draft.action)}</p>{card.draft.benefit && <p className="mt-1 text-xs text-muted">Nuevo beneficio: {card.draft.benefit}%</p>}{card.draft.startsAt && <p className="mt-1 text-xs text-muted">Inicio: {formatDate(card.draft.startsAt)}</p>}{card.draft.endsAt && <p className="mt-1 text-xs text-muted">Fin: {formatDate(card.draft.endsAt)}</p>}</section>;
   if (card.type === "confirmation") return <ConfirmationCard prompt={card.prompt} disabled={busy || !writeActionsEnabled} onConfirm={() => onConfirm(card.confirmationId)}/>;
   if (card.type === "tool_result") return <ToolResultCard title={card.title} detail={card.detail} href={card.href}/>;
   if (card.type === "suggestion") return <AgentSuggestionCard title={card.title} actions={card.actions} onAction={onAction}/>;
@@ -102,3 +103,4 @@ export function ErrorCard({ title, detail }: { title: string; detail: string }) 
 export function EventPreviewCard() { return <section className="rounded-2xl border border-line p-3 text-sm text-muted">Vista previa de evento disponible en la siguiente capacidad.</section>; }
 
 function formatDate(value?: string) { return value ? new Intl.DateTimeFormat("es-CO", { dateStyle: "medium", timeStyle: "short", timeZone: "America/Bogota" }).format(new Date(value)) : "Sin definir"; }
+function mutationLabel(action: string) { return action === "pause_promotion" ? "Pausar promoción" : action === "reactivate_promotion" ? "Reactivar promoción" : action === "duplicate_promotion" ? "Duplicar promoción" : "Editar promoción"; }

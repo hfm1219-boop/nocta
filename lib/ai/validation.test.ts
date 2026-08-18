@@ -10,6 +10,14 @@ test("crear una promo para mañana enruta a CREATE_PROMOTION", () => {
   assert.equal(fallbackIntent("Crear una promo para mañana" ).intent, "CREATE_PROMOTION");
 });
 
+test("listar promociones no se confunde con crear una promoción", () => {
+  assert.equal(fallbackIntent("¿Qué promociones tengo activas?").intent, "LIST_PROMOTIONS");
+});
+
+test("pausar una promoción enruta al ciclo de actualización", () => {
+  assert.equal(fallbackIntent("Pausa la promoción de Negroni").intent, "UPDATE_PROMOTION");
+});
+
 test("una respuesta de horario conserva el flujo de creación aunque el modelo diga UPDATE", () => {
   const routed = preservePromotionFlow(
     { intent: "CREATE_PROMOTION", promotionDraft: { productIds: [], products: [] } },
