@@ -90,10 +90,23 @@ export type PromotionEngineDraft = {
   configureAttribution?: boolean;
 };
 
+export type EventDraft = {
+  venueId?: string;
+  venueName?: string;
+  name?: string;
+  description?: string;
+  startsAt?: string;
+  endsAt?: string;
+  capacity?: number;
+  ticketName?: string;
+  ticketPriceCop?: number;
+};
+
 export type AgentCard =
   | { type: "promotion_preview"; confirmationId: string; draft: PromotionDraft; expiresAt: string }
   | { type: "promotion_mutation_preview"; confirmationId: string; draft: PromotionMutationDraft; expiresAt: string }
   | { type: "promotion_engine_preview"; confirmationId: string; draft: PromotionEngineDraft; mappingVerified: boolean; expiresAt: string }
+  | { type: "event_preview"; confirmationId: string; draft: EventDraft; expiresAt: string }
   | { type: "tool_result"; title: string; detail: string; href?: string }
   | { type: "confirmation"; confirmationId: string; prompt: string }
   | { type: "suggestion"; title: string; actions: AgentSuggestionAction[] }

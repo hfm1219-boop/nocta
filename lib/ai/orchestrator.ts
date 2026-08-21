@@ -1,13 +1,14 @@
 import type { AgentServerContext } from "@/lib/ai/context";
 import { detectEngineSections, matchByLabel, parseBuyXGetY, parseWindow, preservePromotionFlow, startsNewPromotion } from "@/lib/ai/conversation";
 import { fallbackIntent, routeIntent } from "@/lib/ai/intent-router";
-import type { AgentReply, PromotionDraft, PromotionEngineDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
+import type { AgentReply, EventDraft, PromotionDraft, PromotionEngineDraft, PromotionMechanic, PromotionMutationAction, PromotionMutationDraft } from "@/lib/ai/types";
 import { cleanText, isUuid } from "@/lib/ai/validation";
 import { createPromotion, executePromotionEngineConfiguration, executePromotionMutation, getPromotionEngineCatalog, listActivePromotions, listEstablishments, listManageablePromotions, preparePromotionConfirmation, preparePromotionEngineConfiguration, preparePromotionMutation, searchProducts } from "@/lib/ai/tools/promotion-tools";
+import { createEvent, prepareEventConfirmation } from "@/lib/ai/tools/event-tools";
 
 const MAX_STEPS = 8;
 type EngineSections = Pick<PromotionEngineDraft, "configureMapping" | "configureRule" | "configureAttribution">;
-type ConversationState = { intent?: string; promotionId?: string; action?: string; promotionDraft?: PromotionDraft; mutationDraft?: PromotionMutationDraft; pendingMutationAction?: PromotionMutationAction; engineDraft?: PromotionEngineDraft; engineSections?: EngineSections };
+type ConversationState = { intent?: string; promotionId?: string; eventId?: string; action?: string; promotionDraft?: PromotionDraft; eventDraft?: EventDraft; mutationDraft?: PromotionMutationDraft; pendingMutationAction?: PromotionMutationAction; engineDraft?: PromotionEngineDraft; engineSections?: EngineSections };
 
 export async function handleAgentMessage(ctx: AgentServerContext, input: { conversationId?: string; venueId?: string; promotionId?: string; message: string }): Promise<AgentReply> {
   const started = Date.now();
@@ -21,25 +22,28 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
   const requestedVenue = input.venueId ? venues.find((venue) => venue.id === input.venueId) : undefined;
   let state = conversation.state;
   const resetForNewPromotion = startsNewPromotion(message);
-  if (resetForNewPromotion) {
+  const resetForNewEvent = startsNewEvent(message);
+  if (resetForNewPromotion || resetForNewEvent) {
     const { error } = await ctx.supabase.rpc("reset_agent_promotion_flow", { target_conversation: conversation.id });
-    if (error) throw new OrchestratorError("CONVERSATION_RESET_FAILED", 500, "No fue posible iniciar la nueva promoción.");
+    if (error) throw new OrchestratorError("CONVERSATION_RESET_FAILED", 500, "No fue posible iniciar el nuevo flujo.");
     state = {};
   }
   if (input.promotionId && isUuid(input.promotionId)) state = { ...state, promotionId: input.promotionId };
-  const venue = requestedVenue ?? venues.find((item) => item.id === state.promotionDraft?.venueId) ?? (venues.length === 1 ? venues[0] : undefined);
+  const venue = requestedVenue ?? venues.find((item) => item.id === (state.promotionDraft?.venueId ?? state.eventDraft?.venueId)) ?? (venues.length === 1 ? venues[0] : undefined);
   const productResult = venue ? await searchProducts(ctx, venue.id) : { ok: true as const, data: [] };
   if (!productResult.ok) return failReply(conversation.id, productResult.error);
   let intent;
   try {
-    intent = await routeIntent(message, { now: new Date().toISOString(), venueName: venue?.name, products: productResult.data.map(({ id, name }) => ({ id, name })), currentDraft: state.promotionDraft });
+    intent = await routeIntent(message, { now: new Date().toISOString(), venueName: venue?.name, products: productResult.data.map(({ id, name }) => ({ id, name })), currentDraft: state.promotionDraft, currentEventDraft: state.eventDraft });
   } catch {
     intent = fallbackIntent(message);
   }
   if (resetForNewPromotion) intent = { ...intent, intent: "CREATE_PROMOTION" as const, confidence: 1 };
+  if (resetForNewEvent) intent = { ...intent, intent: "CREATE_EVENT" as const, confidence: 1 };
   intent = preservePromotionFlow(state, intent);
   if (state.intent === "UPDATE_PROMOTION" && intent.intent !== "LIST_PROMOTIONS") intent = { ...intent, intent: "UPDATE_PROMOTION", confidence: Math.max(intent.confidence, 0.9) };
   if (state.intent === "CONFIGURE_PROMOTION_ENGINE") intent = { ...intent, intent: "CONFIGURE_PROMOTION_ENGINE", confidence: Math.max(intent.confidence, 0.95) };
+  if (state.intent === "CREATE_EVENT") intent = { ...intent, intent: "CREATE_EVENT", confidence: Math.max(intent.confidence, 0.95) };
   const run = await startRun(ctx, conversation.id, intent.intent);
 
   if (intent.intent === "LIST_PROMOTIONS") {
@@ -53,10 +57,11 @@ export async function handleAgentMessage(ctx: AgentServerContext, input: { conve
 
   if (intent.intent === "UPDATE_PROMOTION") return handlePromotionMutation(ctx, { ...conversation, state }, run.id, started, message, intent.entities, venue);
   if (intent.intent === "CONFIGURE_PROMOTION_ENGINE") return handlePromotionEngine(ctx, { ...conversation, state }, run.id, started, message, venue);
+  if (intent.intent === "CREATE_EVENT") return handleEventCreation(ctx, { ...conversation, state }, run.id, started, message, intent.entities, venue, venues.length);
 
   if (intent.intent !== "CREATE_PROMOTION") {
-    const text = intent.intent === "CREATE_EVENT" ? "La creación conversacional de eventos será la siguiente capacidad. En este sprint ya puedes crear promociones de punta a punta." : "Por ahora puedo crear promociones o consultar las promociones activas de tu establecimiento.";
-    return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "suggestion", title: "Prueba una acción", actions: ["Crear promoción", "¿Qué promociones tengo activas?"] }]), 1);
+    const text = "Puedo crear eventos y promociones, configurar el motor transaccional o consultar las promociones activas de tu establecimiento.";
+    return completeRunWithMessage(ctx, run.id, started, reply(conversation.id, run.id, "completed", text, [{ type: "suggestion", title: "Prueba una acción", actions: ["Crear evento", "Crear promoción", "¿Qué promociones tengo activas?"] }]), 1);
   }
 
   const draft = enrichDraft(state.promotionDraft, message, intent.entities, venue, productResult.data);
@@ -85,7 +90,8 @@ export async function confirmAgentAction(ctx: AgentServerContext, input: { conve
   const started = Date.now();
   const isMutation = conversation.state.intent === "UPDATE_PROMOTION";
   const isEngine = conversation.state.intent === "CONFIGURE_PROMOTION_ENGINE";
-  const run = await startRun(ctx, conversation.id, isEngine ? "CONFIGURE_PROMOTION_ENGINE" : isMutation ? "UPDATE_PROMOTION" : "CREATE_PROMOTION");
+  const isEvent = conversation.state.intent === "CREATE_EVENT";
+  const run = await startRun(ctx, conversation.id, isEngine ? "CONFIGURE_PROMOTION_ENGINE" : isMutation ? "UPDATE_PROMOTION" : isEvent ? "CREATE_EVENT" : "CREATE_PROMOTION");
   if (isEngine) {
     const result = await executePromotionEngineConfiguration(ctx, input.confirmationId);
     await recordTool(ctx, run.id, "configure_promotion_engine", "WRITE", { confirmationId: input.confirmationId }, result, started);
@@ -103,12 +109,36 @@ export async function confirmAgentAction(ctx: AgentServerContext, input: { conve
     await addMessage(ctx, conversation.id, "assistant", message, { promotionId: result.data.promotionId });
     return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", message, [{ type: "tool_result", title: "Promoción actualizada", detail: `ID: ${result.data.promotionId}`, href: result.data.href }]), 1);
   }
+  if (isEvent) {
+    const result = await createEvent(ctx, input.confirmationId);
+    await recordTool(ctx, run.id, "create_event", "WRITE", { confirmationId: input.confirmationId }, result, started);
+    if (!result.ok) return completeRun(ctx, run.id, started, failReply(conversation.id, friendlyToolError(result.error), run.id), 1);
+    const message = "El evento fue creado y publicado correctamente en NOCTA.";
+    await addMessage(ctx, conversation.id, "assistant", message, { eventId: result.data.eventId, externalKey: result.data.externalKey });
+    return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", message, [{ type: "tool_result", title: "Evento creado", detail: `Código: ${result.data.externalKey}`, href: result.data.href }]), 1);
+  }
   const result = await createPromotion(ctx, input.confirmationId);
   await recordTool(ctx, run.id, "create_promotion", "WRITE", { confirmationId: input.confirmationId }, result, started);
   if (!result.ok) return completeRun(ctx, run.id, started, failReply(conversation.id, friendlyToolError(result.error), run.id), 1);
   const message = "La promoción fue creada y activada correctamente mediante el motor real de NOCTA.";
   await addMessage(ctx, conversation.id, "assistant", message, { promotionId: result.data.promotionId });
   return completeRun(ctx, run.id, started, reply(conversation.id, run.id, "completed", message, [{ type: "tool_result", title: "Promoción creada", detail: `ID: ${result.data.promotionId}`, href: result.data.href }]), 1);
+}
+
+async function handleEventCreation(ctx: AgentServerContext, conversation: { id: string; state: ConversationState }, runId: string, started: number, message: string, entities: Record<string, unknown>, venue: { id: string; name: string } | undefined, venueCount: number) {
+  const draft = enrichEventDraft(conversation.state.eventDraft, message, entities, venue);
+  await updateConversation(ctx, conversation.id, { intent: "CREATE_EVENT", eventDraft: draft }, venue?.id);
+  const question = nextEventQuestion(draft, venueCount);
+  if (question) return completeRunWithMessage(ctx, runId, started, reply(conversation.id, runId, "needs_input", question.message, question.actions.length ? [{ type: "suggestion", title: question.title, actions: question.actions }] : []), 3);
+  const prepared = await prepareEventConfirmation(ctx, conversation.id, draft);
+  await recordTool(ctx, runId, "validate_event", "DRAFT", { draft }, prepared, started);
+  if (!prepared.ok) return completeRun(ctx, runId, started, failReply(conversation.id, prepared.error, runId), 4);
+  const text = `Preparé “${draft.name}” en ${draft.venueName}. Revisa fecha, capacidad y entrada antes de confirmar.`;
+  await addMessage(ctx, conversation.id, "assistant", text, { confirmationId: prepared.data.confirmationId });
+  return completeRun(ctx, runId, started, reply(conversation.id, runId, "needs_confirmation", text, [
+    { type: "event_preview", confirmationId: prepared.data.confirmationId, draft, expiresAt: prepared.data.expiresAt },
+    { type: "confirmation", confirmationId: prepared.data.confirmationId, prompt: "¿Confirmas la creación y publicación de este evento?" },
+  ]), 4);
 }
 
 async function handlePromotionEngine(ctx: AgentServerContext, conversation: { id: string; state: ConversationState }, runId: string, started: number, message: string, venue?: { id: string; name: string }) {
@@ -315,7 +345,48 @@ function nextQuestion(draft: PromotionDraft, venueCount: number) {
   return null;
 }
 
+function enrichEventDraft(previous: EventDraft | undefined, message: string, entities: Record<string, unknown>, venue?: { id: string; name: string }): EventDraft {
+  const draft: EventDraft = { ticketName: "Entrada general", ...previous };
+  if (venue) { draft.venueId = venue.id; draft.venueName = venue.name; }
+  const normalized = normalize(message);
+  const entityName = cleanText(entities.eventName, 120);
+  if (entityName) draft.name = entityName;
+  const namedEvent = message.match(/\bevento(?:\s+(?:llamado|nombre))?\s+["“]?([^"”]+)["”]?/i)?.[1]?.trim();
+  if (!draft.name && namedEvent && !/^(?:nuevo|nueva)$/i.test(namedEvent)) draft.name = cleanText(namedEvent, 120);
+  if (!draft.name && !isGenericEventRequest(message) && !looksLikeEventDetail(normalized)) draft.name = cleanText(message.replace(/^["“]|["”]$/g, ""), 120);
+  const entityDescription = cleanText(entities.description, 500);
+  if (entityDescription) draft.description = entityDescription;
+  const window = parseWindow(message, entities, draft.startsAt);
+  if (window.startsAt) draft.startsAt = window.startsAt;
+  if (window.endsAt) draft.endsAt = window.endsAt;
+  const capacity = normalized.match(/(?:capacidad|cupo|para)\s*(?:de\s*)?(\d{1,6})\s*(?:personas?)?|\b(\d{1,6})\s*personas?\b/);
+  const capacityValue = Number(capacity?.[1] ?? capacity?.[2]);
+  if (Number.isInteger(capacityValue) && capacityValue > 0) draft.capacity = capacityValue;
+  const entityCapacity = Number(entities.capacity);
+  if (Number.isInteger(entityCapacity) && entityCapacity > 0) draft.capacity = entityCapacity;
+  if (/\b(gratis|gratuito|entrada libre)\b/.test(normalized)) draft.ticketPriceCop = 0;
+  const price = message.match(/(?:entrada|ticket|boleta|precio|valor)[^\d]{0,18}\$?\s*(\d{1,3}(?:[.,]\d{3})+|\d{4,})/i);
+  if (price) draft.ticketPriceCop = Number(price[1].replace(/[.,]/g, ""));
+  const entityPrice = Number(entities.ticketPriceCop);
+  if (Number.isFinite(entityPrice) && entityPrice >= 0 && entities.ticketPriceCop !== null) draft.ticketPriceCop = entityPrice;
+  if (draft.name) draft.description ||= `Evento ${draft.name} en ${draft.venueName ?? "NOCTA"}.`;
+  return draft;
+}
+
+function nextEventQuestion(draft: EventDraft, venueCount: number) {
+  if (!draft.venueId) return { title: "Establecimiento", message: venueCount ? "¿En cuál establecimiento se realizará el evento?" : "No hay establecimientos activos disponibles.", actions: [] as string[] };
+  if (!draft.name) return { title: "Nombre", message: "¿Cómo se llamará el evento?", actions: [] as string[] };
+  if (!draft.startsAt) return { title: "Inicio", message: "¿Qué día y a qué hora comienza? Por ejemplo: “este viernes a las 8:00 p. m.”", actions: [] as string[] };
+  if (!draft.endsAt) return { title: "Cierre", message: "¿A qué hora termina el evento?", actions: [] as string[] };
+  if (!draft.capacity) return { title: "Capacidad", message: "¿Cuál será la capacidad máxima de personas?", actions: [] as string[] };
+  if (draft.ticketPriceCop === undefined) return { title: "Entrada", message: "¿Cuál será el precio de la entrada general? También puedes responder “gratis”.", actions: ["Gratis"] };
+  return null;
+}
+
 function normalize(value: string) { return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("es-CO"); }
+function startsNewEvent(message: string) { return /\b(?:nuevo|nueva|otro|otra)\s+evento\b|\bevento\s+(?:nuevo|diferente|distinto)\b/.test(normalize(message)); }
+function isGenericEventRequest(message: string) { return /^(?:quiero\s+)?(?:crear|crea|nuevo|nueva|hacer|haz|organizar|organiza)?\s*(?:un\s+|una\s+)?evento\s*[.!?]*$/i.test(message.trim()); }
+function looksLikeEventDetail(normalized: string) { return /\b(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy|capacidad|cupo|personas|gratis|entrada|ticket|boleta)\b|\d/.test(normalized); }
 function reply(conversationId: string, runId: string, status: AgentReply["status"], message: string, cards: AgentReply["cards"]): AgentReply { return { conversationId, runId, status, message, cards }; }
 function failReply(conversationId: string, message: string, runId?: string): AgentReply { return { conversationId, runId, status: "error", message, cards: [{ type: "error", title: "No pude completar la acción", detail: message }] }; }
 function friendlyToolError(value: string) { return value.includes("ALREADY_USED") ? "Esta confirmación ya fue utilizada." : value.includes("EXPIRED") ? "La confirmación expiró. Genera una nueva propuesta." : value; }
