@@ -22,6 +22,10 @@ test("configurar mapping de sell-out enruta al motor transaccional", () => {
   assert.equal(fallbackIntent("Configura el mapping de sell-out de la promo Negroni").intent, "CONFIGURE_PROMOTION_ENGINE");
 });
 
+test("crear un evento enruta al flujo de eventos", () => {
+  assert.equal(fallbackIntent("Crear evento" ).intent, "CREATE_EVENT");
+});
+
 test("una respuesta de horario conserva el flujo de creación aunque el modelo diga UPDATE", () => {
   const routed = preservePromotionFlow(
     { intent: "CREATE_PROMOTION", promotionDraft: { productIds: [], products: [] } },

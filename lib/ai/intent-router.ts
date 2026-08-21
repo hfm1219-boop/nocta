@@ -1,8 +1,8 @@
 import { NOCTA_AGENT_SYSTEM_PROMPT } from "./prompts/system.ts";
 import { parseIntent } from "./validation.ts";
-import type { AgentIntent, PromotionDraft } from "./types.ts";
+import type { AgentIntent, EventDraft, PromotionDraft } from "./types.ts";
 
-type RoutingContext = { now: string; venueName?: string; products: Array<{ id: string; name: string }>; currentDraft?: PromotionDraft };
+type RoutingContext = { now: string; venueName?: string; products: Array<{ id: string; name: string }>; currentDraft?: PromotionDraft; currentEventDraft?: EventDraft };
 
 const INTENT_SCHEMA = {
   type: "object", additionalProperties: false,
@@ -17,8 +17,9 @@ const INTENT_SCHEMA = {
         benefit: { type: ["number", "null"] }, startsAt: { type: ["string", "null"] }, endsAt: { type: ["string", "null"] },
         buyQuantity: { type: ["number", "null"] }, getQuantity: { type: ["number", "null"] },
         promotionTitle: { type: ["string", "null"] }, action: { type: ["string", "null"], enum: ["update", "pause", "reactivate", "duplicate", null] },
+        eventName: { type: ["string", "null"] }, capacity: { type: ["number", "null"] }, ticketPriceCop: { type: ["number", "null"] }, description: { type: ["string", "null"] },
       },
-      required: ["product", "productName", "mechanic", "benefit", "startsAt", "endsAt", "buyQuantity", "getQuantity", "promotionTitle", "action"],
+      required: ["product", "productName", "mechanic", "benefit", "startsAt", "endsAt", "buyQuantity", "getQuantity", "promotionTitle", "action", "eventName", "capacity", "ticketPriceCop", "description"],
     },
     missingFields: { type: "array", items: { type: "string" } },
   },
@@ -35,7 +36,7 @@ export async function routeIntent(message: string, context: RoutingContext): Pro
       model: process.env.OPENAI_AGENT_MODEL || "gpt-5.6-luna",
       store: false,
       instructions: NOCTA_AGENT_SYSTEM_PROMPT,
-      input: `Mensaje actual: ${message}\nContexto verificable: ${JSON.stringify(context)}\nSi currentDraft existe, el mensaje actual continúa ese flujo: una fecha, hora, cantidad, producto o beneficio aislado completa el borrador y conserva CREATE_PROMOTION; no lo clasifiques como UPDATE_PROMOTION salvo que el usuario pida modificar una promoción ya existente. “Pague N lleve M” significa buy_x_get_y con buyQuantity=N y getQuantity=M-N.`,
+      input: `Mensaje actual: ${message}\nContexto verificable: ${JSON.stringify(context)}\nSi currentDraft existe, el mensaje actual continúa ese flujo: una fecha, hora, cantidad, producto o beneficio aislado completa el borrador y conserva CREATE_PROMOTION; no lo clasifiques como UPDATE_PROMOTION salvo que el usuario pida modificar una promoción ya existente. Si currentEventDraft existe, conserva CREATE_EVENT y extrae nombre, descripción, capacidad, precio de entrada y fechas sin inventar datos. “Pague N lleve M” significa buy_x_get_y con buyQuantity=N y getQuantity=M-N.`,
       text: { format: { type: "json_schema", name: "agent_intent", strict: true, schema: INTENT_SCHEMA } },
     }),
     signal: AbortSignal.timeout(20_000),
